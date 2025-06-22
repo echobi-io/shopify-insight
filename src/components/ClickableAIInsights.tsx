@@ -7,11 +7,19 @@ import { Badge } from '@/components/ui/badge';
 interface ClickableAIInsightsProps {
   insights: string[];
   onInsightClick: (drillType: string, filters?: any) => void;
+  title?: string;
+  icon?: React.ReactNode;
+  badge?: string;
+  actions?: React.ReactNode;
 }
 
 const ClickableAIInsights: React.FC<ClickableAIInsightsProps> = ({
   insights,
-  onInsightClick
+  onInsightClick,
+  title = "AI-Generated Insights",
+  icon,
+  badge = "Updated 2h ago",
+  actions
 }) => {
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -85,9 +93,9 @@ const ClickableAIInsights: React.FC<ClickableAIInsightsProps> = ({
       <Card className="group hover:border-primary/30 transition-all duration-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Brain className="w-5 h-5 text-primary" />
-            AI-Generated Insights
-            <Badge variant="secondary" className="ml-2">Updated 2h ago</Badge>
+            {icon || <Brain className="w-5 h-5 text-primary" />}
+            {title}
+            {badge && <Badge variant="secondary" className="ml-2">{badge}</Badge>}
             <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
               <MousePointer className="w-4 h-4 text-muted-foreground" />
             </div>
@@ -113,6 +121,13 @@ const ClickableAIInsights: React.FC<ClickableAIInsightsProps> = ({
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+          
+          {/* Custom Actions */}
+          {actions && (
+            <div className="pt-2 border-t border-border">
+              {actions}
             </div>
           )}
           

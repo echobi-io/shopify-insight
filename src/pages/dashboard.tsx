@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import DrillThroughModal from "@/components/DrillThroughModal";
 import ClickableKPICard from "@/components/ClickableKPICard";
 import ClickableAIInsights from "@/components/ClickableAIInsights";
+import ClickableChart from "@/components/ClickableChart";
+import ClickableTable from "@/components/ClickableTable";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -425,6 +427,159 @@ export default function Dashboard() {
             ltv: Math.floor(Math.random() * 1500) + 500,
             action: ['Email Campaign', 'Discount Offer', 'Personal Outreach'][Math.floor(Math.random() * 3)]
           }))
+        };
+
+      // Sales & Revenue specific drill-through data
+      case 'sales-revenue':
+        return {
+          ...baseData,
+          type: 'sales-revenue' as const,
+          title: 'Sales Revenue Breakdown',
+          subtitle: `Detailed sales revenue analysis for ${baseData.filters.dateRange}`,
+          value: '£67,000',
+          change: '+15.5% vs last period',
+          changeType: 'positive' as const,
+          data: Array.from({ length: 50 }, (_, i) => ({
+            date: `2024-06-${String(i + 1).padStart(2, '0')}`,
+            order_id: `ORD-${2000 + i}`,
+            customer: `Customer ${i + 1}`,
+            product: ['Stainless Travel Mug', 'Kids Water Bottle', 'Premium Coffee Beans', 'Eco Tote Bag', 'Wireless Earbuds'][i % 5],
+            value: Math.floor(Math.random() * 500) + 50,
+            refunds: Math.floor(Math.random() * 50),
+            status: Math.random() > 0.1 ? 'completed' : 'pending'
+          }))
+        };
+
+      case 'sales-orders':
+        return {
+          ...baseData,
+          type: 'sales-orders' as const,
+          title: 'Sales Orders Analysis',
+          subtitle: `Detailed sales orders for ${baseData.filters.dateRange}`,
+          value: '480',
+          change: '+20.0% vs last period',
+          changeType: 'positive' as const,
+          data: Array.from({ length: 50 }, (_, i) => ({
+            date: `2024-06-${String(i + 1).padStart(2, '0')}`,
+            order_id: `ORD-${2000 + i}`,
+            customer: `Customer ${i + 1}`,
+            items: Math.floor(Math.random() * 5) + 1,
+            value: Math.floor(Math.random() * 500) + 50,
+            aov: Math.floor(Math.random() * 200) + 100,
+            status: Math.random() > 0.1 ? 'completed' : 'pending'
+          }))
+        };
+
+      case 'refunds':
+        return {
+          ...baseData,
+          type: 'refunds' as const,
+          title: 'Refunds Analysis',
+          subtitle: `Refund details for ${baseData.filters.dateRange}`,
+          value: '£1,407',
+          change: '+34.8% vs last period',
+          changeType: 'negative' as const,
+          data: Array.from({ length: 30 }, (_, i) => ({
+            date: `2024-06-${String(i + 1).padStart(2, '0')}`,
+            order_id: `ORD-${1500 + i}`,
+            customer: `Customer ${i + 1}`,
+            product: ['Wireless Earbuds', 'Kids Water Bottle', 'Premium Coffee Beans'][i % 3],
+            amount: Math.floor(Math.random() * 200) + 20,
+            reason: ['Defective', 'Not as described', 'Changed mind', 'Damaged in shipping'][Math.floor(Math.random() * 4)],
+            status: Math.random() > 0.3 ? 'processed' : 'pending'
+          }))
+        };
+
+      case 'retention':
+        return {
+          ...baseData,
+          type: 'retention' as const,
+          title: 'Customer Retention Analysis',
+          subtitle: `Retention cohorts for ${baseData.filters.dateRange}`,
+          value: '68.5%',
+          change: '+6.7% vs last period',
+          changeType: 'positive' as const,
+          data: Array.from({ length: 12 }, (_, i) => ({
+            cohort: `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i]} 2024`,
+            customers: Math.floor(Math.random() * 500) + 800,
+            month1: Math.floor(Math.random() * 30) + 70,
+            month2: Math.floor(Math.random() * 25) + 55,
+            month3: Math.floor(Math.random() * 20) + 45,
+            month6: Math.floor(Math.random() * 15) + 35,
+            retention: Math.floor(Math.random() * 20) + 60
+          }))
+        };
+
+      case 'trends':
+        return {
+          ...baseData,
+          type: 'trends' as const,
+          title: 'Sales Trends Analysis',
+          subtitle: `Trend breakdown for ${filters?.date || baseData.filters.dateRange}`,
+          value: filters?.date || 'Selected Period',
+          change: '+15.8% vs previous period',
+          changeType: 'positive' as const,
+          data: Array.from({ length: 24 }, (_, i) => ({
+            hour: `${String(i).padStart(2, '0')}:00`,
+            revenue: Math.floor(Math.random() * 5000) + 1000,
+            orders: Math.floor(Math.random() * 30) + 5,
+            conversion: (Math.random() * 3 + 2).toFixed(1),
+            aov: Math.floor(Math.random() * 100) + 150
+          }))
+        };
+
+      case 'product-sales':
+        return {
+          ...baseData,
+          type: 'product-sales' as const,
+          title: `Product Sales: ${filters?.product || 'All Products'}`,
+          subtitle: `Product performance for ${baseData.filters.dateRange}`,
+          value: filters?.product ? '£8,715' : '£67,000',
+          change: '+22.3% vs last period',
+          changeType: 'positive' as const,
+          data: Array.from({ length: 30 }, (_, i) => ({
+            date: `2024-06-${String(i + 1).padStart(2, '0')}`,
+            revenue: Math.floor(Math.random() * 1000) + 200,
+            units: Math.floor(Math.random() * 20) + 5,
+            refunds: Math.floor(Math.random() * 50),
+            customers: Math.floor(Math.random() * 15) + 3,
+            repeatOrders: Math.floor(Math.random() * 10)
+          }))
+        };
+
+      case 'segment-analysis':
+        return {
+          ...baseData,
+          type: 'segment-analysis' as const,
+          title: `Segment Analysis: ${filters?.segment || 'All Segments'}`,
+          subtitle: `Customer segment breakdown for ${baseData.filters.dateRange}`,
+          value: filters?.segment === 'VIP' ? '£15,200' : '£67,000',
+          change: '+28.4% vs last period',
+          changeType: 'positive' as const,
+          data: [
+            { segment: 'New Customers', customers: 142, revenue: 18500, orders: 142, aov: 130.28, retention: 23 },
+            { segment: 'Repeat Customers', customers: 338, revenue: 48500, orders: 456, aov: 106.36, retention: 67 },
+            { segment: 'VIP Customers', customers: 45, revenue: 15200, orders: 89, aov: 337.78, retention: 89 },
+            { segment: 'At-Risk Customers', customers: 67, revenue: 8900, orders: 78, aov: 114.10, retention: 12 }
+          ]
+        };
+
+      case 'channel-analysis':
+        return {
+          ...baseData,
+          type: 'channel-analysis' as const,
+          title: `Channel Analysis: ${filters?.channel || 'All Channels'}`,
+          subtitle: `Channel performance for ${baseData.filters.dateRange}`,
+          value: filters?.channel === 'Organic Search' ? '£24,500' : '£67,000',
+          change: '+19.7% vs last period',
+          changeType: 'positive' as const,
+          data: [
+            { channel: 'Organic Search', revenue: 24500, orders: 234, aov: 104.70, conversion: 3.4, sessions: 6890 },
+            { channel: 'Social Media', revenue: 18200, orders: 189, aov: 96.30, conversion: 2.8, sessions: 6750 },
+            { channel: 'Email Marketing', revenue: 12800, orders: 145, aov: 88.28, conversion: 8.9, sessions: 1629 },
+            { channel: 'Direct Traffic', revenue: 8900, orders: 98, aov: 90.82, conversion: 4.2, sessions: 2333 },
+            { channel: 'Paid Ads', revenue: 2600, orders: 34, aov: 76.47, conversion: 2.1, sessions: 1619 }
+          ]
         };
 
       default:
@@ -995,158 +1150,163 @@ export default function Dashboard() {
 
               {/* Headline KPI Strip */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                <PremiumKPICard
+                <ClickableKPICard
                   title="Total Revenue"
-                  current={salesKpiData.totalRevenue.current}
-                  previous={salesKpiData.totalRevenue.previous}
-                  change={salesKpiData.totalRevenue.change}
-                  icon={DollarSign}
-                  tooltip="Sum of all completed orders in selected period"
+                  value={`£${salesKpiData.totalRevenue.current.toLocaleString()}`}
+                  change={`${salesKpiData.totalRevenue.change > 0 ? '+' : ''}${salesKpiData.totalRevenue.change.toFixed(1)}% vs last month`}
+                  changeType={salesKpiData.totalRevenue.change > 0 ? 'positive' : 'negative'}
+                  icon={<DollarSign className="w-5 h-5" />}
+                  onClick={() => handleDrillThrough('sales-revenue')}
                 />
-                <PremiumKPICard
+                <ClickableKPICard
                   title="Total Orders"
-                  current={salesKpiData.totalOrders.current}
-                  previous={salesKpiData.totalOrders.previous}
-                  change={salesKpiData.totalOrders.change}
-                  icon={ShoppingBag}
-                  tooltip="Count of all valid orders excluding cancelled/voided"
+                  value={salesKpiData.totalOrders.current.toLocaleString()}
+                  change={`${salesKpiData.totalOrders.change > 0 ? '+' : ''}${salesKpiData.totalOrders.change.toFixed(1)}% vs last month`}
+                  changeType={salesKpiData.totalOrders.change > 0 ? 'positive' : 'negative'}
+                  icon={<ShoppingBag className="w-5 h-5" />}
+                  onClick={() => handleDrillThrough('sales-orders')}
                 />
-                <PremiumKPICard
+                <ClickableKPICard
                   title="Average Order Value"
-                  current={salesKpiData.avgOrderValue.current}
-                  previous={salesKpiData.avgOrderValue.previous}
-                  change={salesKpiData.avgOrderValue.change}
-                  icon={CreditCard}
-                  tooltip="Revenue divided by total orders"
+                  value={`£${salesKpiData.avgOrderValue.current.toFixed(2)}`}
+                  change={`${salesKpiData.avgOrderValue.change > 0 ? '+' : ''}${salesKpiData.avgOrderValue.change.toFixed(1)}% vs last month`}
+                  changeType={salesKpiData.avgOrderValue.change > 0 ? 'positive' : 'negative'}
+                  icon={<CreditCard className="w-5 h-5" />}
+                  onClick={() => handleDrillThrough('aov', { context: 'sales' })}
                 />
-                <PremiumKPICard
-                  title="Refund Rate %"
-                  current={salesKpiData.refundRate.current}
-                  previous={salesKpiData.refundRate.previous}
-                  change={salesKpiData.refundRate.change}
-                  icon={AlertTriangle}
-                  hasAlert={salesKpiData.refundRate.change > 15}
-                  tooltip="Percentage of revenue refunded"
+                <ClickableKPICard
+                  title="Refund Rate"
+                  value={`${salesKpiData.refundRate.current}%`}
+                  change={`${salesKpiData.refundRate.change > 0 ? '+' : ''}${salesKpiData.refundRate.change.toFixed(1)}% vs last month`}
+                  changeType={salesKpiData.refundRate.change > 0 ? 'negative' : 'positive'}
+                  icon={<AlertTriangle className="w-5 h-5" />}
+                  onClick={() => handleDrillThrough('refunds')}
                 />
-                <PremiumKPICard
-                  title="Repeat Order %"
-                  current={salesKpiData.repeatOrderRate.current}
-                  previous={salesKpiData.repeatOrderRate.previous}
-                  change={salesKpiData.repeatOrderRate.change}
-                  icon={UserCheck}
-                  tooltip="Customers with 2+ orders / All customers who ordered"
+                <ClickableKPICard
+                  title="Repeat Order Rate"
+                  value={`${salesKpiData.repeatOrderRate.current}%`}
+                  change={`${salesKpiData.repeatOrderRate.change > 0 ? '+' : ''}${salesKpiData.repeatOrderRate.change.toFixed(1)}% vs last month`}
+                  changeType={salesKpiData.repeatOrderRate.change > 0 ? 'positive' : 'negative'}
+                  icon={<UserCheck className="w-5 h-5" />}
+                  onClick={() => handleDrillThrough('retention')}
                 />
               </div>
 
               {/* Sales Trend Chart */}
-              <motion.div variants={fadeInUp}>
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-primary" />
-                        Sales Performance Trends
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Select value={chartView} onValueChange={setChartView}>
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="revenue">Revenue</SelectItem>
-                            <SelectItem value="orders">Orders</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4 mr-2" />
-                          Details
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={350}>
-                      <AreaChart data={salesTrendData}>
-                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                        <XAxis dataKey="date" fontSize={12} />
-                        <YAxis fontSize={12} />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: 'hsl(var(--card))', 
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '8px'
-                          }}
-                          formatter={(value: any, name: string) => {
-                            if (name === 'revenue') return [`$${value.toLocaleString()}`, 'Revenue'];
-                            if (name === 'orders') return [value, 'Orders'];
-                            return [value, name];
-                          }}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey={chartView === 'revenue' ? (revenueType === 'gross' ? 'grossRevenue' : 'revenue') : 'orders'}
-                          stroke="#3b82f6" 
-                          fill="#3b82f6" 
-                          fillOpacity={0.2}
-                          strokeWidth={2}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              </motion.div>
+              <ClickableChart
+                title="Sales Performance Trends"
+                icon={<TrendingUp className="w-5 h-5 text-primary" />}
+                onChartClick={(data) => handleDrillThrough('trends', { date: data?.activeLabel })}
+                onDetailsClick={() => handleDrillThrough('trends')}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <Select value={chartView} onValueChange={setChartView}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="revenue">Revenue</SelectItem>
+                      <SelectItem value="orders">Orders</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <ResponsiveContainer width="100%" height={350}>
+                  <AreaChart 
+                    data={salesTrendData}
+                    onClick={(data) => {
+                      if (data && data.activeLabel) {
+                        handleDrillThrough('trends', { date: data.activeLabel });
+                      }
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="date" fontSize={12} />
+                    <YAxis fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                      formatter={(value: any, name: string) => {
+                        if (name === 'revenue') return [`£${value.toLocaleString()}`, 'Revenue'];
+                        if (name === 'orders') return [value, 'Orders'];
+                        return [value, name];
+                      }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey={chartView === 'revenue' ? (revenueType === 'gross' ? 'grossRevenue' : 'revenue') : 'orders'}
+                      stroke="#3b82f6" 
+                      fill="#3b82f6" 
+                      fillOpacity={0.2}
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ClickableChart>
 
               {/* Revenue Breakdown by Product */}
-              <motion.div variants={fadeInUp}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="w-5 h-5 text-primary" />
-                      Product Performance Breakdown
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-border">
-                            <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
-                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">Units Sold</th>
-                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">Revenue</th>
-                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">AOV</th>
-                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">Refunds</th>
-                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">Repeat %</th>
-                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">Trend</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {productBreakdownData.map((product, index) => (
-                            <tr key={index} className="border-b border-border/50 hover:bg-muted/50">
-                              <td className="py-3 px-4 font-medium">{product.product}</td>
-                              <td className="text-right py-3 px-4">{product.unitsSold.toLocaleString()}</td>
-                              <td className="text-right py-3 px-4">£{product.revenue.toLocaleString()}</td>
-                              <td className="text-right py-3 px-4">£{product.aov.toFixed(1)}</td>
-                              <td className="text-right py-3 px-4">
-                                <span className={product.refunds > 100 ? 'text-red-600' : 'text-muted-foreground'}>
-                                  £{product.refunds}
-                                </span>
-                              </td>
-                              <td className="text-right py-3 px-4">
-                                <span className={product.repeatOrderRate > 60 ? 'text-green-600' : 'text-muted-foreground'}>
-                                  {product.repeatOrderRate}%
-                                </span>
-                              </td>
-                              <td className="text-right py-3 px-4">
-                                <Sparkline data={product.trend} />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+              <ClickableTable
+                title="Product Performance Breakdown"
+                icon={<Package className="w-5 h-5 text-primary" />}
+                onExport={() => console.log('Export product data')}
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">Units Sold</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">Revenue</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">AOV</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">Refunds</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">Repeat %</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">Trend</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productBreakdownData.map((product, index) => (
+                        <tr 
+                          key={index} 
+                          className="border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => handleDrillThrough('product-sales', { product: product.product })}
+                        >
+                          <td className="py-3 px-4 font-medium">{product.product}</td>
+                          <td className="text-right py-3 px-4">{product.unitsSold.toLocaleString()}</td>
+                          <td className="text-right py-3 px-4">£{product.revenue.toLocaleString()}</td>
+                          <td className="text-right py-3 px-4">£{product.aov.toFixed(1)}</td>
+                          <td className="text-right py-3 px-4">
+                            <span 
+                              className={`${product.refunds > 100 ? 'text-red-600' : 'text-muted-foreground'} cursor-pointer hover:underline`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDrillThrough('refunds', { product: product.product });
+                              }}
+                            >
+                              £{product.refunds}
+                            </span>
+                          </td>
+                          <td className="text-right py-3 px-4">
+                            <span 
+                              className={`${product.repeatOrderRate > 60 ? 'text-green-600' : 'text-muted-foreground'} cursor-pointer hover:underline`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDrillThrough('retention', { product: product.product });
+                              }}
+                            >
+                              {product.repeatOrderRate}%
+                            </span>
+                          </td>
+                          <td className="text-right py-3 px-4">
+                            <Sparkline data={product.trend} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </ClickableTable>
 
               {/* Time Comparison Panel */}
               <motion.div variants={fadeInUp}>
@@ -1210,99 +1370,95 @@ export default function Dashboard() {
 
               {/* Segment Analysis */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <motion.div variants={fadeInUp}>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Users className="w-5 h-5 text-primary" />
-                        Revenue by Customer Segment
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={segmentAnalysisData} layout="horizontal">
-                          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                          <XAxis type="number" fontSize={12} />
-                          <YAxis dataKey="segment" type="category" fontSize={12} width={100} />
-                          <Tooltip 
-                            contentStyle={{ 
-                              backgroundColor: 'hsl(var(--card))', 
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px'
-                            }}
-                            formatter={(value: any) => [`$${value.toLocaleString()}`, 'Revenue']}
-                          />
-                          <Bar dataKey="revenue" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                </motion.div>
+                <ClickableChart
+                  title="Revenue by Customer Segment"
+                  icon={<Users className="w-5 h-5 text-primary" />}
+                  onChartClick={(data) => {
+                    if (data && data.activeLabel) {
+                      handleDrillThrough('segment-analysis', { segment: data.activeLabel });
+                    }
+                  }}
+                  onDetailsClick={() => handleDrillThrough('segment-analysis')}
+                >
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart 
+                      data={segmentAnalysisData} 
+                      layout="horizontal"
+                      onClick={(data) => {
+                        if (data && data.activeLabel) {
+                          handleDrillThrough('segment-analysis', { segment: data.activeLabel });
+                        }
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                      <XAxis type="number" fontSize={12} />
+                      <YAxis dataKey="segment" type="category" fontSize={12} width={100} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                        formatter={(value: any) => [`£${value.toLocaleString()}`, 'Revenue']}
+                      />
+                      <Bar dataKey="revenue" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ClickableChart>
 
-                <motion.div variants={fadeInUp}>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Target className="w-5 h-5 text-primary" />
-                        Revenue by Channel
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <RechartsPieChart>
-                          <Pie
-                            data={channelBreakdownData}
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={100}
-                            fill="#8884d8"
-                            dataKey="revenue"
-                            label={({ name, percentage }) => `${name}: ${percentage}%`}
-                          >
-                            {channelBreakdownData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            contentStyle={{ 
-                              backgroundColor: 'hsl(var(--card))', 
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px'
-                            }}
-                            formatter={(value: any) => [`$${value.toLocaleString()}`, 'Revenue']}
-                          />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                </motion.div>
+                <ClickableChart
+                  title="Revenue by Channel"
+                  icon={<Target className="w-5 h-5 text-primary" />}
+                  onChartClick={(data) => {
+                    if (data && data.activeLabel) {
+                      handleDrillThrough('channel-analysis', { channel: data.activeLabel });
+                    }
+                  }}
+                  onDetailsClick={() => handleDrillThrough('channel-analysis')}
+                >
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RechartsPieChart
+                      onClick={(data) => {
+                        if (data && data.activeLabel) {
+                          handleDrillThrough('channel-analysis', { channel: data.activeLabel });
+                        }
+                      }}
+                    >
+                      <Pie
+                        data={channelBreakdownData}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="revenue"
+                        label={({ name, percentage }) => `${name}: ${percentage}%`}
+                      >
+                        {channelBreakdownData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                        formatter={(value: any) => [`£${value.toLocaleString()}`, 'Revenue']}
+                      />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
+                </ClickableChart>
               </div>
 
               {/* AI-Powered Narrative Insight */}
               <motion.div variants={fadeInUp}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Brain className="w-5 h-5 text-primary" />
-                      AI Sales Intelligence
-                      <Badge variant="secondary" className="ml-2">Updated 1h ago</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="p-4 bg-muted/50 rounded-lg border-l-4 border-primary">
-                      <p className="text-sm leading-relaxed">{salesAiInsights.summary}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm">Key Sales Insights:</h4>
-                      <ul className="space-y-1">
-                        {salesAiInsights.keyTakeaways.map((takeaway, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
-                            <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
-                            {takeaway}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                <ClickableAIInsights
+                  insights={[salesAiInsights.summary, ...salesAiInsights.keyTakeaways]}
+                  onInsightClick={handleAIInsightClick}
+                  title="AI Sales Intelligence"
+                  icon={<Brain className="w-5 h-5 text-primary" />}
+                  badge="Updated 1h ago"
+                  actions={
                     <div className="flex gap-2 pt-2">
                       <Button size="sm" variant="outline">
                         <RefreshCw className="w-3 h-3 mr-1" />
@@ -1313,8 +1469,8 @@ export default function Dashboard() {
                         Export Report
                       </Button>
                     </div>
-                  </CardContent>
-                </Card>
+                  }
+                />
               </motion.div>
             </motion.div>
           )}

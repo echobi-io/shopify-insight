@@ -21,29 +21,37 @@ const DrillThroughModal: React.FC<DrillThroughModalProps> = ({ isOpen, onClose, 
       case 'revenue':
       case 'orders':
       case 'customers':
+      case 'sales-revenue':
+      case 'sales-orders':
         return (
           <div className="space-y-4">
             <div className="overflow-x-auto max-h-96">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    {data.type === 'revenue' && (
+                    {(data.type === 'revenue' || data.type === 'sales-revenue') && (
                       <>
                         <th className="text-left py-2 px-3 font-medium text-muted-foreground">Date</th>
                         <th className="text-left py-2 px-3 font-medium text-muted-foreground">Order ID</th>
                         <th className="text-left py-2 px-3 font-medium text-muted-foreground">Customer</th>
                         <th className="text-left py-2 px-3 font-medium text-muted-foreground">Product</th>
                         <th className="text-right py-2 px-3 font-medium text-muted-foreground">Value</th>
+                        {data.type === 'sales-revenue' && (
+                          <th className="text-right py-2 px-3 font-medium text-muted-foreground">Refunds</th>
+                        )}
                         <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
                       </>
                     )}
-                    {data.type === 'orders' && (
+                    {(data.type === 'orders' || data.type === 'sales-orders') && (
                       <>
                         <th className="text-left py-2 px-3 font-medium text-muted-foreground">Date</th>
                         <th className="text-left py-2 px-3 font-medium text-muted-foreground">Order ID</th>
                         <th className="text-left py-2 px-3 font-medium text-muted-foreground">Customer</th>
                         <th className="text-right py-2 px-3 font-medium text-muted-foreground">Items</th>
                         <th className="text-right py-2 px-3 font-medium text-muted-foreground">Value</th>
+                        {data.type === 'sales-orders' && (
+                          <th className="text-right py-2 px-3 font-medium text-muted-foreground">AOV</th>
+                        )}
                         <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
                       </>
                     )}
@@ -62,13 +70,16 @@ const DrillThroughModal: React.FC<DrillThroughModalProps> = ({ isOpen, onClose, 
                 <tbody>
                   {data.data.slice(0, 20).map((row: any, index: number) => (
                     <tr key={index} className="border-b border-border/50 hover:bg-muted/50">
-                      {data.type === 'revenue' && (
+                      {(data.type === 'revenue' || data.type === 'sales-revenue') && (
                         <>
                           <td className="py-2 px-3 text-sm">{row.date}</td>
                           <td className="py-2 px-3 text-sm font-mono">{row.order_id}</td>
                           <td className="py-2 px-3 text-sm">{row.customer}</td>
                           <td className="py-2 px-3 text-sm">{row.product}</td>
                           <td className="py-2 px-3 text-sm text-right">£{row.value}</td>
+                          {data.type === 'sales-revenue' && (
+                            <td className="py-2 px-3 text-sm text-right">£{row.refunds}</td>
+                          )}
                           <td className="py-2 px-3 text-sm">
                             <Badge variant={row.status === 'completed' ? 'default' : 'secondary'}>
                               {row.status}
@@ -76,13 +87,16 @@ const DrillThroughModal: React.FC<DrillThroughModalProps> = ({ isOpen, onClose, 
                           </td>
                         </>
                       )}
-                      {data.type === 'orders' && (
+                      {(data.type === 'orders' || data.type === 'sales-orders') && (
                         <>
                           <td className="py-2 px-3 text-sm">{row.date}</td>
                           <td className="py-2 px-3 text-sm font-mono">{row.order_id}</td>
                           <td className="py-2 px-3 text-sm">{row.customer}</td>
                           <td className="py-2 px-3 text-sm text-right">{row.items}</td>
                           <td className="py-2 px-3 text-sm text-right">£{row.value}</td>
+                          {data.type === 'sales-orders' && (
+                            <td className="py-2 px-3 text-sm text-right">£{row.aov}</td>
+                          )}
                           <td className="py-2 px-3 text-sm">
                             <Badge variant={row.status === 'completed' ? 'default' : 'secondary'}>
                               {row.status}
@@ -174,6 +188,214 @@ const DrillThroughModal: React.FC<DrillThroughModalProps> = ({ isOpen, onClose, 
                       <td className="py-2 px-3 text-sm">
                         <Badge variant="outline">{row.action}</Badge>
                       </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+      case 'refunds':
+        return (
+          <div className="space-y-4">
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Date</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Order ID</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Customer</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Product</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Amount</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Reason</th>
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.data.slice(0, 20).map((row: any, index: number) => (
+                    <tr key={index} className="border-b border-border/50 hover:bg-muted/50">
+                      <td className="py-2 px-3 text-sm">{row.date}</td>
+                      <td className="py-2 px-3 text-sm font-mono">{row.order_id}</td>
+                      <td className="py-2 px-3 text-sm">{row.customer}</td>
+                      <td className="py-2 px-3 text-sm">{row.product}</td>
+                      <td className="py-2 px-3 text-sm text-right">£{row.amount}</td>
+                      <td className="py-2 px-3 text-sm">
+                        <Badge variant="outline">{row.reason}</Badge>
+                      </td>
+                      <td className="py-2 px-3 text-sm">
+                        <Badge variant={row.status === 'processed' ? 'default' : 'secondary'}>
+                          {row.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+      case 'retention':
+        return (
+          <div className="space-y-4">
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Cohort</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Customers</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Month 1</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Month 2</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Month 3</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Month 6</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Retention</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.data.slice(0, 20).map((row: any, index: number) => (
+                    <tr key={index} className="border-b border-border/50 hover:bg-muted/50">
+                      <td className="py-2 px-3 text-sm font-medium">{row.cohort}</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.customers}</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.month1}%</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.month2}%</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.month3}%</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.month6}%</td>
+                      <td className="py-2 px-3 text-sm text-right">
+                        <span className={row.retention > 70 ? 'text-green-600 font-medium' : row.retention > 50 ? 'text-yellow-600 font-medium' : 'text-red-600 font-medium'}>
+                          {row.retention}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+      case 'trends':
+        return (
+          <div className="space-y-4">
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Hour</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Revenue</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Orders</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Conversion</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">AOV</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.data.slice(0, 20).map((row: any, index: number) => (
+                    <tr key={index} className="border-b border-border/50 hover:bg-muted/50">
+                      <td className="py-2 px-3 text-sm font-mono">{row.hour}</td>
+                      <td className="py-2 px-3 text-sm text-right">£{row.revenue.toLocaleString()}</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.orders}</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.conversion}%</td>
+                      <td className="py-2 px-3 text-sm text-right">£{row.aov}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+      case 'product-sales':
+        return (
+          <div className="space-y-4">
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Date</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Revenue</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Units</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Refunds</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Customers</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Repeat Orders</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.data.slice(0, 20).map((row: any, index: number) => (
+                    <tr key={index} className="border-b border-border/50 hover:bg-muted/50">
+                      <td className="py-2 px-3 text-sm">{row.date}</td>
+                      <td className="py-2 px-3 text-sm text-right">£{row.revenue}</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.units}</td>
+                      <td className="py-2 px-3 text-sm text-right">£{row.refunds}</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.customers}</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.repeatOrders}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+      case 'segment-analysis':
+        return (
+          <div className="space-y-4">
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Segment</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Customers</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Revenue</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Orders</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">AOV</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Retention</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.data.slice(0, 20).map((row: any, index: number) => (
+                    <tr key={index} className="border-b border-border/50 hover:bg-muted/50">
+                      <td className="py-2 px-3 text-sm font-medium">{row.segment}</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.customers}</td>
+                      <td className="py-2 px-3 text-sm text-right">£{row.revenue.toLocaleString()}</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.orders}</td>
+                      <td className="py-2 px-3 text-sm text-right">£{row.aov.toFixed(2)}</td>
+                      <td className="py-2 px-3 text-sm text-right">
+                        <span className={row.retention > 70 ? 'text-green-600 font-medium' : row.retention > 50 ? 'text-yellow-600 font-medium' : 'text-red-600 font-medium'}>
+                          {row.retention}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+
+      case 'channel-analysis':
+        return (
+          <div className="space-y-4">
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Channel</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Revenue</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Orders</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">AOV</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Conversion</th>
+                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Sessions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.data.slice(0, 20).map((row: any, index: number) => (
+                    <tr key={index} className="border-b border-border/50 hover:bg-muted/50">
+                      <td className="py-2 px-3 text-sm font-medium">{row.channel}</td>
+                      <td className="py-2 px-3 text-sm text-right">£{row.revenue.toLocaleString()}</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.orders}</td>
+                      <td className="py-2 px-3 text-sm text-right">£{row.aov.toFixed(2)}</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.conversion}%</td>
+                      <td className="py-2 px-3 text-sm text-right">{row.sessions.toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
