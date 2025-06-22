@@ -5,25 +5,26 @@ export async function getRevenueByDate(filters: FilterState) {
   try {
     // Mock implementation - replace with actual Supabase queries
     // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 300))
+    await new Promise(resolve => setTimeout(resolve, 450))
+    
+    // Generate mock data based on date range
+    const startDate = new Date(filters.startDate)
+    const endDate = new Date(filters.endDate)
+    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
     
     // Return mock data that matches the expected structure
-    return [
-      { date: '2024-06-01', revenue: 2100, orders: 15, customers: 12, orderingRate: 8.2 },
-      { date: '2024-06-02', revenue: 2350, orders: 18, customers: 14, orderingRate: 9.1 },
-      { date: '2024-06-03', revenue: 1980, orders: 12, customers: 10, orderingRate: 7.8 },
-      { date: '2024-06-04', revenue: 2800, orders: 22, customers: 18, orderingRate: 11.2 },
-      { date: '2024-06-05', revenue: 2650, orders: 19, customers: 16, orderingRate: 10.1 },
-      { date: '2024-06-06', revenue: 3100, orders: 25, customers: 21, orderingRate: 12.8 },
-      { date: '2024-06-07', revenue: 2900, orders: 21, customers: 17, orderingRate: 11.5 },
-      { date: '2024-06-08', revenue: 2400, orders: 16, customers: 13, orderingRate: 8.9 },
-      { date: '2024-06-09', revenue: 2750, orders: 20, customers: 16, orderingRate: 10.8 },
-      { date: '2024-06-10', revenue: 3200, orders: 26, customers: 22, orderingRate: 13.1 },
-      { date: '2024-06-11', revenue: 2850, orders: 21, customers: 18, orderingRate: 11.3 },
-      { date: '2024-06-12', revenue: 2600, orders: 18, customers: 15, orderingRate: 9.7 },
-      { date: '2024-06-13', revenue: 3400, orders: 28, customers: 24, orderingRate: 14.2 },
-      { date: '2024-06-14', revenue: 3100, orders: 24, customers: 20, orderingRate: 12.6 },
-    ]
+    return Array.from({ length: Math.min(daysDiff, 30) }, (_, i) => {
+      const date = new Date(startDate)
+      date.setDate(date.getDate() + i)
+      
+      return {
+        date: date.toISOString().split('T')[0],
+        revenue: Math.floor(Math.random() * 2000) + 1500,
+        orders: Math.floor(Math.random() * 20) + 10,
+        customers: Math.floor(Math.random() * 15) + 8,
+        orderingRate: parseFloat((Math.random() * 5 + 8).toFixed(1))
+      }
+    })
     
     // Example of actual Supabase queries (commented out):
     /*
@@ -37,20 +38,27 @@ export async function getRevenueByDate(filters: FilterState) {
     const grouped = data?.reduce((acc, order) => {
       const day = order.created_at.slice(0, 10)
       if (!acc[day]) {
-        acc[day] = { revenue: 0, orders: 0, customers: new Set() }
+        acc[day] = {
+          date: day,
+          revenue: 0,
+          orders: 0,
+          customers: new Set()
+        }
       }
+      
       acc[day].revenue += order.total_price
       acc[day].orders += 1
       acc[day].customers.add(order.customer_id)
+      
       return acc
     }, {} as Record<string, any>) || {}
 
-    return Object.entries(grouped).map(([date, data]) => ({
-      date,
-      revenue: data.revenue,
-      orders: data.orders,
-      customers: data.customers.size,
-      orderingRate: (data.customers.size / data.orders) * 100
+    return Object.values(grouped).map((day: any) => ({
+      date: day.date,
+      revenue: day.revenue,
+      orders: day.orders,
+      customers: day.customers.size,
+      orderingRate: parseFloat(((day.customers.size / day.orders) * 100).toFixed(1))
     }))
     */
   } catch (error) {

@@ -11,11 +11,10 @@ export interface FilterState {
 export async function getKPIs(filters: FilterState) {
   try {
     // Mock implementation - replace with actual Supabase queries
-    // For now, return mock data that matches the expected structure
-    
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 500))
     
+    // Return mock data that matches the expected structure
     return {
       totalRevenue: 67000,
       totalOrders: 480,
@@ -37,17 +36,27 @@ export async function getKPIs(filters: FilterState) {
     const totalOrders = orders?.length || 0
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
 
-    const customerSet = new Set(orders?.map(o => o.customer_id))
+    const customerSet = new Set(orders?.map(o => o.customer_id) || [])
     const { data: customers } = await supabase.from('customers').select('id')
     const percentOrdering = customers?.length ? (customerSet.size / customers.length) * 100 : 0
+
+    // Get new customers count
+    const { count: newCustomersCount } = await supabase
+      .from('customers')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', filters.startDate)
+      .lte('created_at', filters.endDate)
+
+    // Calculate churn risk (simplified)
+    const churnRisk = 17.2 // This would be calculated based on customer behavior
 
     return {
       totalRevenue,
       totalOrders,
       avgOrderValue,
       percentOrdering: parseFloat(percentOrdering.toFixed(1)),
-      newCustomers: 142, // Calculate from customer data
-      churnRisk: 17.2 // Calculate from churn analysis
+      newCustomers: newCustomersCount || 0,
+      churnRisk
     }
     */
   } catch (error) {

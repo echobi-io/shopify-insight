@@ -340,6 +340,16 @@ export default function Dashboard() {
     updateFilters
   } = useDashboardData(timeRange, selectedSegment);
 
+  // Get trend data based on selected time range
+  const getTrendData = () => {
+    switch (timeRange) {
+      case 'daily': return dailyTrendData;
+      case 'weekly': return weeklyTrendData;
+      case 'monthly': return monthlyTrendData;
+      default: return monthlyTrendData;
+    }
+  };
+
   // Fallback to mock data if real data is not available or loading
   const currentKpiData = realKpiData || kpiData;
   const currentSalesKpiData = realSalesKpiData || salesKpiData;
@@ -635,16 +645,6 @@ export default function Dashboard() {
   // Handle AI insight clicks
   const handleAIInsightClick = (drillType: string, filters?: any) => {
     handleDrillThrough(drillType, filters);
-  };
-
-  // Get trend data based on selected time range
-  const getTrendData = () => {
-    switch (timeRange) {
-      case 'daily': return dailyTrendData;
-      case 'weekly': return weeklyTrendData;
-      case 'monthly': return monthlyTrendData;
-      default: return monthlyTrendData;
-    }
   };
 
   // Sparkline component for product trends
