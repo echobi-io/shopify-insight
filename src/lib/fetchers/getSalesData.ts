@@ -62,7 +62,7 @@ export async function getSalesKPIs(filters: FilterState) {
       return acc
     }, {} as Record<string, number>)
 
-    const customersWithMultipleOrders = Object.values(customerOrderCounts).filter((count: number) => count > 1).length
+    const customersWithMultipleOrders = (Object.values(customerOrderCounts) as number[]).filter(count => count > 1).length
     const totalCustomers = Object.keys(customerOrderCounts).length
     const repeatOrderRate = totalCustomers > 0 ? (customersWithMultipleOrders / totalCustomers) * 100 : 0
 
