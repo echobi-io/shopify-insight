@@ -19,20 +19,26 @@ export function useDashboardData(timeRange: string, selectedSegment: string) {
 
   // Generate date filters based on timeRange
   const getDateFilters = useCallback((): FilterState => {
-    const now = new Date()
+    // Use fixed date range that matches our sample data (April 2024 - June 2024)
     let startDate: string
-    let endDate = now.toISOString().split('T')[0]
+    let endDate: string
 
     switch (timeRange) {
       case 'daily':
-        startDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        // Last 2 weeks of sample data
+        startDate = '2024-06-10'
+        endDate = '2024-06-22'
         break
       case 'weekly':
-        startDate = new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        // Last month of sample data
+        startDate = '2024-05-01'
+        endDate = '2024-06-22'
         break
       case 'monthly':
       default:
-        startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        // All sample data (3 months)
+        startDate = '2024-04-01'
+        endDate = '2024-06-22'
         break
     }
 
