@@ -123,6 +123,11 @@ export default function Home() {
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
                   Watch Demo
                 </Button>
+                <Link href="/dashboard">
+                  <Button variant="secondary" size="lg" className="w-full sm:w-auto">
+                    Admin Dashboard
+                  </Button>
+                </Link>
               </motion.div>
             </motion.div>
 

@@ -115,6 +115,9 @@ const atRiskCustomers = [
 export default function Dashboard() {
   const { signOut, user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // Mock user for development
+  const displayUser = user || { email: 'admin@shopifyiq.com' };
 
   const MetricCard = ({ title, value, change, icon: Icon, trend }: any) => (
     <motion.div variants={fadeInUp}>
@@ -193,18 +196,24 @@ export default function Dashboard() {
               <Users className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.email}</p>
+              <p className="text-sm font-medium truncate">{displayUser?.email}</p>
               <p className="text-xs text-muted-foreground">Pro Plan</p>
             </div>
           </div>
           <Button
-            onClick={signOut}
+            onClick={() => {
+              if (user) {
+                signOut();
+              } else {
+                window.location.href = '/';
+              }
+            }}
             variant="ghost"
             size="sm"
             className="w-full justify-start"
           >
             <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
+            {user ? 'Sign Out' : 'Back to Home'}
           </Button>
         </div>
       </motion.aside>
