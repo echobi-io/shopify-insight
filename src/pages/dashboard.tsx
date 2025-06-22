@@ -351,8 +351,21 @@ export default function Dashboard() {
   };
 
   // Fallback to mock data if real data is not available or loading
-  const currentKpiData = realKpiData || kpiData;
-  const currentSalesKpiData = realSalesKpiData || salesKpiData;
+  const currentKpiData = realKpiData || {
+    totalRevenue: 67000,
+    totalOrders: 480,
+    avgOrderValue: 139.58,
+    percentOrdering: 87.5,
+    newCustomers: 142,
+    churnRisk: 17.2
+  };
+  const currentSalesKpiData = realSalesKpiData || {
+    totalRevenue: 67000,
+    totalOrders: 480,
+    avgOrderValue: 139.58,
+    refundRate: 2.1,
+    repeatOrderRate: 68.5
+  };
   const currentRevenueData = realRevenueData.length > 0 ? realRevenueData : getTrendData();
   const currentProductData = realProductData.length > 0 ? realProductData : productBreakdownData;
   const currentSegmentData = realSegmentData.length > 0 ? realSegmentData : segmentAnalysisData;
