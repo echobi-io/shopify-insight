@@ -551,11 +551,11 @@ export default function Dashboard() {
                           name="Revenue ($)"
                         />
                         <Line 
-                          yAxisId="left"
+                          yAxisId="right"
                           type="monotone" 
                           dataKey="orders" 
                           stroke="#10b981" 
-                          strokeWidth={2}
+                          strokeWidth={3}
                           name="Orders"
                         />
                         <Line 
