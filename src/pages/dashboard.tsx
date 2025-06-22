@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -35,7 +36,11 @@ import {
   Package,
   CreditCard,
   Clock,
-  Star
+  Star,
+  Info,
+  Percent,
+  MousePointer,
+  RefreshCw
 } from "lucide-react";
 import {
   LineChart,
@@ -52,7 +57,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
+  Legend,
+  ComposedChart
 } from "recharts";
 
 const fadeInUp = {
@@ -69,16 +75,92 @@ const staggerContainer = {
   }
 };
 
-// Mock data for demonstration
-const revenueData = [
-  { month: 'Jan', revenue: 45000, orders: 320, customers: 280 },
-  { month: 'Feb', revenue: 52000, orders: 380, customers: 340 },
-  { month: 'Mar', revenue: 48000, orders: 350, customers: 310 },
-  { month: 'Apr', revenue: 61000, orders: 420, customers: 380 },
-  { month: 'May', revenue: 58000, orders: 400, customers: 360 },
-  { month: 'Jun', revenue: 67000, orders: 480, customers: 420 },
+// Enhanced Mock Data for Premium Overview
+const dailyTrendData = [
+  { date: '2024-06-01', revenue: 2100, orders: 15, customers: 12, orderingRate: 8.2 },
+  { date: '2024-06-02', revenue: 2350, orders: 18, customers: 14, orderingRate: 9.1 },
+  { date: '2024-06-03', revenue: 1980, orders: 12, customers: 10, orderingRate: 7.8 },
+  { date: '2024-06-04', revenue: 2800, orders: 22, customers: 18, orderingRate: 11.2 },
+  { date: '2024-06-05', revenue: 2650, orders: 19, customers: 16, orderingRate: 10.1 },
+  { date: '2024-06-06', revenue: 3100, orders: 25, customers: 21, orderingRate: 12.8 },
+  { date: '2024-06-07', revenue: 2900, orders: 21, customers: 17, orderingRate: 11.5 },
+  { date: '2024-06-08', revenue: 2400, orders: 16, customers: 13, orderingRate: 8.9 },
+  { date: '2024-06-09', revenue: 2750, orders: 20, customers: 16, orderingRate: 10.8 },
+  { date: '2024-06-10', revenue: 3200, orders: 26, customers: 22, orderingRate: 13.1 },
+  { date: '2024-06-11', revenue: 2850, orders: 21, customers: 18, orderingRate: 11.3 },
+  { date: '2024-06-12', revenue: 2600, orders: 18, customers: 15, orderingRate: 9.7 },
+  { date: '2024-06-13', revenue: 3400, orders: 28, customers: 24, orderingRate: 14.2 },
+  { date: '2024-06-14', revenue: 3100, orders: 24, customers: 20, orderingRate: 12.6 },
 ];
 
+const weeklyTrendData = [
+  { week: 'Week 1', revenue: 15200, orders: 102, customers: 85, orderingRate: 9.2 },
+  { week: 'Week 2', revenue: 18400, orders: 128, customers: 106, orderingRate: 10.8 },
+  { week: 'Week 3', revenue: 21600, orders: 145, customers: 118, orderingRate: 11.9 },
+  { week: 'Week 4', revenue: 19800, orders: 135, customers: 112, orderingRate: 11.2 },
+];
+
+const monthlyTrendData = [
+  { month: 'Jan', revenue: 45000, orders: 320, customers: 280, orderingRate: 8.5 },
+  { month: 'Feb', revenue: 52000, orders: 380, customers: 340, orderingRate: 9.2 },
+  { month: 'Mar', revenue: 48000, orders: 350, customers: 310, orderingRate: 8.8 },
+  { month: 'Apr', revenue: 61000, orders: 420, customers: 380, orderingRate: 10.1 },
+  { month: 'May', revenue: 58000, orders: 400, customers: 360, orderingRate: 9.6 },
+  { month: 'Jun', revenue: 67000, orders: 480, customers: 420, orderingRate: 11.2 },
+];
+
+const kpiData = {
+  totalRevenue: { current: 67000, previous: 58000, change: 15.5 },
+  totalOrders: { current: 480, previous: 400, change: 20.0 },
+  avgOrderValue: { current: 139.58, previous: 145.00, change: -3.7 },
+  customersOrdering: { current: 87.5, previous: 82.1, change: 6.6 },
+  newCustomers: { current: 142, previous: 128, change: 10.9 },
+  churnRisk: { current: 17.2, previous: 12.8, change: 34.4 }
+};
+
+const comparisonData = [
+  { metric: 'Revenue', thisMonth: '£67,000', lastMonth: '£58,000', change: '+15.5%', trend: 'up' },
+  { metric: 'Orders', thisMonth: '480', lastMonth: '400', change: '+20.0%', trend: 'up' },
+  { metric: 'AOV', thisMonth: '£139.58', lastMonth: '£145.00', change: '-3.7%', trend: 'down' },
+  { metric: 'Ordering Rate', thisMonth: '87.5%', lastMonth: '82.1%', change: '+6.6%', trend: 'up' },
+  { metric: 'New Customers', thisMonth: '142', lastMonth: '128', change: '+10.9%', trend: 'up' },
+  { metric: 'Churn Risk', thisMonth: '17.2%', lastMonth: '12.8%', change: '+34.4%', trend: 'down' },
+];
+
+const smartAlerts = [
+  {
+    type: 'warning',
+    title: 'Churn Risk Spike',
+    message: '22% increase in churn risk among February cohort customers',
+    impact: 'High',
+    action: 'Review retention strategy'
+  },
+  {
+    type: 'success',
+    title: 'AOV Opportunity',
+    message: 'Premium product bundle showing 45% higher conversion',
+    impact: 'Medium',
+    action: 'Expand bundle offerings'
+  },
+  {
+    type: 'info',
+    title: 'Seasonal Trend',
+    message: 'Weekend orders up 28% - consider weekend-specific promotions',
+    impact: 'Medium',
+    action: 'Plan weekend campaigns'
+  }
+];
+
+const aiInsights = {
+  summary: "Sales increased 15.5% MoM, driven by a 20% lift in order volume and strong performance from premium products. However, churn risk increased by 34%, particularly among single-purchase customers from February. The 6.6% improvement in ordering rate suggests better customer engagement, but AOV declined 3.7% indicating potential price sensitivity. Recommend implementing targeted retention campaigns for at-risk segments while maintaining current acquisition momentum.",
+  keyTakeaways: [
+    "Order volume growth outpacing revenue growth suggests price optimization opportunity",
+    "February cohort showing concerning churn patterns - immediate intervention needed",
+    "Weekend performance spike indicates untapped promotional potential"
+  ]
+};
+
+// Legacy data for other tabs
 const churnData = [
   { month: 'Jan', churnRate: 8.2, retained: 91.8 },
   { month: 'Feb', churnRate: 7.8, retained: 92.2 },
@@ -115,10 +197,83 @@ const atRiskCustomers = [
 export default function Dashboard() {
   const { signOut, user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+  const [timeRange, setTimeRange] = useState("monthly");
+  const [selectedSegment, setSelectedSegment] = useState("all");
   
   // Mock user for development
   const displayUser = user || { email: 'admin@shopifyiq.com' };
 
+  // Get trend data based on selected time range
+  const getTrendData = () => {
+    switch (timeRange) {
+      case 'daily': return dailyTrendData;
+      case 'weekly': return weeklyTrendData;
+      case 'monthly': return monthlyTrendData;
+      default: return monthlyTrendData;
+    }
+  };
+
+  // Premium KPI Card Component
+  const PremiumKPICard = ({ title, current, previous, change, icon: Icon, hasAlert = false, tooltip = "" }: any) => {
+    const isPositive = change > 0;
+    const isNegative = change < 0;
+    const trendColor = title === 'Churn Risk' ? (isPositive ? 'text-red-500' : 'text-green-500') : (isPositive ? 'text-green-500' : 'text-red-500');
+    const bgColor = title === 'Churn Risk' ? (isPositive ? 'bg-red-50 dark:bg-red-950' : 'bg-green-50 dark:bg-green-950') : (isPositive ? 'bg-green-50 dark:bg-green-950' : 'bg-red-50 dark:bg-red-950');
+    
+    return (
+      <motion.div variants={fadeInUp} className="group cursor-pointer">
+        <Card className="hover:border-primary/50 transition-all duration-200 relative overflow-hidden">
+          {hasAlert && (
+            <div className="absolute top-2 right-2">
+              <AlertTriangle className="w-4 h-4 text-orange-500" />
+            </div>
+          )}
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-sm font-medium text-muted-foreground">{title}</p>
+                  {tooltip && (
+                    <Info className="w-3 h-3 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-3xl font-bold tracking-tight">
+                    {typeof current === 'number' && current > 1000 ? 
+                      `$${current.toLocaleString()}` : 
+                      typeof current === 'number' && title.includes('%') ? 
+                      `${current}%` : 
+                      typeof current === 'number' ? 
+                      current.toLocaleString() : 
+                      current
+                    }
+                  </p>
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${bgColor}`}>
+                    {isPositive ? (
+                      <ArrowUpRight className="w-3 h-3" />
+                    ) : isNegative ? (
+                      <ArrowDownRight className="w-3 h-3" />
+                    ) : (
+                      <Activity className="w-3 h-3" />
+                    )}
+                    <span className={trendColor}>
+                      {change > 0 ? '+' : ''}{change.toFixed(1)}%
+                    </span>
+                    <span className="text-muted-foreground">vs last month</span>
+                  </div>
+                </div>
+              </div>
+              <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <Icon className="w-7 h-7 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  };
+
+  // Legacy MetricCard for other tabs
   const MetricCard = ({ title, value, change, icon: Icon, trend }: any) => (
     <motion.div variants={fadeInUp}>
       <Card>
@@ -251,7 +406,7 @@ export default function Dashboard() {
         </motion.header>
 
         <div className="p-6">
-          {/* Overview Tab */}
+          {/* Premium Overview Tab */}
           {activeTab === 'overview' && (
             <motion.div
               variants={staggerContainer}
@@ -259,127 +414,285 @@ export default function Dashboard() {
               animate="animate"
               className="space-y-6"
             >
-              {/* Key Metrics */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <MetricCard
+              {/* Global Filters */}
+              <motion.div variants={fadeInUp}>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Filters:</span>
+                      </div>
+                      <Select value={timeRange} onValueChange={setTimeRange}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={selectedSegment} onValueChange={setSelectedSegment}>
+                        <SelectTrigger className="w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Customers</SelectItem>
+                          <SelectItem value="champions">Champions</SelectItem>
+                          <SelectItem value="loyal">Loyal Customers</SelectItem>
+                          <SelectItem value="at-risk">At Risk</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline" size="sm">
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Refresh
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Premium KPI Dashboard Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <PremiumKPICard
                   title="Total Revenue"
-                  value="$67,000"
-                  change="+15.3%"
+                  current={kpiData.totalRevenue.current}
+                  previous={kpiData.totalRevenue.previous}
+                  change={kpiData.totalRevenue.change}
                   icon={DollarSign}
-                  trend="up"
+                  tooltip="Sum of all completed orders in selected period"
                 />
-                <MetricCard
-                  title="Orders"
-                  value="480"
-                  change="+20.1%"
+                <PremiumKPICard
+                  title="Total Orders"
+                  current={kpiData.totalOrders.current}
+                  previous={kpiData.totalOrders.previous}
+                  change={kpiData.totalOrders.change}
                   icon={ShoppingBag}
-                  trend="up"
+                  tooltip="Count of all valid orders excluding cancelled/voided"
                 />
-                <MetricCard
-                  title="Customers"
-                  value="420"
-                  change="+16.7%"
+                <PremiumKPICard
+                  title="Avg Order Value"
+                  current={kpiData.avgOrderValue.current}
+                  previous={kpiData.avgOrderValue.previous}
+                  change={kpiData.avgOrderValue.change}
+                  icon={CreditCard}
+                  tooltip="Revenue divided by total orders"
+                />
+                <PremiumKPICard
+                  title="Customers Ordering %"
+                  current={kpiData.customersOrdering.current}
+                  previous={kpiData.customersOrdering.previous}
+                  change={kpiData.customersOrdering.change}
+                  icon={Percent}
+                  tooltip="Percentage of active customers who placed orders"
+                />
+                <PremiumKPICard
+                  title="New Customers"
+                  current={kpiData.newCustomers.current}
+                  previous={kpiData.newCustomers.previous}
+                  change={kpiData.newCustomers.change}
                   icon={Users}
-                  trend="up"
+                  tooltip="Count of customers created in selected period"
                 />
-                <MetricCard
-                  title="Churn Rate"
-                  value="5.8%"
-                  change="-19.4%"
-                  icon={UserX}
-                  trend="up"
+                <PremiumKPICard
+                  title="Churn Risk %"
+                  current={kpiData.churnRisk.current}
+                  previous={kpiData.churnRisk.previous}
+                  change={kpiData.churnRisk.change}
+                  icon={AlertTriangle}
+                  hasAlert={kpiData.churnRisk.change > 30}
+                  tooltip="Percentage of customers flagged as high churn risk"
                 />
               </div>
 
-              {/* Charts Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Revenue Trend */}
-                <motion.div variants={fadeInUp}>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Revenue Trend</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <AreaChart data={revenueData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="month" />
-                          <YAxis />
-                          <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Revenue']} />
-                          <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-
-                {/* Customer Segments */}
-                <motion.div variants={fadeInUp}>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Customer Segments</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <RechartsPieChart>
-                          <Pie
-                            data={customerSegments}
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={80}
-                            dataKey="value"
-                          >
-                            {customerSegments.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                          <Legend />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </div>
-
-              {/* AI Insights */}
+              {/* Sales & Engagement Trend Line */}
               <motion.div variants={fadeInUp}>
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Brain className="w-5 h-5 mr-2 text-primary" />
-                      AI-Powered Insights
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-primary" />
+                        Sales & Engagement Trends
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm">
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Details
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={350}>
+                      <ComposedChart data={getTrendData()}>
+                        <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                        <XAxis 
+                          dataKey={timeRange === 'daily' ? 'date' : timeRange === 'weekly' ? 'week' : 'month'} 
+                          fontSize={12}
+                        />
+                        <YAxis yAxisId="left" fontSize={12} />
+                        <YAxis yAxisId="right" orientation="right" fontSize={12} />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))', 
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px'
+                          }}
+                        />
+                        <Legend />
+                        <Area 
+                          yAxisId="left"
+                          type="monotone" 
+                          dataKey="revenue" 
+                          stroke="#3b82f6" 
+                          fill="#3b82f6" 
+                          fillOpacity={0.1}
+                          name="Revenue ($)"
+                        />
+                        <Line 
+                          yAxisId="left"
+                          type="monotone" 
+                          dataKey="orders" 
+                          stroke="#10b981" 
+                          strokeWidth={2}
+                          name="Orders"
+                        />
+                        <Line 
+                          yAxisId="right"
+                          type="monotone" 
+                          dataKey="orderingRate" 
+                          stroke="#f59e0b" 
+                          strokeWidth={2}
+                          strokeDasharray="5 5"
+                          name="Ordering Rate (%)"
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Comparison Summary Panel */}
+              <motion.div variants={fadeInUp}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-primary" />
+                      Period Comparison
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
-                        <div className="flex items-center mb-2">
-                          <TrendingUp className="w-5 h-5 text-green-600 mr-2" />
-                          <span className="font-medium text-green-800 dark:text-green-200">Revenue Opportunity</span>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-border">
+                            <th className="text-left py-3 px-4 font-medium text-muted-foreground">Metric</th>
+                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">This Month</th>
+                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">Last Month</th>
+                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">Change</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {comparisonData.map((row, index) => (
+                            <tr key={index} className="border-b border-border/50">
+                              <td className="py-3 px-4 font-medium">{row.metric}</td>
+                              <td className="text-right py-3 px-4">{row.thisMonth}</td>
+                              <td className="text-right py-3 px-4 text-muted-foreground">{row.lastMonth}</td>
+                              <td className="text-right py-3 px-4">
+                                <div className={`flex items-center justify-end gap-1 ${
+                                  row.trend === 'up' ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  {row.trend === 'up' ? (
+                                    <ArrowUpRight className="w-4 h-4" />
+                                  ) : (
+                                    <ArrowDownRight className="w-4 h-4" />
+                                  )}
+                                  <span className="font-medium">{row.change}</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* AI Summary Box */}
+              <motion.div variants={fadeInUp}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Brain className="w-5 h-5 text-primary" />
+                      AI-Generated Insights
+                      <Badge variant="secondary" className="ml-2">Updated 2h ago</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="p-4 bg-muted/50 rounded-lg border-l-4 border-primary">
+                      <p className="text-sm leading-relaxed">{aiInsights.summary}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm">Key Takeaways:</h4>
+                      <ul className="space-y-1">
+                        {aiInsights.keyTakeaways.map((takeaway, index) => (
+                          <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
+                            {takeaway}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Smart Alerts Panel */}
+              <motion.div variants={fadeInUp}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Bell className="w-5 h-5 text-primary" />
+                      Smart Alerts
+                      <Badge variant="destructive" className="ml-2">3 Active</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {smartAlerts.map((alert, index) => (
+                        <div 
+                          key={index} 
+                          className={`p-4 rounded-lg border-l-4 ${
+                            alert.type === 'warning' 
+                              ? 'bg-orange-50 dark:bg-orange-950 border-orange-500' 
+                              : alert.type === 'success'
+                              ? 'bg-green-50 dark:bg-green-950 border-green-500'
+                              : 'bg-blue-50 dark:bg-blue-950 border-blue-500'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-medium text-sm">{alert.title}</h4>
+                                <Badge 
+                                  variant={alert.impact === 'High' ? 'destructive' : 'secondary'}
+                                  className="text-xs"
+                                >
+                                  {alert.impact} Impact
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-2">{alert.message}</p>
+                              <p className="text-xs font-medium text-primary">{alert.action}</p>
+                            </div>
+                            <Button size="sm" variant="outline" className="ml-4">
+                              <MousePointer className="w-3 h-3 mr-1" />
+                              Act
+                            </Button>
+                          </div>
                         </div>
-                        <p className="text-sm text-green-700 dark:text-green-300">
-                          Target "At Risk" customers with a 15% discount campaign. Potential revenue recovery: $8,400
-                        </p>
-                      </div>
-                      <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                        <div className="flex items-center mb-2">
-                          <Target className="w-5 h-5 text-blue-600 mr-2" />
-                          <span className="font-medium text-blue-800 dark:text-blue-200">Retention Focus</span>
-                        </div>
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                          Your retention rate improved by 19% this month. Continue current engagement strategies.
-                        </p>
-                      </div>
-                      <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
-                        <div className="flex items-center mb-2">
-                          <Zap className="w-5 h-5 text-purple-600 mr-2" />
-                          <span className="font-medium text-purple-800 dark:text-purple-200">Product Trend</span>
-                        </div>
-                        <p className="text-sm text-purple-700 dark:text-purple-300">
-                          Wireless Earbuds showing 45% growth. Consider expanding this product line.
-                        </p>
-                      </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
