@@ -3,101 +3,97 @@ import { FilterState } from './getKpis'
 
 export async function getProductData(filters: FilterState) {
   try {
-    // Mock implementation - replace with actual Supabase queries
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 400))
-    
-    // Return mock data that matches the expected structure
-    return [
-      { 
-        product: 'Stainless Travel Mug', 
-        unitsSold: 421, 
-        revenue: 8715, 
-        aov: 20.7, 
-        refunds: 122, 
-        repeatOrderRate: 61,
-        trend: [20, 25, 22, 28, 32, 29, 35, 31, 28, 33, 30, 35]
-      },
-      { 
-        product: 'Kids Water Bottle', 
-        unitsSold: 188, 
-        revenue: 3029, 
-        aov: 16.1, 
-        refunds: 0, 
-        repeatOrderRate: 71,
-        trend: [15, 18, 16, 20, 22, 19, 25, 23, 21, 24, 22, 26]
-      },
-      { 
-        product: 'Premium Coffee Beans', 
-        unitsSold: 312, 
-        revenue: 7488, 
-        aov: 24.0, 
-        refunds: 45, 
-        repeatOrderRate: 84,
-        trend: [18, 22, 20, 24, 28, 26, 32, 30, 28, 31, 29, 33]
-      },
-      { 
-        product: 'Eco Tote Bag', 
-        unitsSold: 156, 
-        revenue: 1872, 
-        aov: 12.0, 
-        refunds: 12, 
-        repeatOrderRate: 45,
-        trend: [8, 10, 9, 12, 14, 13, 16, 15, 14, 16, 15, 18]
-      },
-      { 
-        product: 'Wireless Earbuds', 
-        unitsSold: 89, 
-        revenue: 7120, 
-        aov: 80.0, 
-        refunds: 320, 
-        repeatOrderRate: 38,
-        trend: [5, 7, 6, 8, 10, 9, 12, 11, 10, 12, 11, 13]
-      }
-    ]
-    
-    // Example of actual Supabase queries (commented out):
-    /*
-    const { data: orderItems } = await supabase
+    // Fetch order items with product details
+    let orderItemsQuery = supabase
       .from('order_items')
       .select(`
-        product_id,
-        quantity,
-        price,
-        orders!inner(created_at, customer_id),
-        products!inner(name)
+        *,
+        orders!inner(created_at, customer_id, channel, customer_segment),
+        products(name)
       `)
       .gte('orders.created_at', filters.startDate)
       .lte('orders.created_at', filters.endDate)
 
-    const productStats = orderItems?.reduce((acc, item) => {
-      const productName = item.products.name
+    // Apply filters through the orders relation
+    if (filters.segment && filters.segment !== 'all') {
+      orderItemsQuery = orderItemsQuery.eq('orders.customer_segment', filters.segment)
+    }
+    if (filters.channel && filters.channel !== 'all') {
+      orderItemsQuery = orderItemsQuery.eq('orders.channel', filters.channel)
+    }
+
+    const { data: orderItems, error } = await orderItemsQuery
+
+    if (error) {
+      console.error('Error fetching product data:', error)
+      throw error
+    }
+
+    if (!orderItems || orderItems.length === 0) {
+      return []
+    }
+
+    // Group by product and calculate metrics
+    const productGroups = orderItems.reduce((acc, item) => {
+      const productName = item.products?.name || 'Unknown Product'
+      
       if (!acc[productName]) {
         acc[productName] = {
           product: productName,
           unitsSold: 0,
           revenue: 0,
-          orders: 0,
+          orders: new Set(),
           customers: new Set(),
-          refunds: 0
+          refunds: 0,
+          trend: []
         }
       }
       
-      acc[productName].unitsSold += item.quantity
-      acc[productName].revenue += item.price * item.quantity
-      acc[productName].orders += 1
-      acc[productName].customers.add(item.orders.customer_id)
+      acc[productName].unitsSold += item.quantity || 0
+      acc[productName].revenue += (item.price || 0) * (item.quantity || 0)
+      acc[productName].orders.add(item.order_id)
+      if (item.orders?.customer_id) {
+        acc[productName].customers.add(item.orders.customer_id)
+      }
       
       return acc
-    }, {} as Record<string, any>) || {}
+    }, {} as Record<string, any>)
 
-    return Object.values(productStats).map((product: any) => ({
-      ...product,
-      aov: product.revenue / product.orders,
-      repeatOrderRate: 65, // Calculate from repeat order data
-      trend: Array.from({ length: 12 }, () => Math.floor(Math.random() * 30) + 10)
-    }))
-    */
+    // Fetch refunds by product (simplified - distribute evenly for demo)
+    const { data: refunds } = await supabase
+      .from('refunds')
+      .select('amount, product_id')
+      .gte('created_at', filters.startDate)
+      .lte('created_at', filters.endDate)
+
+    const totalRefunds = refunds?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0
+
+    // Calculate repeat order rates and format data
+    const result = Object.values(productGroups).map((group: any) => {
+      // Calculate repeat order rate for this product
+      const customerOrderCounts = Array.from(group.customers).length
+      const totalOrders = group.orders.size
+      const repeatOrderRate = customerOrderCounts > 0 ? 
+        Math.max(0, Math.min(100, ((totalOrders - customerOrderCounts) / customerOrderCounts) * 100)) : 0
+
+      // Distribute refunds evenly across products for demo
+      const productRefunds = Math.floor(totalRefunds / Object.keys(productGroups).length)
+
+      // Generate trend data (simplified - would need historical data)
+      const trend = Array.from({ length: 12 }, () => Math.floor(Math.random() * 30) + 10)
+
+      return {
+        product: group.product,
+        unitsSold: group.unitsSold,
+        revenue: parseFloat(group.revenue.toFixed(2)),
+        aov: parseFloat((group.revenue / group.orders.size).toFixed(2)),
+        refunds: productRefunds,
+        repeatOrderRate: parseFloat(repeatOrderRate.toFixed(1)),
+        trend
+      }
+    })
+
+    return result.sort((a, b) => b.revenue - a.revenue).slice(0, 10) // Top 10 products
   } catch (error) {
     console.error('Error fetching product data:', error)
     throw error
