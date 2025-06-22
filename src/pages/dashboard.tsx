@@ -241,11 +241,11 @@ const productBreakdownData = [
 ];
 
 const timeComparisonData = [
-  { metric: 'Revenue', thisMonth: '£67,000', lastMonth: '£58,000', deltaPercent: 15.5, yoyPercent: 12.5, trend: 'up' },
-  { metric: 'Orders', thisMonth: '480', lastMonth: '400', deltaPercent: 20.0, yoyPercent: 10.2, trend: 'up' },
-  { metric: 'AOV', thisMonth: '£139.58', lastMonth: '£145.00', deltaPercent: -3.7, yoyPercent: 2.1, trend: 'down' },
-  { metric: 'Refunds', thisMonth: '£1,407', lastMonth: '£1,044', deltaPercent: 34.8, yoyPercent: -5.2, trend: 'down' },
-  { metric: 'Repeat Orders', thisMonth: '68.5%', lastMonth: '64.2%', deltaPercent: 6.7, yoyPercent: 8.9, trend: 'up' }
+  { metric: 'Revenue', thisMonth: '£67,000', lastMonth: '£58,000', deltaPercent: 15.5, yoyPercent: 12.5, trend: 'up' as const },
+  { metric: 'Orders', thisMonth: '480', lastMonth: '400', deltaPercent: 20.0, yoyPercent: 10.2, trend: 'up' as const },
+  { metric: 'AOV', thisMonth: '£139.58', lastMonth: '£145.00', deltaPercent: -3.7, yoyPercent: 2.1, trend: 'down' as const },
+  { metric: 'Refunds', thisMonth: '£1,407', lastMonth: '£1,044', deltaPercent: 34.8, yoyPercent: -5.2, trend: 'down' as const },
+  { metric: 'Repeat Orders', thisMonth: '68.5%', lastMonth: '64.2%', deltaPercent: 6.7, yoyPercent: 8.9, trend: 'up' as const }
 ];
 
 const segmentAnalysisData = [
