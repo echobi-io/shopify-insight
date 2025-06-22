@@ -8,6 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import DrillThroughModal from "@/components/DrillThroughModal";
+import ClickableKPICard from "@/components/ClickableKPICard";
+import ClickableAIInsights from "@/components/ClickableAIInsights";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -309,8 +312,138 @@ export default function Dashboard() {
   const [revenueType, setRevenueType] = useState("net");
   const [chartView, setChartView] = useState("revenue");
   
+  // Drill-through modal state
+  const [drillThroughModal, setDrillThroughModal] = useState<{
+    isOpen: boolean;
+    data: any;
+  }>({ isOpen: false, data: null });
+  
   // Mock user for development
   const displayUser = user || { email: 'admin@shopifyiq.com' };
+
+  // Generate drill-through data
+  const generateDrillThroughData = (type: string, filters?: any) => {
+    const baseData = {
+      filters: {
+        dateRange: timeRange === 'daily' ? 'Last 14 days' : timeRange === 'weekly' ? 'Last 4 weeks' : 'Last 6 months',
+        segment: selectedSegment !== 'all' ? selectedSegment : undefined,
+        ...filters
+      }
+    };
+
+    switch (type) {
+      case 'revenue':
+        return {
+          ...baseData,
+          type: 'revenue' as const,
+          title: 'Revenue Breakdown',
+          subtitle: `Detailed revenue analysis for ${baseData.filters.dateRange}`,
+          value: '£67,000',
+          change: '+15.5% vs last period',
+          changeType: 'positive' as const,
+          data: Array.from({ length: 50 }, (_, i) => ({
+            date: `2024-06-${String(i + 1).padStart(2, '0')}`,
+            order_id: `ORD-${1000 + i}`,
+            customer: `Customer ${i + 1}`,
+            product: ['Stainless Travel Mug', 'Coffee Beans', 'Water Bottle'][i % 3],
+            value: Math.floor(Math.random() * 500) + 50,
+            status: Math.random() > 0.1 ? 'completed' : 'pending'
+          }))
+        };
+
+      case 'orders':
+        return {
+          ...baseData,
+          type: 'orders' as const,
+          title: 'Orders Breakdown',
+          subtitle: `Detailed orders analysis for ${baseData.filters.dateRange}`,
+          value: '480',
+          change: '+20.0% vs last period',
+          changeType: 'positive' as const,
+          data: Array.from({ length: 50 }, (_, i) => ({
+            date: `2024-06-${String(i + 1).padStart(2, '0')}`,
+            order_id: `ORD-${1000 + i}`,
+            customer: `Customer ${i + 1}`,
+            items: Math.floor(Math.random() * 5) + 1,
+            value: Math.floor(Math.random() * 500) + 50,
+            status: Math.random() > 0.1 ? 'completed' : 'pending'
+          }))
+        };
+
+      case 'aov':
+        return {
+          ...baseData,
+          type: 'aov' as const,
+          title: 'Average Order Value Distribution',
+          subtitle: `AOV breakdown for ${baseData.filters.dateRange}`,
+          value: '£139.58',
+          change: '-3.7% vs last period',
+          changeType: 'negative' as const,
+          data: [
+            { range: '£0-50', count: 45 },
+            { range: '£51-100', count: 120 },
+            { range: '£101-150', count: 180 },
+            { range: '£151-200', count: 95 },
+            { range: '£201-300', count: 35 },
+            { range: '£300+', count: 15 }
+          ]
+        };
+
+      case 'customers':
+        return {
+          ...baseData,
+          type: 'customers' as const,
+          title: 'Customer Details',
+          subtitle: `Customer analysis for ${baseData.filters.dateRange}`,
+          value: '142',
+          change: '+10.9% vs last period',
+          changeType: 'positive' as const,
+          data: Array.from({ length: 50 }, (_, i) => ({
+            name: `Customer ${i + 1}`,
+            email: `customer${i + 1}@email.com`,
+            signup_date: `2024-06-${String(Math.floor(Math.random() * 30) + 1).padStart(2, '0')}`,
+            orders: Math.floor(Math.random() * 10) + 1,
+            ltv: Math.floor(Math.random() * 2000) + 200,
+            segment: ['New', 'Repeat', 'VIP', 'At-Risk'][Math.floor(Math.random() * 4)]
+          }))
+        };
+
+      case 'churn':
+        return {
+          ...baseData,
+          type: 'churn' as const,
+          title: 'Churn Risk Analysis',
+          subtitle: `High-risk customers for ${baseData.filters.dateRange}`,
+          value: '17.2%',
+          change: '+34.4% vs last period',
+          changeType: 'negative' as const,
+          data: Array.from({ length: 30 }, (_, i) => ({
+            customer: `Customer ${i + 1}`,
+            last_order: `${Math.floor(Math.random() * 60) + 30} days ago`,
+            risk_score: `${Math.floor(Math.random() * 40) + 60}%`,
+            predicted_churn: `${Math.floor(Math.random() * 30) + 70}%`,
+            ltv: Math.floor(Math.random() * 1500) + 500,
+            action: ['Email Campaign', 'Discount Offer', 'Personal Outreach'][Math.floor(Math.random() * 3)]
+          }))
+        };
+
+      default:
+        return null;
+    }
+  };
+
+  // Handle drill-through clicks
+  const handleDrillThrough = (type: string, filters?: any) => {
+    const data = generateDrillThroughData(type, filters);
+    if (data) {
+      setDrillThroughModal({ isOpen: true, data });
+    }
+  };
+
+  // Handle AI insight clicks
+  const handleAIInsightClick = (drillType: string, filters?: any) => {
+    handleDrillThrough(drillType, filters);
+  };
 
   // Get trend data based on selected time range
   const getTrendData = () => {
@@ -581,54 +714,53 @@ export default function Dashboard() {
 
               {/* Premium KPI Dashboard Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <PremiumKPICard
+                <ClickableKPICard
                   title="Total Revenue"
-                  current={kpiData.totalRevenue.current}
-                  previous={kpiData.totalRevenue.previous}
-                  change={kpiData.totalRevenue.change}
-                  icon={DollarSign}
-                  tooltip="Sum of all completed orders in selected period"
+                  value={`£${kpiData.totalRevenue.current.toLocaleString()}`}
+                  change={`${kpiData.totalRevenue.change > 0 ? '+' : ''}${kpiData.totalRevenue.change.toFixed(1)}% vs last month`}
+                  changeType={kpiData.totalRevenue.change > 0 ? 'positive' : 'negative'}
+                  icon={<DollarSign className="w-5 h-5" />}
+                  onClick={() => handleDrillThrough('revenue')}
                 />
-                <PremiumKPICard
+                <ClickableKPICard
                   title="Total Orders"
-                  current={kpiData.totalOrders.current}
-                  previous={kpiData.totalOrders.previous}
-                  change={kpiData.totalOrders.change}
-                  icon={ShoppingBag}
-                  tooltip="Count of all valid orders excluding cancelled/voided"
+                  value={kpiData.totalOrders.current.toLocaleString()}
+                  change={`${kpiData.totalOrders.change > 0 ? '+' : ''}${kpiData.totalOrders.change.toFixed(1)}% vs last month`}
+                  changeType={kpiData.totalOrders.change > 0 ? 'positive' : 'negative'}
+                  icon={<ShoppingBag className="w-5 h-5" />}
+                  onClick={() => handleDrillThrough('orders')}
                 />
-                <PremiumKPICard
+                <ClickableKPICard
                   title="Avg Order Value"
-                  current={kpiData.avgOrderValue.current}
-                  previous={kpiData.avgOrderValue.previous}
-                  change={kpiData.avgOrderValue.change}
-                  icon={CreditCard}
-                  tooltip="Revenue divided by total orders"
+                  value={`£${kpiData.avgOrderValue.current.toFixed(2)}`}
+                  change={`${kpiData.avgOrderValue.change > 0 ? '+' : ''}${kpiData.avgOrderValue.change.toFixed(1)}% vs last month`}
+                  changeType={kpiData.avgOrderValue.change > 0 ? 'positive' : 'negative'}
+                  icon={<CreditCard className="w-5 h-5" />}
+                  onClick={() => handleDrillThrough('aov')}
                 />
-                <PremiumKPICard
+                <ClickableKPICard
                   title="Customers Ordering %"
-                  current={kpiData.customersOrdering.current}
-                  previous={kpiData.customersOrdering.previous}
-                  change={kpiData.customersOrdering.change}
-                  icon={Percent}
-                  tooltip="Percentage of active customers who placed orders"
+                  value={`${kpiData.customersOrdering.current}%`}
+                  change={`${kpiData.customersOrdering.change > 0 ? '+' : ''}${kpiData.customersOrdering.change.toFixed(1)}% vs last month`}
+                  changeType={kpiData.customersOrdering.change > 0 ? 'positive' : 'negative'}
+                  icon={<Percent className="w-5 h-5" />}
+                  onClick={() => handleDrillThrough('customers', { segment: 'ordering' })}
                 />
-                <PremiumKPICard
+                <ClickableKPICard
                   title="New Customers"
-                  current={kpiData.newCustomers.current}
-                  previous={kpiData.newCustomers.previous}
-                  change={kpiData.newCustomers.change}
-                  icon={Users}
-                  tooltip="Count of customers created in selected period"
+                  value={kpiData.newCustomers.current.toLocaleString()}
+                  change={`${kpiData.newCustomers.change > 0 ? '+' : ''}${kpiData.newCustomers.change.toFixed(1)}% vs last month`}
+                  changeType={kpiData.newCustomers.change > 0 ? 'positive' : 'negative'}
+                  icon={<Users className="w-5 h-5" />}
+                  onClick={() => handleDrillThrough('customers', { segment: 'new' })}
                 />
-                <PremiumKPICard
+                <ClickableKPICard
                   title="Churn Risk %"
-                  current={kpiData.churnRisk.current}
-                  previous={kpiData.churnRisk.previous}
-                  change={kpiData.churnRisk.change}
-                  icon={AlertTriangle}
-                  hasAlert={kpiData.churnRisk.change > 30}
-                  tooltip="Percentage of customers flagged as high churn risk"
+                  value={`${kpiData.churnRisk.current}%`}
+                  change={`${kpiData.churnRisk.change > 0 ? '+' : ''}${kpiData.churnRisk.change.toFixed(1)}% vs last month`}
+                  changeType={kpiData.churnRisk.change > 0 ? 'negative' : 'positive'}
+                  icon={<AlertTriangle className="w-5 h-5" />}
+                  onClick={() => handleDrillThrough('churn')}
                 />
               </div>
 
@@ -748,31 +880,10 @@ export default function Dashboard() {
 
               {/* AI Summary Box */}
               <motion.div variants={fadeInUp}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Brain className="w-5 h-5 text-primary" />
-                      AI-Generated Insights
-                      <Badge variant="secondary" className="ml-2">Updated 2h ago</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="p-4 bg-muted/50 rounded-lg border-l-4 border-primary">
-                      <p className="text-sm leading-relaxed">{aiInsights.summary}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm">Key Takeaways:</h4>
-                      <ul className="space-y-1">
-                        {aiInsights.keyTakeaways.map((takeaway, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
-                            <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
-                            {takeaway}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ClickableAIInsights
+                  insights={[aiInsights.summary, ...aiInsights.keyTakeaways]}
+                  onInsightClick={handleAIInsightClick}
+                />
               </motion.div>
 
               {/* Smart Alerts Panel */}
@@ -1453,6 +1564,13 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* Drill-through Modal */}
+      <DrillThroughModal
+        isOpen={drillThroughModal.isOpen}
+        onClose={() => setDrillThroughModal({ isOpen: false, data: null })}
+        data={drillThroughModal.data}
+      />
     </div>
   );
 }
