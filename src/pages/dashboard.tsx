@@ -13,6 +13,7 @@ import ClickableKPICard from "@/components/ClickableKPICard";
 import ClickableAIInsights from "@/components/ClickableAIInsights";
 import ClickableChart from "@/components/ClickableChart";
 import ClickableTable from "@/components/ClickableTable";
+import ClickableComparison from "@/components/ClickableComparison";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -1309,64 +1310,21 @@ export default function Dashboard() {
               </ClickableTable>
 
               {/* Time Comparison Panel */}
-              <motion.div variants={fadeInUp}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-primary" />
-                      Period Comparison Analysis
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-border">
-                            <th className="text-left py-3 px-4 font-medium text-muted-foreground">Metric</th>
-                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">This Month</th>
-                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">Last Month</th>
-                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">M/M Change</th>
-                            <th className="text-right py-3 px-4 font-medium text-muted-foreground">Y/Y Change</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {timeComparisonData.map((row, index) => (
-                            <tr key={index} className="border-b border-border/50">
-                              <td className="py-3 px-4 font-medium">{row.metric}</td>
-                              <td className="text-right py-3 px-4">{row.thisMonth}</td>
-                              <td className="text-right py-3 px-4 text-muted-foreground">{row.lastMonth}</td>
-                              <td className="text-right py-3 px-4">
-                                <div className={`flex items-center justify-end gap-1 ${
-                                  row.deltaPercent > 0 ? 'text-green-600' : 'text-red-600'
-                                }`}>
-                                  {row.deltaPercent > 0 ? (
-                                    <ArrowUpRight className="w-4 h-4" />
-                                  ) : (
-                                    <ArrowDownRight className="w-4 h-4" />
-                                  )}
-                                  <span className="font-medium">{Math.abs(row.deltaPercent).toFixed(1)}%</span>
-                                </div>
-                              </td>
-                              <td className="text-right py-3 px-4">
-                                <div className={`flex items-center justify-end gap-1 ${
-                                  row.yoyPercent > 0 ? 'text-green-600' : 'text-red-600'
-                                }`}>
-                                  {row.yoyPercent > 0 ? (
-                                    <ArrowUpRight className="w-4 h-4" />
-                                  ) : (
-                                    <ArrowDownRight className="w-4 h-4" />
-                                  )}
-                                  <span className="font-medium">{Math.abs(row.yoyPercent).toFixed(1)}%</span>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+              <ClickableComparison
+                title="Period Comparison Analysis"
+                subtitle="Click on deltas to explore what drove the changes"
+                icon={<Calendar className="w-5 h-5 text-primary" />}
+                badge="Interactive"
+                data={timeComparisonData}
+                onDeltaClick={(metric, period) => {
+                  handleDrillThrough('trends', { 
+                    metric: metric.toLowerCase(), 
+                    period,
+                    comparison: true 
+                  });
+                }}
+                onExport={() => console.log('Export comparison data')}
+              />
 
               {/* Segment Analysis */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
