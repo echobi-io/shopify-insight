@@ -19,7 +19,7 @@ const LoginPage = () => {
   const { initializing, signIn } = useContext(AuthContext);
   const [showPw, setShowPw] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { isIframe } = useIsIFrame();
+  const isIframe = useIsIFrame();
   const { toast } = useToast();
 
   const handleLogin = async (e: any) => {

@@ -11,7 +11,7 @@ import {
 
 const GoogleButton = () => {
   const { signInWithGoogle } = useContext(AuthContext);
-  const { isIframe } = useIsIFrame();
+  const isIframe = useIsIFrame();
 
   const handleOpenNewTab = () => {
     window.open(window.location.href, '_blank');
