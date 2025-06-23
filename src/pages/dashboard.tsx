@@ -350,21 +350,26 @@ export default function Dashboard() {
     }
   };
 
-  // Fallback to mock data if real data is not available or loading
+  // Debug logging to see what data we're getting
+  console.log('Real KPI Data:', realKpiData);
+  console.log('Loading:', loading);
+  console.log('Error:', error);
+
+  // Use real data if available, otherwise show loading state or error
   const currentKpiData = realKpiData || {
-    totalRevenue: 67000,
-    totalOrders: 480,
-    avgOrderValue: 139.58,
-    percentOrdering: 87.5,
-    newCustomers: 142,
-    churnRisk: 17.2
+    totalRevenue: 0,
+    totalOrders: 0,
+    avgOrderValue: 0,
+    percentOrdering: 0,
+    newCustomers: 0,
+    churnRisk: 0
   };
   const currentSalesKpiData = realSalesKpiData || {
-    totalRevenue: 67000,
-    totalOrders: 480,
-    avgOrderValue: 139.58,
-    refundRate: 2.1,
-    repeatOrderRate: 68.5
+    totalRevenue: 0,
+    totalOrders: 0,
+    avgOrderValue: 0,
+    refundRate: 0,
+    repeatOrderRate: 0
   };
   const currentRevenueData = realRevenueData.length > 0 ? realRevenueData : getTrendData();
   const currentProductData = realProductData.length > 0 ? realProductData : productBreakdownData;
