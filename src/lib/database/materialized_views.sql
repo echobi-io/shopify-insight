@@ -22,12 +22,12 @@ CREATE INDEX IF NOT EXISTS idx_daily_revenue_summary_date ON daily_revenue_summa
 CREATE INDEX IF NOT EXISTS idx_daily_revenue_summary_channel ON daily_revenue_summary(channel);
 CREATE INDEX IF NOT EXISTS idx_daily_revenue_summary_segment ON daily_revenue_summary(customer_segment);
 
--- Product Performance Summary View (Simplified without products table dependency)
+-- Product Performance Summary View (With correct PK/FK joins to products)
 CREATE MATERIALIZED VIEW IF NOT EXISTS product_performance_summary AS
 SELECT 
     oi.product_id,
-    CONCAT('Product ', oi.product_id) as product_name, -- Fallback name
-    'General' as category, -- Default category
+    p.name as product_name,
+    p.category,
     COUNT(DISTINCT oi.order_id) as total_orders,
     SUM(oi.quantity) as total_units_sold,
     SUM(oi.total) as total_revenue,
@@ -38,9 +38,10 @@ SELECT
     DATE(o.created_at) as order_date
 FROM order_line_items oi
 JOIN orders o ON oi.order_id = o.id
+LEFT JOIN products p ON oi.product_id = p.id
 WHERE o.created_at >= CURRENT_DATE - INTERVAL '2 years'
 AND o.created_at IS NOT NULL
-GROUP BY oi.product_id, DATE(o.created_at);
+GROUP BY oi.product_id, p.name, p.category, DATE(o.created_at);
 
 -- Create indexes on product performance view
 CREATE INDEX IF NOT EXISTS idx_product_performance_product_id ON product_performance_summary(product_id);
