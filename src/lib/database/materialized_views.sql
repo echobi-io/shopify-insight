@@ -4,17 +4,16 @@
 -- Daily Revenue Summary View
 CREATE MATERIALIZED VIEW IF NOT EXISTS daily_revenue_summary AS
 SELECT 
-    DATE(o.created_at) as date,
+    DATE(created_at) as date,
     COUNT(*) as total_orders,
-    COUNT(DISTINCT o.customer_id) as unique_customers,
-    SUM(o.total_price) as total_revenue,
-    AVG(o.total_price) as avg_order_value,
-    o.channel,
-    COALESCE(c.customer_segment, o.customer_segment, 'new') as customer_segment
-FROM orders o
-LEFT JOIN customers c ON o.customer_id = c.id
-WHERE o.created_at >= CURRENT_DATE - INTERVAL '2 years'
-GROUP BY DATE(o.created_at), o.channel, COALESCE(c.customer_segment, o.customer_segment, 'new');
+    COUNT(DISTINCT customer_id) as unique_customers,
+    SUM(total_price) as total_revenue,
+    AVG(total_price) as avg_order_value,
+    channel,
+    COALESCE(customer_segment, 'new') as customer_segment
+FROM orders
+WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
+GROUP BY DATE(created_at), channel, COALESCE(customer_segment, 'new');
 
 -- Create index on the materialized view
 CREATE INDEX IF NOT EXISTS idx_daily_revenue_summary_date ON daily_revenue_summary(date);
@@ -49,16 +48,15 @@ CREATE INDEX IF NOT EXISTS idx_product_performance_category ON product_performan
 -- Customer Segment Analysis View
 CREATE MATERIALIZED VIEW IF NOT EXISTS customer_segment_summary AS
 SELECT 
-    COALESCE(c.customer_segment, o.customer_segment, 'new') as customer_segment,
-    DATE(o.created_at) as date,
+    COALESCE(customer_segment, 'new') as customer_segment,
+    DATE(created_at) as date,
     COUNT(*) as orders_count,
-    COUNT(DISTINCT o.customer_id) as customers_count,
-    SUM(o.total_price) as total_revenue,
-    AVG(o.total_price) as avg_order_value
-FROM orders o
-LEFT JOIN customers c ON o.customer_id = c.id
-WHERE o.created_at >= CURRENT_DATE - INTERVAL '2 years'
-GROUP BY COALESCE(c.customer_segment, o.customer_segment, 'new'), DATE(o.created_at);
+    COUNT(DISTINCT customer_id) as customers_count,
+    SUM(total_price) as total_revenue,
+    AVG(total_price) as avg_order_value
+FROM orders
+WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
+GROUP BY COALESCE(customer_segment, 'new'), DATE(created_at);
 
 -- Create indexes on customer segment view
 CREATE INDEX IF NOT EXISTS idx_customer_segment_summary_segment ON customer_segment_summary(customer_segment);
@@ -67,15 +65,15 @@ CREATE INDEX IF NOT EXISTS idx_customer_segment_summary_date ON customer_segment
 -- Channel Performance Summary View
 CREATE MATERIALIZED VIEW IF NOT EXISTS channel_performance_summary AS
 SELECT 
-    o.channel,
-    DATE(o.created_at) as date,
+    channel,
+    DATE(created_at) as date,
     COUNT(*) as orders_count,
-    COUNT(DISTINCT o.customer_id) as customers_count,
-    SUM(o.total_price) as total_revenue,
-    AVG(o.total_price) as avg_order_value
-FROM orders o
-WHERE o.created_at >= CURRENT_DATE - INTERVAL '2 years'
-GROUP BY o.channel, DATE(o.created_at);
+    COUNT(DISTINCT customer_id) as customers_count,
+    SUM(total_price) as total_revenue,
+    AVG(total_price) as avg_order_value
+FROM orders
+WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
+GROUP BY channel, DATE(created_at);
 
 -- Create indexes on channel performance view
 CREATE INDEX IF NOT EXISTS idx_channel_performance_summary_channel ON channel_performance_summary(channel);
