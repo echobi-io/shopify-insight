@@ -8,28 +8,44 @@ export function getDateRangeFromTimeframe(timeframe: string): DateRange {
   const startDate = new Date();
 
   switch (timeframe) {
+    case 'last_7_days':
     case 'Last 7 days':
       startDate.setDate(endDate.getDate() - 7);
       break;
+    case 'last_30_days':
     case 'Last 30 days':
       startDate.setDate(endDate.getDate() - 30);
       break;
+    case 'last_90_days':
     case 'Last 90 days':
       startDate.setDate(endDate.getDate() - 90);
       break;
+    case 'last_6_months':
     case 'Last 6 months':
       startDate.setMonth(endDate.getMonth() - 6);
       break;
+    case 'last_year':
     case 'Last year':
       startDate.setFullYear(endDate.getFullYear() - 1);
       break;
+    case 'this_month':
     case 'This month':
       startDate.setDate(1);
       startDate.setHours(0, 0, 0, 0);
       break;
+    case 'this_year':
     case 'This year':
       startDate.setMonth(0, 1);
       startDate.setHours(0, 0, 0, 0);
+      break;
+    case 'daily':
+      startDate.setDate(endDate.getDate() - 14); // Last 14 days for daily view
+      break;
+    case 'weekly':
+      startDate.setDate(endDate.getDate() - 28); // Last 4 weeks for weekly view
+      break;
+    case 'monthly':
+      startDate.setMonth(endDate.getMonth() - 6); // Last 6 months for monthly view
       break;
     default:
       // Default to last 30 days

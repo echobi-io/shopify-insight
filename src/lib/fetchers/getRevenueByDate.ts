@@ -1,66 +1,179 @@
 import { supabase } from '../supabaseClient'
 import { FilterState } from './getKpis'
 
-export async function getRevenueByDate(filters: FilterState) {
+export interface RevenueByDateData {
+  date: string
+  revenue: number
+  orders: number
+  customers: number
+  orderingRate: number
+  month?: string
+  week?: string
+}
+
+export async function getRevenueByDate(filters: FilterState): Promise<RevenueByDateData[]> {
   try {
-    // Fetch orders within date range
-    let ordersQuery = supabase
-      .from('orders')
-      .select('created_at, total_price, customer_id')
-      .gte('created_at', filters.startDate)
-      .lte('created_at', filters.endDate)
-      .order('created_at')
+    // Use materialized view for better performance
+    let summaryQuery = supabase
+      .from('daily_revenue_summary')
+      .select('*')
+      .gte('date', filters.startDate.split('T')[0])
+      .lte('date', filters.endDate.split('T')[0])
+      .order('date')
 
     // Apply filters
     if (filters.segment && filters.segment !== 'all') {
-      ordersQuery = ordersQuery.eq('customer_segment', filters.segment)
+      summaryQuery = summaryQuery.eq('customer_segment', filters.segment)
     }
     if (filters.channel && filters.channel !== 'all') {
-      ordersQuery = ordersQuery.eq('channel', filters.channel)
+      summaryQuery = summaryQuery.eq('channel', filters.channel)
     }
 
-    const { data: orders, error } = await ordersQuery
+    const { data: summaryData, error } = await summaryQuery
 
     if (error) {
       console.error('Error fetching revenue by date:', error)
       throw error
     }
 
-    if (!orders || orders.length === 0) {
+    if (!summaryData || summaryData.length === 0) {
       return []
     }
 
-    // Group orders by date
-    const grouped = orders.reduce((acc, order) => {
-      const day = order.created_at.slice(0, 10)
-      if (!acc[day]) {
-        acc[day] = {
-          date: day,
+    // Group by date and aggregate if multiple segments/channels per day
+    const grouped = summaryData.reduce((acc, row) => {
+      const dateKey = row.date
+      if (!acc[dateKey]) {
+        acc[dateKey] = {
+          date: dateKey,
           revenue: 0,
           orders: 0,
-          customers: new Set()
+          customers: 0
         }
       }
       
-      acc[day].revenue += order.total_price || 0
-      acc[day].orders += 1
-      if (order.customer_id) {
-        acc[day].customers.add(order.customer_id)
-      }
+      acc[dateKey].revenue += row.total_revenue || 0
+      acc[dateKey].orders += row.total_orders || 0
+      acc[dateKey].customers += row.unique_customers || 0
       
       return acc
     }, {} as Record<string, any>)
 
     // Convert to array and calculate ordering rate
-    return Object.values(grouped).map((day: any) => ({
+    const result = Object.values(grouped).map((day: any) => ({
       date: day.date,
       revenue: parseFloat(day.revenue.toFixed(2)),
       orders: day.orders,
-      customers: day.customers.size,
-      orderingRate: day.orders > 0 ? parseFloat(((day.customers.size / day.orders) * 100).toFixed(1)) : 0
+      customers: day.customers,
+      orderingRate: day.customers > 0 ? parseFloat(((day.orders / day.customers) * 100).toFixed(1)) : 0,
+      // Add month and week for grouping
+      month: new Date(day.date).toLocaleDateString('en-US', { month: 'short' }),
+      week: `Week ${Math.ceil(new Date(day.date).getDate() / 7)}`
     })).sort((a, b) => a.date.localeCompare(b.date))
+
+    return result
   } catch (error) {
     console.error('Error fetching revenue by date:', error)
-    throw error
+    return []
+  }
+}
+
+// Get revenue data grouped by week
+export async function getRevenueByWeek(filters: FilterState): Promise<RevenueByDateData[]> {
+  try {
+    const dailyData = await getRevenueByDate(filters)
+    
+    if (!dailyData.length) return []
+
+    // Group by week
+    const weeklyGroups = dailyData.reduce((acc, day) => {
+      const date = new Date(day.date)
+      const weekStart = new Date(date)
+      weekStart.setDate(date.getDate() - date.getDay()) // Start of week (Sunday)
+      const weekKey = weekStart.toISOString().split('T')[0]
+      
+      if (!acc[weekKey]) {
+        acc[weekKey] = {
+          week: `Week ${Math.ceil(date.getDate() / 7)}`,
+          date: weekKey,
+          revenue: 0,
+          orders: 0,
+          customers: 0
+        }
+      }
+      
+      acc[weekKey].revenue += day.revenue
+      acc[weekKey].orders += day.orders
+      acc[weekKey].customers += day.customers
+      
+      return acc
+    }, {} as Record<string, any>)
+
+    return Object.values(weeklyGroups).map((week: any) => ({
+      date: week.date,
+      week: week.week,
+      revenue: parseFloat(week.revenue.toFixed(2)),
+      orders: week.orders,
+      customers: week.customers,
+      orderingRate: week.customers > 0 ? parseFloat(((week.orders / week.customers) * 100).toFixed(1)) : 0
+    })).sort((a, b) => a.date.localeCompare(b.date))
+  } catch (error) {
+    console.error('Error fetching weekly revenue:', error)
+    return []
+  }
+}
+
+// Get revenue data grouped by month
+export async function getRevenueByMonth(filters: FilterState): Promise<RevenueByDateData[]> {
+  try {
+    const dailyData = await getRevenueByDate(filters)
+    
+    if (!dailyData.length) return []
+
+    // Group by month
+    const monthlyGroups = dailyData.reduce((acc, day) => {
+      const date = new Date(day.date)
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      
+      if (!acc[monthKey]) {
+        acc[monthKey] = {
+          month: date.toLocaleDateString('en-US', { month: 'short' }),
+          date: `${monthKey}-01`,
+          revenue: 0,
+          orders: 0,
+          customers: 0
+        }
+      }
+      
+      acc[monthKey].revenue += day.revenue
+      acc[monthKey].orders += day.orders
+      acc[monthKey].customers += day.customers
+      
+      return acc
+    }, {} as Record<string, any>)
+
+    return Object.values(monthlyGroups).map((month: any) => ({
+      date: month.date,
+      month: month.month,
+      revenue: parseFloat(month.revenue.toFixed(2)),
+      orders: month.orders,
+      customers: month.customers,
+      orderingRate: month.customers > 0 ? parseFloat(((month.orders / month.customers) * 100).toFixed(1)) : 0
+    })).sort((a, b) => a.date.localeCompare(b.date))
+  } catch (error) {
+    console.error('Error fetching monthly revenue:', error)
+    return []
+  }
+}
+
+// Get revenue data based on time range preference
+export async function getRevenueByTimeRange(filters: FilterState, timeRange: 'daily' | 'weekly' | 'monthly' = 'daily'): Promise<RevenueByDateData[]> {
+  switch (timeRange) {
+    case 'weekly':
+      return getRevenueByWeek(filters)
+    case 'monthly':
+      return getRevenueByMonth(filters)
+    default:
+      return getRevenueByDate(filters)
   }
 }

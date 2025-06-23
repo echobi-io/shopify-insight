@@ -8,43 +8,51 @@ export interface FilterState {
   product?: string
 }
 
-export async function getKPIs(filters: FilterState) {
+export interface KPIData {
+  totalRevenue: number
+  totalOrders: number
+  avgOrderValue: number
+  percentOrdering: number
+  newCustomers: number
+  churnRisk: number
+}
+
+export async function getKPIs(filters: FilterState): Promise<KPIData> {
   try {
-    // Fetch orders within date range
-    let ordersQuery = supabase
-      .from('orders')
+    // Use materialized view for better performance
+    let summaryQuery = supabase
+      .from('daily_revenue_summary')
       .select('*')
-      .gte('created_at', filters.startDate)
-      .lte('created_at', filters.endDate)
+      .gte('date', filters.startDate.split('T')[0])
+      .lte('date', filters.endDate.split('T')[0])
 
     // Apply filters
     if (filters.segment && filters.segment !== 'all') {
-      ordersQuery = ordersQuery.eq('customer_segment', filters.segment)
+      summaryQuery = summaryQuery.eq('customer_segment', filters.segment)
     }
     if (filters.channel && filters.channel !== 'all') {
-      ordersQuery = ordersQuery.eq('channel', filters.channel)
+      summaryQuery = summaryQuery.eq('channel', filters.channel)
     }
 
-    const { data: orders, error: ordersError } = await ordersQuery
+    const { data: summaryData, error: summaryError } = await summaryQuery
 
-    if (ordersError) {
-      console.error('Error fetching orders:', ordersError)
-      throw ordersError
+    if (summaryError) {
+      console.error('Error fetching summary data:', summaryError)
+      throw summaryError
     }
 
-    const totalRevenue = orders?.reduce((sum, o) => sum + (o.total_price || 0), 0) || 0
-    const totalOrders = orders?.length || 0
+    // Aggregate the summary data
+    const totalRevenue = summaryData?.reduce((sum, row) => sum + (row.total_revenue || 0), 0) || 0
+    const totalOrders = summaryData?.reduce((sum, row) => sum + (row.total_orders || 0), 0) || 0
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
+    const uniqueCustomers = summaryData?.reduce((sum, row) => sum + (row.unique_customers || 0), 0) || 0
 
-    // Get unique customers from orders
-    const customerSet = new Set(orders?.map(o => o.customer_id).filter(Boolean) || [])
-    
-    // Get total customers count
+    // Get total customers count for percentage calculation
     const { count: totalCustomersCount } = await supabase
       .from('customers')
       .select('*', { count: 'exact', head: true })
 
-    const percentOrdering = totalCustomersCount ? (customerSet.size / totalCustomersCount) * 100 : 0
+    const percentOrdering = totalCustomersCount ? (uniqueCustomers / totalCustomersCount) * 100 : 0
 
     // Get new customers count
     const { count: newCustomersCount } = await supabase
@@ -53,18 +61,19 @@ export async function getKPIs(filters: FilterState) {
       .gte('created_at', filters.startDate)
       .lte('created_at', filters.endDate)
 
-    // Calculate churn risk (simplified - customers with no orders in last 30 days)
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    
-    const { data: recentOrders } = await supabase
-      .from('orders')
-      .select('customer_id')
-      .gte('created_at', thirtyDaysAgo.toISOString())
+    // Use customer retention summary for churn risk calculation
+    const { data: retentionData, error: retentionError } = await supabase
+      .from('customer_retention_summary')
+      .select('*')
 
-    const recentCustomerSet = new Set(recentOrders?.map(o => o.customer_id).filter(Boolean) || [])
-    const churnRisk = totalCustomersCount ? 
-      ((totalCustomersCount - recentCustomerSet.size) / totalCustomersCount) * 100 : 0
+    if (retentionError) {
+      console.error('Error fetching retention data:', retentionError)
+    }
+
+    // Calculate churn risk from retention data
+    const atRiskCustomers = retentionData?.find(r => r.calculated_segment === 'at_risk')?.customers_count || 0
+    const totalCustomersInRetention = retentionData?.reduce((sum, r) => sum + (r.customers_count || 0), 0) || 1
+    const churnRisk = (atRiskCustomers / totalCustomersInRetention) * 100
 
     return {
       totalRevenue: parseFloat(totalRevenue.toFixed(2)),
@@ -76,6 +85,92 @@ export async function getKPIs(filters: FilterState) {
     }
   } catch (error) {
     console.error('Error fetching KPIs:', error)
-    throw error
+    // Return default values on error to prevent crashes
+    return {
+      totalRevenue: 0,
+      totalOrders: 0,
+      avgOrderValue: 0,
+      percentOrdering: 0,
+      newCustomers: 0,
+      churnRisk: 0
+    }
+  }
+}
+
+// Get previous period KPIs for comparison
+export async function getPreviousKPIs(filters: FilterState): Promise<KPIData> {
+  try {
+    // Calculate previous period dates
+    const startDate = new Date(filters.startDate)
+    const endDate = new Date(filters.endDate)
+    const duration = endDate.getTime() - startDate.getTime()
+    
+    const previousEndDate = new Date(startDate.getTime() - 1) // Day before current period
+    const previousStartDate = new Date(previousEndDate.getTime() - duration)
+
+    const previousFilters: FilterState = {
+      ...filters,
+      startDate: previousStartDate.toISOString(),
+      endDate: previousEndDate.toISOString()
+    }
+
+    return await getKPIs(previousFilters)
+  } catch (error) {
+    console.error('Error fetching previous KPIs:', error)
+    return {
+      totalRevenue: 0,
+      totalOrders: 0,
+      avgOrderValue: 0,
+      percentOrdering: 0,
+      newCustomers: 0,
+      churnRisk: 0
+    }
+  }
+}
+
+// Calculate KPI changes and trends
+export function calculateKPIChanges(current: KPIData, previous: KPIData) {
+  const calculateChange = (current: number, previous: number): number => {
+    if (previous === 0) return current > 0 ? 100 : 0
+    return ((current - previous) / previous) * 100
+  }
+
+  return {
+    totalRevenue: {
+      current: current.totalRevenue,
+      previous: previous.totalRevenue,
+      change: calculateChange(current.totalRevenue, previous.totalRevenue),
+      trend: current.totalRevenue >= previous.totalRevenue ? 'up' : 'down'
+    },
+    totalOrders: {
+      current: current.totalOrders,
+      previous: previous.totalOrders,
+      change: calculateChange(current.totalOrders, previous.totalOrders),
+      trend: current.totalOrders >= previous.totalOrders ? 'up' : 'down'
+    },
+    avgOrderValue: {
+      current: current.avgOrderValue,
+      previous: previous.avgOrderValue,
+      change: calculateChange(current.avgOrderValue, previous.avgOrderValue),
+      trend: current.avgOrderValue >= previous.avgOrderValue ? 'up' : 'down'
+    },
+    percentOrdering: {
+      current: current.percentOrdering,
+      previous: previous.percentOrdering,
+      change: calculateChange(current.percentOrdering, previous.percentOrdering),
+      trend: current.percentOrdering >= previous.percentOrdering ? 'up' : 'down'
+    },
+    newCustomers: {
+      current: current.newCustomers,
+      previous: previous.newCustomers,
+      change: calculateChange(current.newCustomers, previous.newCustomers),
+      trend: current.newCustomers >= previous.newCustomers ? 'up' : 'down'
+    },
+    churnRisk: {
+      current: current.churnRisk,
+      previous: previous.churnRisk,
+      change: calculateChange(current.churnRisk, previous.churnRisk),
+      trend: current.churnRisk <= previous.churnRisk ? 'up' : 'down' // Lower churn is better
+    }
   }
 }
