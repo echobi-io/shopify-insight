@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { useIsIFrame } from "@/hooks/useIsIFrame";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -311,11 +312,13 @@ const atRiskCustomers = [
 
 export default function Dashboard() {
   const { signOut, user } = useAuth();
+  const isEmbedded = useIsIFrame();
   const [activeTab, setActiveTab] = useState("overview");
   const [timeRange, setTimeRange] = useState("monthly");
   const [selectedSegment, setSelectedSegment] = useState("all");
   const [revenueType, setRevenueType] = useState("net");
   const [chartView, setChartView] = useState("revenue");
+  const [globalDateRange, setGlobalDateRange] = useState("last_30_days");
   
   // Drill-through modal state
   const [drillThroughModal, setDrillThroughModal] = useState<{
@@ -355,21 +358,21 @@ export default function Dashboard() {
   console.log('Loading:', loading);
   console.log('Error:', error);
 
-  // Use real data if available, otherwise show loading state or error
+  // Use real data if available, otherwise use mock data (like graphs do)
   const currentKpiData = realKpiData || {
-    totalRevenue: 0,
-    totalOrders: 0,
-    avgOrderValue: 0,
-    percentOrdering: 0,
-    newCustomers: 0,
-    churnRisk: 0
+    totalRevenue: 67000,
+    totalOrders: 480,
+    avgOrderValue: 139.58,
+    percentOrdering: 87.5,
+    newCustomers: 142,
+    churnRisk: 17.2
   };
   const currentSalesKpiData = realSalesKpiData || {
-    totalRevenue: 0,
-    totalOrders: 0,
-    avgOrderValue: 0,
-    refundRate: 0,
-    repeatOrderRate: 0
+    totalRevenue: 67000,
+    totalOrders: 480,
+    avgOrderValue: 139.58,
+    refundRate: 2.1,
+    repeatOrderRate: 68.5
   };
   const currentRevenueData = realRevenueData.length > 0 ? realRevenueData : getTrendData();
   const currentProductData = realProductData.length > 0 ? realProductData : productBreakdownData;
@@ -773,74 +776,76 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
-      <motion.aside 
-        className="w-64 border-r border-border bg-card"
-        initial={{ x: -20, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="p-6">
-          <div className="flex items-center space-x-2 mb-8">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-primary-foreground" />
+    <div className={`flex min-h-screen bg-background ${isEmbedded ? 'embedded-app' : ''}`}>
+      {/* Sidebar - Hidden when embedded */}
+      {!isEmbedded && (
+        <motion.aside 
+          className="w-64 border-r border-border bg-card"
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="p-6">
+            <div className="flex items-center space-x-2 mb-8">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <span className="text-xl font-bold">ShopifyIQ</span>
             </div>
-            <span className="text-xl font-bold">ShopifyIQ</span>
+
+            <nav className="space-y-2">
+              {[
+                { id: 'overview', label: 'Overview', icon: BarChart3 },
+                { id: 'sales', label: 'Sales & Revenue', icon: TrendingUp },
+                { id: 'customers', label: 'Customers', icon: Users },
+                { id: 'churn', label: 'Churn & Retention', icon: UserX },
+                { id: 'products', label: 'Product Insights', icon: Package },
+                { id: 'predictions', label: 'AI Predictions', icon: Brain },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                    activeTab === item.id 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </nav>
           </div>
 
-          <nav className="space-y-2">
-            {[
-              { id: 'overview', label: 'Overview', icon: BarChart3 },
-              { id: 'sales', label: 'Sales & Revenue', icon: TrendingUp },
-              { id: 'customers', label: 'Customers', icon: Users },
-              { id: 'churn', label: 'Churn & Retention', icon: UserX },
-              { id: 'products', label: 'Product Insights', icon: Package },
-              { id: 'predictions', label: 'AI Predictions', icon: Brain },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                  activeTab === item.id 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
-              >
-                <item.icon className="w-5 h-5" />
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-border">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-              <Users className="w-4 h-4" />
+          <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-border">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                <Users className="w-4 h-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{displayUser?.email}</p>
+                <p className="text-xs text-muted-foreground">Pro Plan</p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{displayUser?.email}</p>
-              <p className="text-xs text-muted-foreground">Pro Plan</p>
-            </div>
+            <Button
+              onClick={() => {
+                if (user) {
+                  signOut();
+                } else {
+                  window.location.href = '/';
+                }
+              }}
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              {user ? 'Sign Out' : 'Back to Home'}
+            </Button>
           </div>
-          <Button
-            onClick={() => {
-              if (user) {
-                signOut();
-              } else {
-                window.location.href = '/';
-              }
-            }}
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            {user ? 'Sign Out' : 'Back to Home'}
-          </Button>
-        </div>
-      </motion.aside>
+        </motion.aside>
+      )}
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
@@ -857,12 +862,37 @@ export default function Dashboard() {
               <p className="text-muted-foreground">Monitor your store's performance and growth</p>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Calendar className="w-4 h-4 mr-2" />
-                Last 30 days
-                <ChevronDown className="w-4 h-4 ml-2" />
-              </Button>
-              <Button variant="outline" size="sm">
+              <Select value={globalDateRange} onValueChange={(value) => {
+                setGlobalDateRange(value);
+                // Map global date range to timeRange for data fetching
+                switch(value) {
+                  case 'last_7_days':
+                    setTimeRange('daily');
+                    break;
+                  case 'last_30_days':
+                    setTimeRange('weekly');
+                    break;
+                  case 'last_90_days':
+                    setTimeRange('monthly');
+                    break;
+                  default:
+                    setTimeRange('monthly');
+                }
+              }}>
+                <SelectTrigger className="w-40">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="last_7_days">Last 7 days</SelectItem>
+                  <SelectItem value="last_30_days">Last 30 days</SelectItem>
+                  <SelectItem value="last_90_days">Last 90 days</SelectItem>
+                  <SelectItem value="last_6_months">Last 6 months</SelectItem>
+                  <SelectItem value="last_year">Last year</SelectItem>
+                  <SelectItem value="custom">Custom range</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={() => handleExport(currentRevenueData, 'dashboard', 'csv')}>
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </Button>
@@ -874,7 +904,52 @@ export default function Dashboard() {
           </div>
         </motion.header>
 
-        <div className="p-6">
+        <div className={`p-6 ${isEmbedded ? 'p-4' : 'p-6'}`}>
+          {/* Mobile Navigation for Embedded Mode */}
+          {isEmbedded && (
+            <motion.div 
+              variants={fadeInUp}
+              className="mb-6"
+            >
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
+                        <BarChart3 className="w-4 h-4 text-primary-foreground" />
+                      </div>
+                      <span className="text-lg font-bold">ShopifyIQ</span>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      Embedded App
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { id: 'overview', label: 'Overview', icon: BarChart3 },
+                      { id: 'sales', label: 'Sales', icon: TrendingUp },
+                      { id: 'customers', label: 'Customers', icon: Users },
+                      { id: 'churn', label: 'Retention', icon: UserX },
+                      { id: 'products', label: 'Products', icon: Package },
+                      { id: 'predictions', label: 'AI', icon: Brain },
+                    ].map((item) => (
+                      <Button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        variant={activeTab === item.id ? "default" : "outline"}
+                        size="sm"
+                        className="flex items-center space-x-1"
+                      >
+                        <item.icon className="w-4 h-4" />
+                        <span className="hidden sm:inline">{item.label}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
           {/* Premium Overview Tab */}
           {activeTab === 'overview' && (
             <motion.div
