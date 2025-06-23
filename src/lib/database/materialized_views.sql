@@ -10,10 +10,10 @@ SELECT
     SUM(total_price) as total_revenue,
     AVG(total_price) as avg_order_value,
     channel,
-    COALESCE(customer_segment, 'new') as customer_segment
+    'mixed' as customer_segment
 FROM orders
 WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
-GROUP BY DATE(created_at), channel, COALESCE(customer_segment, 'new');
+GROUP BY DATE(created_at), channel;
 
 -- Create index on the materialized view
 CREATE INDEX IF NOT EXISTS idx_daily_revenue_summary_date ON daily_revenue_summary(date);
@@ -45,18 +45,41 @@ CREATE INDEX IF NOT EXISTS idx_product_performance_product_id ON product_perform
 CREATE INDEX IF NOT EXISTS idx_product_performance_date ON product_performance_summary(order_date);
 CREATE INDEX IF NOT EXISTS idx_product_performance_category ON product_performance_summary(category);
 
--- Customer Segment Analysis View
+-- Customer Segment Analysis View (Dynamic Segmentation)
 CREATE MATERIALIZED VIEW IF NOT EXISTS customer_segment_summary AS
+WITH customer_order_counts AS (
+    SELECT 
+        customer_id,
+        DATE(created_at) as date,
+        COUNT(*) OVER (PARTITION BY customer_id ORDER BY created_at ROWS UNBOUNDED PRECEDING) as order_number,
+        total_price,
+        created_at
+    FROM orders
+    WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
+    AND customer_id IS NOT NULL
+),
+segmented_orders AS (
+    SELECT 
+        date,
+        customer_id,
+        total_price,
+        CASE 
+            WHEN order_number = 1 THEN 'new'
+            WHEN order_number BETWEEN 2 AND 5 THEN 'returning'
+            WHEN order_number > 5 THEN 'vip'
+            ELSE 'new'
+        END as customer_segment
+    FROM customer_order_counts
+)
 SELECT 
-    COALESCE(customer_segment, 'new') as customer_segment,
-    DATE(created_at) as date,
+    customer_segment,
+    date,
     COUNT(*) as orders_count,
     COUNT(DISTINCT customer_id) as customers_count,
     SUM(total_price) as total_revenue,
     AVG(total_price) as avg_order_value
-FROM orders
-WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
-GROUP BY COALESCE(customer_segment, 'new'), DATE(created_at);
+FROM segmented_orders
+GROUP BY customer_segment, date;
 
 -- Create indexes on customer segment view
 CREATE INDEX IF NOT EXISTS idx_customer_segment_summary_segment ON customer_segment_summary(customer_segment);
