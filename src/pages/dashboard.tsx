@@ -15,8 +15,20 @@ import ClickableAIInsights from "@/components/ClickableAIInsights";
 import ClickableChart from "@/components/ClickableChart";
 import ClickableTable from "@/components/ClickableTable";
 import ClickableComparison from "@/components/ClickableComparison";
+import DataToggle from "@/components/DataToggle";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { exportToCSV, exportToJSON, formatDataForExport } from "@/lib/utils/exportUtils";
+import { 
+  fallbackKpiData,
+  fallbackSalesKpiData,
+  fallbackProductBreakdownData,
+  fallbackSegmentAnalysisData,
+  fallbackChannelBreakdownData,
+  fallbackProductPerformanceData,
+  getFallbackTrendData,
+  hasLiveData,
+  getDataWithFallback
+} from "@/lib/fallbackData";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -320,6 +332,9 @@ export default function Dashboard() {
   const [chartView, setChartView] = useState("revenue");
   const [globalDateRange, setGlobalDateRange] = useState("last_30_days");
   
+  // Data toggle state - controls whether to use live data or demo data
+  const [useLiveData, setUseLiveData] = useState(true);
+  
   // Drill-through modal state
   const [drillThroughModal, setDrillThroughModal] = useState<{
     isOpen: boolean;
@@ -354,31 +369,27 @@ export default function Dashboard() {
     }
   };
 
-  // Debug logging to see what data we're getting
-  console.log('Real KPI Data:', realKpiData);
-  console.log('Loading:', loading);
-  console.log('Error:', error);
+  // Data status for the toggle component
+  const dataStatus = {
+    kpis: hasLiveData(realKpiData),
+    revenue: hasLiveData(realRevenueData),
+    products: hasLiveData(realProductData),
+    segments: hasLiveData(realSegmentData),
+    channels: hasLiveData(realChannelData),
+    productPerformance: hasLiveData(realProductPerformanceData)
+  };
 
-  // Use real data if available, otherwise use mock data (like graphs do)
-  const currentKpiData = realKpiData || {
-    totalRevenue: 67000,
-    totalOrders: 480,
-    avgOrderValue: 139.58,
-    percentOrdering: 87.5,
-    newCustomers: 142,
-    churnRisk: 17.2
-  };
-  const currentSalesKpiData = realSalesKpiData || {
-    totalRevenue: 67000,
-    totalOrders: 480,
-    avgOrderValue: 139.58,
-    refundRate: 2.1,
-    repeatOrderRate: 68.5
-  };
-  const currentRevenueData = realRevenueData.length > 0 ? realRevenueData : getTrendData();
-  const currentProductData = realProductData.length > 0 ? realProductData : productBreakdownData;
-  const currentSegmentData = realSegmentData.length > 0 ? realSegmentData : segmentAnalysisData;
-  const currentChannelData = realChannelData.length > 0 ? realChannelData : channelBreakdownData;
+  // Use fallback system - either live data or demo data based on toggle
+  const currentKpiData = getDataWithFallback(realKpiData, fallbackKpiData, useLiveData);
+  const currentSalesKpiData = getDataWithFallback(realSalesKpiData, fallbackSalesKpiData, useLiveData);
+  const currentRevenueData = getDataWithFallback(realRevenueData, getFallbackTrendData(timeRange), useLiveData);
+  const currentProductData = getDataWithFallback(realProductData, fallbackProductBreakdownData, useLiveData);
+  const currentSegmentData = getDataWithFallback(realSegmentData, fallbackSegmentAnalysisData, useLiveData);
+  const currentChannelData = getDataWithFallback(realChannelData, fallbackChannelBreakdownData, useLiveData);
+  const currentProductPerformanceData = getDataWithFallback(realProductPerformanceData, fallbackProductPerformanceData, useLiveData);
+
+  // Check if we have any live data available
+  const hasAnyLiveData = Object.values(dataStatus).some(Boolean);
 
   // Handle export functionality
   const handleExport = (data: any[], type: string, format: 'csv' | 'json' = 'csv') => {
@@ -951,6 +962,16 @@ export default function Dashboard() {
                 </div>
               </CardContent>
             </Card>
+          </motion.div>
+
+          {/* Data Toggle - Emergency Fallback System */}
+          <motion.div variants={fadeInUp} className="mb-6">
+            <DataToggle
+              useLiveData={useLiveData}
+              onToggle={setUseLiveData}
+              hasLiveData={hasAnyLiveData}
+              dataStatus={dataStatus}
+            />
           </motion.div>
 
           {/* Premium Overview Tab */}
