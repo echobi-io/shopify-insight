@@ -35,7 +35,7 @@ SELECT
     MAX(o.created_at) as last_ordered,
     DATE(o.created_at) as order_date
 FROM products p
-JOIN order_items oi ON p.id = oi.product_id
+JOIN order_line_items oi ON p.id = oi.product_id
 JOIN orders o ON oi.order_id = o.id
 WHERE o.created_at >= CURRENT_DATE - INTERVAL '2 years'
 GROUP BY p.id, p.name, p.category, DATE(o.created_at);
