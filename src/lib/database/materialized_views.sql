@@ -28,7 +28,7 @@ SELECT
     p.category,
     COUNT(DISTINCT oi.order_id) as total_orders,
     SUM(oi.quantity) as total_units_sold,
-    SUM(oi.total) as total_revenue,
+    SUM(oi.price * oi.quantity) as total_revenue,
     AVG(oi.price) as avg_price,
     COUNT(DISTINCT o.customer_id) as unique_customers,
     MIN(o.created_at) as first_ordered,
