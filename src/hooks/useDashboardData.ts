@@ -19,7 +19,17 @@ export interface DashboardData {
   productPerformanceData: ProductPerformanceData | null
 }
 
-export function useDashboardData(globalDateRange: string, selectedSegment: string) {
+import {
+  fallbackKpiData,
+  fallbackSalesKpiData,
+  fallbackProductBreakdownData,
+  fallbackSegmentAnalysisData,
+  fallbackChannelBreakdownData,
+  fallbackProductPerformanceData,
+  getFallbackTrendData,
+} from '@/lib/fallbackData';
+
+export function useDashboardData(globalDateRange: string, selectedSegment: string, useLiveData: boolean = true) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -56,6 +66,26 @@ export function useDashboardData(globalDateRange: string, selectedSegment: strin
 
   // Fetch all data
   const fetchData = useCallback(async () => {
+    if (!useLiveData) {
+      // Use fallback/demo data
+      setKpiData(fallbackKpiData);
+      setKpiChanges(null);
+      setSalesKpiData(fallbackSalesKpiData);
+      // Use globalDateRange to select fallback trend data
+      let trendType: 'daily' | 'weekly' | 'monthly' = 'monthly';
+      if (globalDateRange === 'last_7_days') trendType = 'daily';
+      else if (globalDateRange === 'last_30_days') trendType = 'weekly';
+      else if (globalDateRange === 'last_90_days') trendType = 'monthly';
+      setRevenueData(getFallbackTrendData(trendType));
+      setProductData(fallbackProductBreakdownData);
+      setSegmentData(fallbackSegmentAnalysisData);
+      setChannelData(fallbackChannelBreakdownData);
+      setProductPerformanceData(fallbackProductPerformanceData);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     setLoading(true)
     setError(null)
 
@@ -113,7 +143,7 @@ export function useDashboardData(globalDateRange: string, selectedSegment: strin
     } finally {
       setLoading(false)
     }
-  }, [getDateFilters, getTimeRangeType])
+  }, [getDateFilters, getTimeRangeType, useLiveData, globalDateRange])
 
   // Update filters function
   const updateFilters = useCallback((newTimeRange?: string, newSegment?: string) => {
@@ -130,7 +160,7 @@ export function useDashboardData(globalDateRange: string, selectedSegment: strin
   // Initial data fetch
   useEffect(() => {
     fetchData()
-  }, [fetchData])
+  }, [fetchData, useLiveData, globalDateRange])
 
   // Check if we have any real data
   const hasRealData = useCallback(() => {

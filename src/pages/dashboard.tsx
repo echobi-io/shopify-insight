@@ -357,7 +357,7 @@ export default function Dashboard() {
     error,
     refetch,
     updateFilters
-  } = useDashboardData(globalDateRange, selectedSegment);
+  } = useDashboardData(globalDateRange, selectedSegment, useLiveData);
 
   // Get trend data based on selected time range
   const getTrendData = () => {
