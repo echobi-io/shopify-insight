@@ -907,50 +907,51 @@ export default function Dashboard() {
         </motion.header>
 
         <div className={`p-6 ${isEmbedded ? 'p-4' : 'p-6'}`}>
-          {/* Mobile Navigation for Embedded Mode */}
-          {isEmbedded && (
-            <motion.div 
-              variants={fadeInUp}
-              className="mb-6"
-            >
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
-                        <BarChart3 className="w-4 h-4 text-primary-foreground" />
-                      </div>
-                      <span className="text-lg font-bold">ShopifyIQ</span>
+          {/* Navigation Tabs - Always visible */}
+          <motion.div 
+            variants={fadeInUp}
+            className="mb-6"
+          >
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
+                      <BarChart3 className="w-4 h-4 text-primary-foreground" />
                     </div>
+                    <span className="text-lg font-bold">ShopifyIQ</span>
+                  </div>
+                  {isEmbedded && (
                     <Badge variant="secondary" className="text-xs">
                       Embedded App
                     </Badge>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { id: 'overview', label: 'Overview', icon: BarChart3 },
-                      { id: 'sales', label: 'Sales', icon: TrendingUp },
-                      { id: 'customers', label: 'Customers', icon: Users },
-                      { id: 'churn', label: 'Retention', icon: UserX },
-                      { id: 'products', label: 'Products', icon: Package },
-                      { id: 'predictions', label: 'AI', icon: Brain },
-                    ].map((item) => (
-                      <Button
-                        key={item.id}
-                        onClick={() => setActiveTab(item.id)}
-                        variant={activeTab === item.id ? "default" : "outline"}
-                        size="sm"
-                        className="flex items-center space-x-1"
-                      >
-                        <item.icon className="w-4 h-4" />
-                        <span className="hidden sm:inline">{item.label}</span>
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: 'overview', label: 'Overview', icon: BarChart3 },
+                    { id: 'sales', label: 'Sales & Revenue', icon: TrendingUp },
+                    { id: 'product-performance', label: 'Product Performance', icon: Package },
+                    { id: 'customers', label: 'Customers', icon: Users },
+                    { id: 'churn', label: 'Retention', icon: UserX },
+                    { id: 'products', label: 'Product Insights', icon: Package },
+                    { id: 'predictions', label: 'AI Predictions', icon: Brain },
+                  ].map((item) => (
+                    <Button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      variant={activeTab === item.id ? "default" : "outline"}
+                      size="sm"
+                      className="flex items-center space-x-1"
+                    >
+                      <item.icon className="w-4 h-4" />
+                      <span className="hidden sm:inline">{item.label}</span>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
 
           {/* Premium Overview Tab */}
           {activeTab === 'overview' && (
