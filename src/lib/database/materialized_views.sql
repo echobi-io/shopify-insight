@@ -11,7 +11,7 @@ SELECT
     AVG(total_price) as avg_order_value,
     channel,
     'mixed' as customer_segment
-FROM orders
+FROM "Order"
 WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
 GROUP BY DATE(created_at), channel;
 
@@ -34,9 +34,9 @@ SELECT
     MIN(o.created_at) as first_ordered,
     MAX(o.created_at) as last_ordered,
     DATE(o.created_at) as order_date
-FROM products p
-JOIN order_items oi ON p.id = oi.product_id
-JOIN orders o ON oi.order_id = o.id
+FROM "Product" p
+JOIN "OrderItem" oi ON p.id = oi.product_id
+JOIN "Order" o ON oi.order_id = o.id
 WHERE o.created_at >= CURRENT_DATE - INTERVAL '2 years'
 GROUP BY p.id, p.name, p.category, DATE(o.created_at);
 
@@ -54,7 +54,7 @@ WITH customer_order_counts AS (
         COUNT(*) OVER (PARTITION BY customer_id ORDER BY created_at ROWS UNBOUNDED PRECEDING) as order_number,
         total_price,
         created_at
-    FROM orders
+    FROM "Order"
     WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
     AND customer_id IS NOT NULL
 ),
@@ -94,7 +94,7 @@ SELECT
     COUNT(DISTINCT customer_id) as customers_count,
     SUM(total_price) as total_revenue,
     AVG(total_price) as avg_order_value
-FROM orders
+FROM "Order"
 WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
 GROUP BY channel, DATE(created_at);
 
@@ -110,7 +110,7 @@ WITH customer_orders AS (
         DATE(created_at) as order_date,
         ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at) as order_number,
         total_price
-    FROM orders
+    FROM "Order"
     WHERE customer_id IS NOT NULL
     AND created_at >= CURRENT_DATE - INTERVAL '2 years'
 ),
@@ -154,8 +154,8 @@ SELECT
     AVG(r.amount) as avg_refund_amount,
     r.reason,
     r.status
-FROM refunds r
-JOIN products p ON r.product_id = p.id
+FROM "Refund" r
+JOIN "Product" p ON r.product_id = p.id
 WHERE r.created_at >= CURRENT_DATE - INTERVAL '2 years'
 GROUP BY DATE(r.created_at), p.name, p.category, r.reason, r.status;
 
