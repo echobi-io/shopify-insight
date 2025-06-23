@@ -5,8 +5,10 @@ import { getProductData } from '@/lib/fetchers/getProductData'
 import { getSegmentData } from '@/lib/fetchers/getSegmentData'
 import { getChannelData } from '@/lib/fetchers/getChannelData'
 import { getProductPerformanceData, ProductPerformanceData } from '@/lib/fetchers/getProductPerformanceData'
+import { getSalesKPIs } from '@/lib/fetchers/getSalesData'
+import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 
-export function useDashboardData(timeRange: string, selectedSegment: string) {
+export function useDashboardData(globalDateRange: string, selectedSegment: string) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -19,37 +21,16 @@ export function useDashboardData(timeRange: string, selectedSegment: string) {
   const [channelData, setChannelData] = useState<any[]>([])
   const [productPerformanceData, setProductPerformanceData] = useState<ProductPerformanceData | null>(null)
 
-  // Generate date filters based on timeRange
+  // Generate date filters based on globalDateRange
   const getDateFilters = useCallback((): FilterState => {
-    // Use fixed date range that matches our sample data (April 2024 - June 2024)
-    let startDate: string
-    let endDate: string
-
-    switch (timeRange) {
-      case 'daily':
-        // Last 2 weeks of sample data
-        startDate = '2024-06-10'
-        endDate = '2024-06-22'
-        break
-      case 'weekly':
-        // Last month of sample data
-        startDate = '2024-05-01'
-        endDate = '2024-06-22'
-        break
-      case 'monthly':
-      default:
-        // All sample data (3 months)
-        startDate = '2024-04-01'
-        endDate = '2024-06-22'
-        break
-    }
+    const { startDate, endDate } = getDateRangeFromTimeframe(globalDateRange)
 
     return {
-      startDate,
-      endDate,
+      startDate: formatDateForSQL(startDate),
+      endDate: formatDateForSQL(endDate),
       segment: selectedSegment !== 'all' ? selectedSegment : undefined
     }
-  }, [timeRange, selectedSegment])
+  }, [globalDateRange, selectedSegment])
 
   // Fetch all data
   const fetchData = useCallback(async () => {
@@ -62,6 +43,7 @@ export function useDashboardData(timeRange: string, selectedSegment: string) {
       // Fetch all data in parallel
       const [
         kpis,
+        salesKpis,
         revenue,
         products,
         segments,
@@ -69,6 +51,7 @@ export function useDashboardData(timeRange: string, selectedSegment: string) {
         productPerformance
       ] = await Promise.all([
         getKPIs(filters),
+        getSalesKPIs(filters),
         getRevenueByDate(filters),
         getProductData(filters),
         getSegmentData(filters),
@@ -79,14 +62,8 @@ export function useDashboardData(timeRange: string, selectedSegment: string) {
       // Set KPI data
       setKpiData(kpis)
       
-      // Set sales KPI data (same structure for now)
-      setSalesKpiData({
-        totalRevenue: kpis.totalRevenue,
-        totalOrders: kpis.totalOrders,
-        avgOrderValue: kpis.avgOrderValue,
-        refundRate: 2.1,
-        repeatOrderRate: 68.5
-      })
+      // Set sales KPI data
+      setSalesKpiData(salesKpis)
 
       // Set other data
       setRevenueData(revenue)

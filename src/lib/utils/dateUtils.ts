@@ -1,57 +1,54 @@
-export function getDateRange(timeRange: string): { startDate: string; endDate: string } {
-  const now = new Date()
-  const endDate = now.toISOString()
-  let startDate: string
+export interface DateRange {
+  startDate: Date;
+  endDate: Date;
+}
 
-  switch (timeRange) {
-    case 'daily':
-      // Last 14 days
-      const fourteenDaysAgo = new Date(now)
-      fourteenDaysAgo.setDate(now.getDate() - 14)
-      startDate = fourteenDaysAgo.toISOString()
-      break
-    
-    case 'weekly':
-      // Last 4 weeks (28 days)
-      const fourWeeksAgo = new Date(now)
-      fourWeeksAgo.setDate(now.getDate() - 28)
-      startDate = fourWeeksAgo.toISOString()
-      break
-    
-    case 'monthly':
+export function getDateRangeFromTimeframe(timeframe: string): DateRange {
+  const endDate = new Date();
+  const startDate = new Date();
+
+  switch (timeframe) {
+    case 'Last 7 days':
+      startDate.setDate(endDate.getDate() - 7);
+      break;
+    case 'Last 30 days':
+      startDate.setDate(endDate.getDate() - 30);
+      break;
+    case 'Last 90 days':
+      startDate.setDate(endDate.getDate() - 90);
+      break;
+    case 'Last 6 months':
+      startDate.setMonth(endDate.getMonth() - 6);
+      break;
+    case 'Last year':
+      startDate.setFullYear(endDate.getFullYear() - 1);
+      break;
+    case 'This month':
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+      break;
+    case 'This year':
+      startDate.setMonth(0, 1);
+      startDate.setHours(0, 0, 0, 0);
+      break;
     default:
-      // Last 6 months
-      const sixMonthsAgo = new Date(now)
-      sixMonthsAgo.setMonth(now.getMonth() - 6)
-      startDate = sixMonthsAgo.toISOString()
-      break
+      // Default to last 30 days
+      startDate.setDate(endDate.getDate() - 30);
   }
 
-  return { startDate, endDate }
+  return { startDate, endDate };
 }
 
-export function parseFiltersFromUrl(query: any): {
-  segment?: string
-  channel?: string
-  product?: string
-  dateRange?: string
-} {
-  return {
-    segment: query.segment as string,
-    channel: query.channel as string,
-    product: query.product as string,
-    dateRange: query.date_range as string
-  }
+export function formatDateForSQL(date: Date): string {
+  return date.toISOString();
 }
 
-export function buildFilterState(timeRange: string, selectedSegment: string, urlFilters: any) {
-  const { startDate, endDate } = getDateRange(timeRange)
+export function getPreviousDateRange(timeframe: string): DateRange {
+  const currentRange = getDateRangeFromTimeframe(timeframe);
+  const duration = currentRange.endDate.getTime() - currentRange.startDate.getTime();
   
-  return {
-    startDate,
-    endDate,
-    segment: urlFilters.segment || selectedSegment,
-    channel: urlFilters.channel,
-    product: urlFilters.product
-  }
+  const endDate = new Date(currentRange.startDate);
+  const startDate = new Date(currentRange.startDate.getTime() - duration);
+  
+  return { startDate, endDate };
 }
