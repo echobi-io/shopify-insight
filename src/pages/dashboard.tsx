@@ -1178,7 +1178,7 @@ export default function Dashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {comparisonData.map((row, index) => (
+                          {(currentKpiData.comparisonData || []).map((row, index) => (
                             <tr key={index} className="border-b border-border/50">
                               <td className="py-3 px-4 font-medium">{row.metric}</td>
                               <td className="text-right py-3 px-4">{row.thisMonth}</td>
@@ -1449,7 +1449,7 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {productBreakdownData.map((product, index) => (
+                      {currentProductData.map((product, index) => (
                         <tr 
                           key={index} 
                           className="border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
@@ -1497,7 +1497,7 @@ export default function Dashboard() {
                 subtitle="Click on deltas to explore what drove the changes"
                 icon={<Calendar className="w-5 h-5 text-primary" />}
                 badge="Interactive"
-                data={timeComparisonData}
+                data={currentKpiData.comparisonData || []}
                 onDeltaClick={(metric, period) => {
                   handleDrillThrough('trends', { 
                     metric: metric.toLowerCase(), 
@@ -1522,7 +1522,7 @@ export default function Dashboard() {
                 >
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart 
-                      data={segmentAnalysisData} 
+                      data={currentSegmentData} 
                       layout="horizontal"
                       onClick={(data) => {
                         if (data && data.activeLabel) {
@@ -1565,7 +1565,7 @@ export default function Dashboard() {
                       }}
                     >
                       <Pie
-                        data={channelBreakdownData}
+                        data={currentChannelData}
                         cx="50%"
                         cy="50%"
                         outerRadius={100}
@@ -1573,7 +1573,7 @@ export default function Dashboard() {
                         dataKey="revenue"
                         label={({ name, percentage }) => `${name}: ${percentage}%`}
                       >
-                        {channelBreakdownData.map((entry, index) => (
+                        {currentChannelData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
