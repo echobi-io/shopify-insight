@@ -113,7 +113,7 @@ export async function getKPIs(filters: FilterState, merchant_id?: string): Promi
 }
 
 // Get previous period KPIs for comparison
-export async function getPreviousKPIs(filters: FilterState): Promise<KPIData> {
+export async function getPreviousKPIs(filters: FilterState, merchant_id?: string): Promise<KPIData> {
   try {
     // Calculate previous period dates
     const startDate = new Date(filters.startDate)
@@ -129,7 +129,7 @@ export async function getPreviousKPIs(filters: FilterState): Promise<KPIData> {
       endDate: previousEndDate.toISOString()
     }
 
-    return await getKPIs(previousFilters)
+    return await getKPIs(previousFilters, merchant_id)
   } catch (error) {
     console.error('Error fetching previous KPIs:', error)
     return {

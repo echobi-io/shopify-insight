@@ -323,7 +323,7 @@ const atRiskCustomers = [
 ];
 
 export default function Dashboard() {
-  const { signOut, user, merchantId } = useAuth();
+  const { signOut, user } = useAuth();
   const isEmbedded = useIsIFrame();
   const [activeTab, setActiveTab] = useState("overview");
   const [timeRange, setTimeRange] = useState("monthly");
@@ -357,7 +357,7 @@ export default function Dashboard() {
     error,
     refetch,
     updateFilters
-  } = useDashboardData(globalDateRange, selectedSegment, useLiveData, merchantId);
+  } = useDashboardData(globalDateRange, selectedSegment, useLiveData);
 
   // Get trend data based on selected time range
   const getTrendData = () => {

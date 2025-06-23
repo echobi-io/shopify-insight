@@ -29,7 +29,12 @@ import {
   getFallbackTrendData,
 } from '@/lib/fallbackData';
 
-export function useDashboardData(globalDateRange: string, selectedSegment: string, useLiveData: boolean = true, merchantId?: string | null) {
+export function useDashboardData(
+  globalDateRange: string,
+  selectedSegment: string,
+  useLiveData: boolean = true,
+  merchantId: string = '11111111-1111-1111-1111-111111111111'
+) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
