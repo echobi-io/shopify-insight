@@ -337,6 +337,7 @@ export default function Dashboard() {
     productData: realProductData,
     segmentData: realSegmentData,
     channelData: realChannelData,
+    productPerformanceData: realProductPerformanceData,
     loading,
     error,
     refetch,
@@ -797,6 +798,7 @@ export default function Dashboard() {
               {[
                 { id: 'overview', label: 'Overview', icon: BarChart3 },
                 { id: 'sales', label: 'Sales & Revenue', icon: TrendingUp },
+                { id: 'product-performance', label: 'Product Performance', icon: Package },
                 { id: 'customers', label: 'Customers', icon: Users },
                 { id: 'churn', label: 'Churn & Retention', icon: UserX },
                 { id: 'products', label: 'Product Insights', icon: Package },
@@ -1574,6 +1576,308 @@ export default function Dashboard() {
                   title="AI Sales Intelligence"
                   icon={<Brain className="w-5 h-5 text-primary" />}
                   badge="Updated 1h ago"
+                  actions={
+                    <div className="flex gap-2 pt-2">
+                      <Button size="sm" variant="outline">
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                        Regenerate
+                      </Button>
+                      <Button size="sm" variant="outline">
+                        <Download className="w-3 h-3 mr-1" />
+                        Export Report
+                      </Button>
+                    </div>
+                  }
+                />
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* Product Performance Tab */}
+          {activeTab === 'product-performance' && (
+            <motion.div
+              variants={staggerContainer}
+              initial="initial"
+              animate="animate"
+              className="space-y-6"
+            >
+              {/* Global Filters */}
+              <motion.div variants={fadeInUp}>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Filter className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Filters:</span>
+                      </div>
+                      <Select value={timeRange} onValueChange={setTimeRange}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={selectedSegment} onValueChange={setSelectedSegment}>
+                        <SelectTrigger className="w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Products</SelectItem>
+                          <SelectItem value="electronics">Electronics</SelectItem>
+                          <SelectItem value="clothing">Clothing</SelectItem>
+                          <SelectItem value="accessories">Accessories</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={refetch}
+                        disabled={loading}
+                      >
+                        <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        Refresh
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => realProductPerformanceData && handleExport(realProductPerformanceData.topProducts, 'product-performance', 'csv')}>
+                        <Download className="w-4 h-4 mr-2" />
+                        Export
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* KPI Tiles */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {loading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <Card key={i} className="animate-pulse">
+                      <CardContent className="p-6">
+                        <div className="h-20 bg-muted rounded"></div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <>
+                    <ClickableKPICard
+                      title="Top Product (Sales)"
+                      value={realProductPerformanceData?.topProductBySales.name || 'N/A'}
+                      change={`£${realProductPerformanceData?.topProductBySales.revenue.toLocaleString() || '0'}`}
+                      changeType="positive"
+                      icon={<Star className="w-5 h-5" />}
+                      onClick={() => handleDrillThrough('product-sales', { product: realProductPerformanceData?.topProductBySales.name })}
+                    />
+                    <ClickableKPICard
+                      title="Most Sold Product"
+                      value={realProductPerformanceData?.mostSoldProduct.name || 'N/A'}
+                      change={`${realProductPerformanceData?.mostSoldProduct.unitsSold.toLocaleString() || '0'} units`}
+                      changeType="positive"
+                      icon={<Package className="w-5 h-5" />}
+                      onClick={() => handleDrillThrough('product-sales', { product: realProductPerformanceData?.mostSoldProduct.name })}
+                    />
+                    <ClickableKPICard
+                      title="Highest AOV Product"
+                      value={realProductPerformanceData?.highestAOVProduct.name || 'N/A'}
+                      change={`£${realProductPerformanceData?.highestAOVProduct.aov.toFixed(2) || '0.00'} AOV`}
+                      changeType="positive"
+                      icon={<CreditCard className="w-5 h-5" />}
+                      onClick={() => handleDrillThrough('product-sales', { product: realProductPerformanceData?.highestAOVProduct.name })}
+                    />
+                    <ClickableKPICard
+                      title="Highest Refund Rate"
+                      value={realProductPerformanceData?.highestRefundRateProduct.name || 'N/A'}
+                      change={`${realProductPerformanceData?.highestRefundRateProduct.refundRate.toFixed(1) || '0.0'}% refunds`}
+                      changeType="negative"
+                      icon={<AlertTriangle className="w-5 h-5" />}
+                      onClick={() => handleDrillThrough('refunds', { product: realProductPerformanceData?.highestRefundRateProduct.name })}
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* Top Products Table */}
+              <ClickableTable
+                title="Top Products Performance"
+                icon={<Package className="w-5 h-5 text-primary" />}
+                onExport={() => realProductPerformanceData && handleExport(realProductPerformanceData.topProducts, 'top-products', 'csv')}
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">Total Revenue</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">Orders</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">Units Sold</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">AOV</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">Refund Rate</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">First Ordered</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">Last Ordered</th>
+                        <th className="text-right py-3 px-4 font-medium text-muted-foreground">Trend</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(realProductPerformanceData?.topProducts || []).map((product, index) => (
+                        <tr 
+                          key={index} 
+                          className="border-b border-border/50 hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => handleDrillThrough('product-sales', { product: product.product })}
+                        >
+                          <td className="py-3 px-4 font-medium">{product.product}</td>
+                          <td className="text-right py-3 px-4">£{product.totalRevenue.toLocaleString()}</td>
+                          <td className="text-right py-3 px-4">{product.orders.toLocaleString()}</td>
+                          <td className="text-right py-3 px-4">{product.unitsSold.toLocaleString()}</td>
+                          <td className="text-right py-3 px-4">£{product.aov.toFixed(2)}</td>
+                          <td className="text-right py-3 px-4">
+                            <span 
+                              className={`${product.refundRate > 5 ? 'text-red-600' : 'text-muted-foreground'} cursor-pointer hover:underline`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDrillThrough('refunds', { product: product.product });
+                              }}
+                            >
+                              {product.refundRate.toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="text-right py-3 px-4 text-muted-foreground">
+                            {new Date(product.firstOrdered).toLocaleDateString()}
+                          </td>
+                          <td className="text-right py-3 px-4 text-muted-foreground">
+                            {new Date(product.lastOrdered).toLocaleDateString()}
+                          </td>
+                          <td className="text-right py-3 px-4">
+                            <Sparkline data={product.trend} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </ClickableTable>
+
+              {/* Product Sales Trend Chart */}
+              <ClickableChart
+                title="Product Sales Trends"
+                icon={<TrendingUp className="w-5 h-5 text-primary" />}
+                onChartClick={(data) => handleDrillThrough('trends', { date: data?.activeLabel })}
+                onDetailsClick={() => handleDrillThrough('trends')}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <Select value={chartView} onValueChange={setChartView}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="revenue">Revenue</SelectItem>
+                      <SelectItem value="quantity">Quantity</SelectItem>
+                      <SelectItem value="orders">Orders</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <ResponsiveContainer width="100%" height={350}>
+                  <LineChart data={realProductPerformanceData?.productTrendData || []}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="date" fontSize={12} />
+                    <YAxis fontSize={12} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend />
+                    {realProductPerformanceData?.topProducts.slice(0, 5).map((product, index) => (
+                      <Line
+                        key={product.product}
+                        type="monotone"
+                        dataKey={product.product}
+                        stroke={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'][index]}
+                        strokeWidth={2}
+                        name={product.product}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </ClickableChart>
+
+              {/* Product Churn & Repurchase Analysis */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ClickableChart
+                  title="Product Repurchase Rates"
+                  icon={<UserCheck className="w-5 h-5 text-primary" />}
+                  onChartClick={(data) => {
+                    if (data && data.activeLabel) {
+                      handleDrillThrough('retention', { product: data.activeLabel });
+                    }
+                  }}
+                  onDetailsClick={() => handleDrillThrough('retention')}
+                >
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={realProductPerformanceData?.productRepurchaseData || []}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                      <XAxis dataKey="product" fontSize={12} angle={-45} textAnchor="end" height={80} />
+                      <YAxis fontSize={12} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                        formatter={(value: any) => [`${value.toFixed(1)}%`, 'Repurchase Rate']}
+                      />
+                      <Bar dataKey="repurchaseRate" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ClickableChart>
+
+                <ClickableChart
+                  title="Product Customer Segmentation"
+                  icon={<Users className="w-5 h-5 text-primary" />}
+                  onChartClick={(data) => {
+                    if (data && data.activeLabel) {
+                      handleDrillThrough('segment-analysis', { product: data.activeLabel });
+                    }
+                  }}
+                  onDetailsClick={() => handleDrillThrough('segment-analysis')}
+                >
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={realProductPerformanceData?.productSegmentData || []} layout="horizontal">
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                      <XAxis type="number" fontSize={12} />
+                      <YAxis dataKey="product" type="category" fontSize={12} width={120} />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'hsl(var(--card))', 
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="newCustomers" stackId="a" fill="#3b82f6" name="New" />
+                      <Bar dataKey="returningCustomers" stackId="a" fill="#10b981" name="Returning" />
+                      <Bar dataKey="vipCustomers" stackId="a" fill="#f59e0b" name="VIP" />
+                      <Bar dataKey="atRiskCustomers" stackId="a" fill="#ef4444" name="At Risk" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ClickableChart>
+              </div>
+
+              {/* AI-Powered Product Insights */}
+              <motion.div variants={fadeInUp}>
+                <ClickableAIInsights
+                  insights={[
+                    "Premium Wireless Headphones showing exceptional growth with 45% increase in repeat purchases, indicating strong customer satisfaction and brand loyalty.",
+                    "Smart Fitness Tracker experiencing declining performance - consider product refresh or targeted marketing campaign to boost sales.",
+                    "Organic Cotton T-Shirt has the highest repurchase rate at 84%, suggesting opportunity to expand sustainable clothing line.",
+                    "Bluetooth Speaker showing concerning refund patterns - investigate quality control and customer feedback for improvements."
+                  ]}
+                  onInsightClick={handleAIInsightClick}
+                  title="AI Product Intelligence"
+                  icon={<Brain className="w-5 h-5 text-primary" />}
+                  badge="Updated 2h ago"
                   actions={
                     <div className="flex gap-2 pt-2">
                       <Button size="sm" variant="outline">

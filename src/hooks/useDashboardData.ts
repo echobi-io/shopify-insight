@@ -4,6 +4,7 @@ import { getRevenueByDate } from '@/lib/fetchers/getRevenueByDate'
 import { getProductData } from '@/lib/fetchers/getProductData'
 import { getSegmentData } from '@/lib/fetchers/getSegmentData'
 import { getChannelData } from '@/lib/fetchers/getChannelData'
+import { getProductPerformanceData, ProductPerformanceData } from '@/lib/fetchers/getProductPerformanceData'
 
 export function useDashboardData(timeRange: string, selectedSegment: string) {
   const [loading, setLoading] = useState(false)
@@ -16,6 +17,7 @@ export function useDashboardData(timeRange: string, selectedSegment: string) {
   const [productData, setProductData] = useState<any[]>([])
   const [segmentData, setSegmentData] = useState<any[]>([])
   const [channelData, setChannelData] = useState<any[]>([])
+  const [productPerformanceData, setProductPerformanceData] = useState<ProductPerformanceData | null>(null)
 
   // Generate date filters based on timeRange
   const getDateFilters = useCallback((): FilterState => {
@@ -63,13 +65,15 @@ export function useDashboardData(timeRange: string, selectedSegment: string) {
         revenue,
         products,
         segments,
-        channels
+        channels,
+        productPerformance
       ] = await Promise.all([
         getKPIs(filters),
         getRevenueByDate(filters),
         getProductData(filters),
         getSegmentData(filters),
-        getChannelData(filters)
+        getChannelData(filters),
+        getProductPerformanceData(filters)
       ])
 
       // Set KPI data
@@ -89,6 +93,7 @@ export function useDashboardData(timeRange: string, selectedSegment: string) {
       setProductData(products)
       setSegmentData(segments)
       setChannelData(channels)
+      setProductPerformanceData(productPerformance)
 
     } catch (err) {
       console.error('Error fetching dashboard data:', err)
@@ -123,6 +128,7 @@ export function useDashboardData(timeRange: string, selectedSegment: string) {
     productData,
     segmentData,
     channelData,
+    productPerformanceData,
     
     // State
     loading,
