@@ -5,7 +5,7 @@
 -- Daily Revenue Summary View
 CREATE MATERIALIZED VIEW IF NOT EXISTS daily_revenue_summary AS
 SELECT 
-    DATE(order_date) as date,
+    DATE(created_at) as date,
     COUNT(*) as total_orders,
     COUNT(DISTINCT user_id) as unique_customers,
     SUM(total_amount) as total_revenue,
@@ -13,9 +13,9 @@ SELECT
     'online' as channel, -- Default channel since not in schema
     'mixed' as customer_segment -- Default segment since not in schema
 FROM orders
-WHERE order_date >= CURRENT_DATE - INTERVAL '2 years'
-AND order_date IS NOT NULL
-GROUP BY DATE(order_date);
+WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
+AND created_at IS NOT NULL
+GROUP BY DATE(created_at);
 
 -- Create index on the materialized view
 CREATE INDEX IF NOT EXISTS idx_daily_revenue_summary_date ON daily_revenue_summary(date);
@@ -33,14 +33,14 @@ SELECT
     SUM(oi.price * oi.quantity) as total_revenue,
     AVG(oi.price) as avg_price,
     COUNT(DISTINCT o.user_id) as unique_customers,
-    MIN(o.order_date) as first_ordered,
-    MAX(o.order_date) as last_ordered,
-    DATE(o.order_date) as order_date
+    MIN(o.created_at) as first_ordered,
+    MAX(o.created_at) as last_ordered,
+    DATE(o.created_at) as order_date
 FROM order_line_items oi
 JOIN orders o ON oi.order_id = o.id
-WHERE o.order_date >= CURRENT_DATE - INTERVAL '2 years'
-AND o.order_date IS NOT NULL
-GROUP BY oi.product_id, DATE(o.order_date);
+WHERE o.created_at >= CURRENT_DATE - INTERVAL '2 years'
+AND o.created_at IS NOT NULL
+GROUP BY oi.product_id, DATE(o.created_at);
 
 -- Create indexes on product performance view
 CREATE INDEX IF NOT EXISTS idx_product_performance_product_id ON product_performance_summary(product_id);
@@ -52,13 +52,13 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS customer_segment_summary AS
 WITH customer_order_counts AS (
     SELECT 
         user_id,
-        DATE(order_date) as date,
-        COUNT(*) OVER (PARTITION BY user_id ORDER BY order_date ROWS UNBOUNDED PRECEDING) as order_number,
+        DATE(created_at) as date,
+        COUNT(*) OVER (PARTITION BY user_id ORDER BY created_at ROWS UNBOUNDED PRECEDING) as order_number,
         total_amount,
-        order_date
+        created_at
     FROM orders
-    WHERE order_date >= CURRENT_DATE - INTERVAL '2 years'
-    AND order_date IS NOT NULL
+    WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
+    AND created_at IS NOT NULL
     AND user_id IS NOT NULL
 ),
 segmented_orders AS (
@@ -92,15 +92,15 @@ CREATE INDEX IF NOT EXISTS idx_customer_segment_summary_date ON customer_segment
 CREATE MATERIALIZED VIEW IF NOT EXISTS channel_performance_summary AS
 SELECT 
     'online' as channel, -- Default channel since not in schema
-    DATE(order_date) as date,
+    DATE(created_at) as date,
     COUNT(*) as orders_count,
     COUNT(DISTINCT user_id) as customers_count,
     SUM(total_amount) as total_revenue,
     AVG(total_amount) as avg_order_value
 FROM orders
-WHERE order_date >= CURRENT_DATE - INTERVAL '2 years'
-AND order_date IS NOT NULL
-GROUP BY DATE(order_date);
+WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
+AND created_at IS NOT NULL
+GROUP BY DATE(created_at);
 
 -- Create indexes on channel performance view
 CREATE INDEX IF NOT EXISTS idx_channel_performance_summary_channel ON channel_performance_summary(channel);
@@ -111,13 +111,13 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS customer_retention_summary AS
 WITH customer_orders AS (
     SELECT 
         user_id,
-        DATE(order_date) as order_date,
-        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY order_date) as order_number,
+        DATE(created_at) as order_date,
+        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at) as order_number,
         total_amount
     FROM orders
     WHERE user_id IS NOT NULL
-    AND order_date IS NOT NULL
-    AND order_date >= CURRENT_DATE - INTERVAL '2 years'
+    AND created_at IS NOT NULL
+    AND created_at >= CURRENT_DATE - INTERVAL '2 years'
 ),
 customer_metrics AS (
     SELECT 
