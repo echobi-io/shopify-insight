@@ -1,19 +1,21 @@
 -- Materialized Views for ShopifyIQ Analytics Performance
+-- Updated to match actual database schema
 -- Run this in your Supabase SQL Editor after the main schema
 
 -- Daily Revenue Summary View
 CREATE MATERIALIZED VIEW IF NOT EXISTS daily_revenue_summary AS
 SELECT 
-    DATE(created_at) as date,
+    DATE(order_date) as date,
     COUNT(*) as total_orders,
-    COUNT(DISTINCT customer_id) as unique_customers,
-    SUM(total_price) as total_revenue,
-    AVG(total_price) as avg_order_value,
-    channel,
-    'mixed' as customer_segment
+    COUNT(DISTINCT user_id) as unique_customers,
+    SUM(total_amount) as total_revenue,
+    AVG(total_amount) as avg_order_value,
+    'online' as channel, -- Default channel since not in schema
+    'mixed' as customer_segment -- Default segment since not in schema
 FROM orders
-WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
-GROUP BY DATE(created_at), channel;
+WHERE order_date >= CURRENT_DATE - INTERVAL '2 years'
+AND order_date IS NOT NULL
+GROUP BY DATE(order_date);
 
 -- Create index on the materialized view
 CREATE INDEX IF NOT EXISTS idx_daily_revenue_summary_date ON daily_revenue_summary(date);
@@ -23,22 +25,22 @@ CREATE INDEX IF NOT EXISTS idx_daily_revenue_summary_segment ON daily_revenue_su
 -- Product Performance Summary View
 CREATE MATERIALIZED VIEW IF NOT EXISTS product_performance_summary AS
 SELECT 
-    p.id as product_id,
-    p.name as product_name,
-    p.category,
+    oi.product_id,
+    CONCAT('Product ', oi.product_id) as product_name, -- Placeholder since no products table
+    'General' as category, -- Default category since no products table
     COUNT(DISTINCT oi.order_id) as total_orders,
     SUM(oi.quantity) as total_units_sold,
     SUM(oi.price * oi.quantity) as total_revenue,
     AVG(oi.price) as avg_price,
-    COUNT(DISTINCT o.customer_id) as unique_customers,
-    MIN(o.created_at) as first_ordered,
-    MAX(o.created_at) as last_ordered,
-    DATE(o.created_at) as order_date
-FROM products p
-JOIN order_line_items oi ON p.id = oi.product_id
+    COUNT(DISTINCT o.user_id) as unique_customers,
+    MIN(o.order_date) as first_ordered,
+    MAX(o.order_date) as last_ordered,
+    DATE(o.order_date) as order_date
+FROM order_line_items oi
 JOIN orders o ON oi.order_id = o.id
-WHERE o.created_at >= CURRENT_DATE - INTERVAL '2 years'
-GROUP BY p.id, p.name, p.category, DATE(o.created_at);
+WHERE o.order_date >= CURRENT_DATE - INTERVAL '2 years'
+AND o.order_date IS NOT NULL
+GROUP BY oi.product_id, DATE(o.order_date);
 
 -- Create indexes on product performance view
 CREATE INDEX IF NOT EXISTS idx_product_performance_product_id ON product_performance_summary(product_id);
@@ -49,20 +51,21 @@ CREATE INDEX IF NOT EXISTS idx_product_performance_category ON product_performan
 CREATE MATERIALIZED VIEW IF NOT EXISTS customer_segment_summary AS
 WITH customer_order_counts AS (
     SELECT 
-        customer_id,
-        DATE(created_at) as date,
-        COUNT(*) OVER (PARTITION BY customer_id ORDER BY created_at ROWS UNBOUNDED PRECEDING) as order_number,
-        total_price,
-        created_at
+        user_id,
+        DATE(order_date) as date,
+        COUNT(*) OVER (PARTITION BY user_id ORDER BY order_date ROWS UNBOUNDED PRECEDING) as order_number,
+        total_amount,
+        order_date
     FROM orders
-    WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
-    AND customer_id IS NOT NULL
+    WHERE order_date >= CURRENT_DATE - INTERVAL '2 years'
+    AND order_date IS NOT NULL
+    AND user_id IS NOT NULL
 ),
 segmented_orders AS (
     SELECT 
         date,
-        customer_id,
-        total_price,
+        user_id,
+        total_amount,
         CASE 
             WHEN order_number = 1 THEN 'new'
             WHEN order_number BETWEEN 2 AND 5 THEN 'returning'
@@ -75,9 +78,9 @@ SELECT
     customer_segment,
     date,
     COUNT(*) as orders_count,
-    COUNT(DISTINCT customer_id) as customers_count,
-    SUM(total_price) as total_revenue,
-    AVG(total_price) as avg_order_value
+    COUNT(DISTINCT user_id) as customers_count,
+    SUM(total_amount) as total_revenue,
+    AVG(total_amount) as avg_order_value
 FROM segmented_orders
 GROUP BY customer_segment, date;
 
@@ -85,18 +88,19 @@ GROUP BY customer_segment, date;
 CREATE INDEX IF NOT EXISTS idx_customer_segment_summary_segment ON customer_segment_summary(customer_segment);
 CREATE INDEX IF NOT EXISTS idx_customer_segment_summary_date ON customer_segment_summary(date);
 
--- Channel Performance Summary View
+-- Channel Performance Summary View (Single channel since not in schema)
 CREATE MATERIALIZED VIEW IF NOT EXISTS channel_performance_summary AS
 SELECT 
-    channel,
-    DATE(created_at) as date,
+    'online' as channel, -- Default channel since not in schema
+    DATE(order_date) as date,
     COUNT(*) as orders_count,
-    COUNT(DISTINCT customer_id) as customers_count,
-    SUM(total_price) as total_revenue,
-    AVG(total_price) as avg_order_value
+    COUNT(DISTINCT user_id) as customers_count,
+    SUM(total_amount) as total_revenue,
+    AVG(total_amount) as avg_order_value
 FROM orders
-WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
-GROUP BY channel, DATE(created_at);
+WHERE order_date >= CURRENT_DATE - INTERVAL '2 years'
+AND order_date IS NOT NULL
+GROUP BY DATE(order_date);
 
 -- Create indexes on channel performance view
 CREATE INDEX IF NOT EXISTS idx_channel_performance_summary_channel ON channel_performance_summary(channel);
@@ -106,22 +110,23 @@ CREATE INDEX IF NOT EXISTS idx_channel_performance_summary_date ON channel_perfo
 CREATE MATERIALIZED VIEW IF NOT EXISTS customer_retention_summary AS
 WITH customer_orders AS (
     SELECT 
-        customer_id,
-        DATE(created_at) as order_date,
-        ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at) as order_number,
-        total_price
+        user_id,
+        DATE(order_date) as order_date,
+        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY order_date) as order_number,
+        total_amount
     FROM orders
-    WHERE customer_id IS NOT NULL
-    AND created_at >= CURRENT_DATE - INTERVAL '2 years'
+    WHERE user_id IS NOT NULL
+    AND order_date IS NOT NULL
+    AND order_date >= CURRENT_DATE - INTERVAL '2 years'
 ),
 customer_metrics AS (
     SELECT 
-        customer_id,
+        user_id,
         COUNT(*) as total_orders,
         MIN(order_date) as first_order_date,
         MAX(order_date) as last_order_date,
-        SUM(total_price) as total_spent,
-        AVG(total_price) as avg_order_value,
+        SUM(total_amount) as total_spent,
+        AVG(total_amount) as avg_order_value,
         CASE 
             WHEN COUNT(*) = 1 THEN 'new'
             WHEN COUNT(*) BETWEEN 2 AND 5 THEN 'returning'
@@ -130,7 +135,7 @@ customer_metrics AS (
             ELSE 'returning'
         END as calculated_segment
     FROM customer_orders
-    GROUP BY customer_id
+    GROUP BY user_id
 )
 SELECT 
     calculated_segment,
@@ -143,21 +148,18 @@ SELECT
 FROM customer_metrics
 GROUP BY calculated_segment;
 
--- Refund Analysis View
+-- Refund Analysis View (Simplified since no refunds table visible)
 CREATE MATERIALIZED VIEW IF NOT EXISTS refund_summary AS
 SELECT 
-    DATE(r.created_at) as date,
-    p.name as product_name,
-    p.category,
-    COUNT(*) as refund_count,
-    SUM(r.amount) as total_refund_amount,
-    AVG(r.amount) as avg_refund_amount,
-    r.reason,
-    r.status
-FROM refunds r
-JOIN products p ON r.product_id = p.id
-WHERE r.created_at >= CURRENT_DATE - INTERVAL '2 years'
-GROUP BY DATE(r.created_at), p.name, p.category, r.reason, r.status;
+    CURRENT_DATE as date,
+    'No Refunds Data' as product_name,
+    'General' as category,
+    0 as refund_count,
+    0.00 as total_refund_amount,
+    0.00 as avg_refund_amount,
+    'N/A' as reason,
+    'N/A' as status
+WHERE FALSE; -- Empty view since no refunds table
 
 -- Create indexes on refund summary view
 CREATE INDEX IF NOT EXISTS idx_refund_summary_date ON refund_summary(date);
