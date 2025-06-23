@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 
 interface AuthContextType {
   user: User | null;
+  merchantId: string | null;
   createUser: (user: User) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
@@ -18,6 +19,7 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
+  merchantId: null,
   createUser: async () => {},
   signIn: async () => {},
   signUp: async () => {},
@@ -31,23 +33,59 @@ export const AuthContext = createContext<AuthContextType>({
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [merchantId, setMerchantId] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
   const supabase = createClient();
   const { toast } = useToast();
+
+  // Helper to fetch merchant_id from profiles table
+  const fetchMerchantId = async (userId: string) => {
+    // Try profiles table first, fallback to User table if needed
+    let { data, error } = await supabase
+      .from('profiles')
+      .select('merchant_id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error || !data) {
+      // Try User table as fallback
+      let { data: userData, error: userError } = await supabase
+        .from('User')
+        .select('merchant_id')
+        .eq('id', userId)
+        .maybeSingle();
+      if (userData && userData.merchant_id) {
+        setMerchantId(userData.merchant_id);
+      } else {
+        setMerchantId(null);
+      }
+    } else {
+      setMerchantId(data.merchant_id || null);
+    }
+  };
 
   React.useEffect(() => {
     const fetchSession = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      if (user?.id) {
+        await fetchMerchantId(user.id);
+      } else {
+        setMerchantId(null);
+      }
       setInitializing(false);
     };
 
     fetchSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // The setTimeout is necessary to allow Supabase functions to trigger inside onAuthStateChange
       setTimeout(async () => {
         setUser(session?.user ?? null);
+        if (session?.user?.id) {
+          await fetchMerchantId(session.user.id);
+        } else {
+          setMerchantId(null);
+        }
         setInitializing(false);
       }, 0);
     });
@@ -216,6 +254,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   return (
     <AuthContext.Provider value={{
       user,
+      merchantId,
       createUser,
       signIn,
       signUp,
@@ -224,7 +263,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       signOut,
       resetPassword,
       initializing,
-
     }}>
       {children}
     </AuthContext.Provider>

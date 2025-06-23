@@ -17,63 +17,78 @@ export interface KPIData {
   churnRisk: number
 }
 
-export async function getKPIs(filters: FilterState): Promise<KPIData> {
+export async function getKPIs(filters: FilterState, merchant_id?: string): Promise<KPIData> {
   try {
     // Use materialized view for better performance
     let summaryQuery = supabase
       .from('daily_revenue_summary')
       .select('*')
       .gte('date', filters.startDate.split('T')[0])
-      .lte('date', filters.endDate.split('T')[0])
+      .lte('date', filters.endDate.split('T')[0]);
 
     // Apply filters
+    if (merchant_id) {
+      summaryQuery = summaryQuery.eq('merchant_id', merchant_id);
+    }
     if (filters.segment && filters.segment !== 'all') {
-      summaryQuery = summaryQuery.eq('customer_segment', filters.segment)
+      summaryQuery = summaryQuery.eq('customer_segment', filters.segment);
     }
     if (filters.channel && filters.channel !== 'all') {
-      summaryQuery = summaryQuery.eq('channel', filters.channel)
+      summaryQuery = summaryQuery.eq('channel', filters.channel);
     }
 
-    const { data: summaryData, error: summaryError } = await summaryQuery
+    const { data: summaryData, error: summaryError } = await summaryQuery;
 
     if (summaryError) {
-      console.error('Error fetching summary data:', summaryError)
-      throw summaryError
+      console.error('Error fetching summary data:', summaryError);
+      throw summaryError;
     }
 
     // Aggregate the summary data
-    const totalRevenue = summaryData?.reduce((sum, row) => sum + (row.total_revenue || 0), 0) || 0
-    const totalOrders = summaryData?.reduce((sum, row) => sum + (row.total_orders || 0), 0) || 0
-    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
-    const uniqueCustomers = summaryData?.reduce((sum, row) => sum + (row.unique_customers || 0), 0) || 0
+    const totalRevenue = summaryData?.reduce((sum, row) => sum + (row.total_revenue || 0), 0) || 0;
+    const totalOrders = summaryData?.reduce((sum, row) => sum + (row.total_orders || 0), 0) || 0;
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    const uniqueCustomers = summaryData?.reduce((sum, row) => sum + (row.unique_customers || 0), 0) || 0;
 
     // Get total customers count for percentage calculation
-    const { count: totalCustomersCount } = await supabase
+    let customersQuery = supabase
       .from('customers')
-      .select('*', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true });
+    if (merchant_id) {
+      customersQuery = customersQuery.eq('merchant_id', merchant_id);
+    }
+    const { count: totalCustomersCount } = await customersQuery;
 
-    const percentOrdering = totalCustomersCount ? (uniqueCustomers / totalCustomersCount) * 100 : 0
+    const percentOrdering = totalCustomersCount ? (uniqueCustomers / totalCustomersCount) * 100 : 0;
 
     // Get new customers count
-    const { count: newCustomersCount } = await supabase
+    let newCustomersQuery = supabase
       .from('customers')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', filters.startDate)
-      .lte('created_at', filters.endDate)
+      .lte('created_at', filters.endDate);
+    if (merchant_id) {
+      newCustomersQuery = newCustomersQuery.eq('merchant_id', merchant_id);
+    }
+    const { count: newCustomersCount } = await newCustomersQuery;
 
     // Use customer retention summary for churn risk calculation
-    const { data: retentionData, error: retentionError } = await supabase
+    let retentionQuery = supabase
       .from('customer_retention_summary')
-      .select('*')
+      .select('*');
+    if (merchant_id) {
+      retentionQuery = retentionQuery.eq('merchant_id', merchant_id);
+    }
+    const { data: retentionData, error: retentionError } = await retentionQuery;
 
     if (retentionError) {
-      console.error('Error fetching retention data:', retentionError)
+      console.error('Error fetching retention data:', retentionError);
     }
 
     // Calculate churn risk from retention data
-    const atRiskCustomers = retentionData?.find(r => r.calculated_segment === 'at_risk')?.customers_count || 0
-    const totalCustomersInRetention = retentionData?.reduce((sum, r) => sum + (r.customers_count || 0), 0) || 1
-    const churnRisk = (atRiskCustomers / totalCustomersInRetention) * 100
+    const atRiskCustomers = retentionData?.find(r => r.calculated_segment === 'at_risk')?.customers_count || 0;
+    const totalCustomersInRetention = retentionData?.reduce((sum, r) => sum + (r.customers_count || 0), 0) || 1;
+    const churnRisk = (atRiskCustomers / totalCustomersInRetention) * 100;
 
     return {
       totalRevenue: parseFloat(totalRevenue.toFixed(2)),
@@ -82,9 +97,9 @@ export async function getKPIs(filters: FilterState): Promise<KPIData> {
       percentOrdering: parseFloat(percentOrdering.toFixed(1)),
       newCustomers: newCustomersCount || 0,
       churnRisk: parseFloat(churnRisk.toFixed(1))
-    }
+    };
   } catch (error) {
-    console.error('Error fetching KPIs:', error)
+    console.error('Error fetching KPIs:', error);
     // Return default values on error to prevent crashes
     return {
       totalRevenue: 0,
@@ -93,7 +108,7 @@ export async function getKPIs(filters: FilterState): Promise<KPIData> {
       percentOrdering: 0,
       newCustomers: 0,
       churnRisk: 0
-    }
+    };
   }
 }
 

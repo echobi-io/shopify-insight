@@ -29,7 +29,7 @@ import {
   getFallbackTrendData,
 } from '@/lib/fallbackData';
 
-export function useDashboardData(globalDateRange: string, selectedSegment: string, useLiveData: boolean = true) {
+export function useDashboardData(globalDateRange: string, selectedSegment: string, useLiveData: boolean = true, merchantId?: string | null) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
@@ -93,7 +93,7 @@ export function useDashboardData(globalDateRange: string, selectedSegment: strin
       const filters = getDateFilters()
       const timeRangeType = getTimeRangeType()
 
-      // Fetch all data in parallel
+      // Fetch all data in parallel, passing merchantId to all fetchers
       const [
         currentKpis,
         previousKpis,
@@ -104,14 +104,14 @@ export function useDashboardData(globalDateRange: string, selectedSegment: strin
         channels,
         productPerformance
       ] = await Promise.all([
-        getKPIs(filters),
-        getPreviousKPIs(filters),
-        getSalesKPIs(filters),
-        getRevenueByTimeRange(filters, timeRangeType),
-        getProductData(filters),
-        getSegmentData(filters),
-        getChannelData(filters),
-        getProductPerformanceData(filters)
+        getKPIs(filters, merchantId),
+        getPreviousKPIs(filters, merchantId),
+        getSalesKPIs(filters, merchantId),
+        getRevenueByTimeRange(filters, timeRangeType, merchantId),
+        getProductData(filters, merchantId),
+        getSegmentData(filters, merchantId),
+        getChannelData(filters, merchantId),
+        getProductPerformanceData(filters, merchantId)
       ])
 
       // Calculate KPI changes
@@ -143,7 +143,7 @@ export function useDashboardData(globalDateRange: string, selectedSegment: strin
     } finally {
       setLoading(false)
     }
-  }, [getDateFilters, getTimeRangeType, useLiveData, globalDateRange])
+  }, [getDateFilters, getTimeRangeType, useLiveData, globalDateRange, merchantId])
 
   // Update filters function
   const updateFilters = useCallback((newTimeRange?: string, newSegment?: string) => {
