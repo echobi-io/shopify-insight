@@ -7,7 +7,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS daily_revenue_summary AS
 SELECT 
     DATE(created_at) as date,
     COUNT(*) as total_orders,
-    COUNT(DISTINCT user_id) as unique_customers,
+    COUNT(DISTINCT customer_id) as unique_customers,
     SUM(total_amount) as total_revenue,
     AVG(total_amount) as avg_order_value,
     'online' as channel, -- Default channel since not in schema
@@ -32,7 +32,7 @@ SELECT
     SUM(oi.quantity) as total_units_sold,
     SUM(oi.price * oi.quantity) as total_revenue,
     AVG(oi.price) as avg_price,
-    COUNT(DISTINCT o.user_id) as unique_customers,
+    COUNT(DISTINCT o.customer_id) as unique_customers,
     MIN(o.created_at) as first_ordered,
     MAX(o.created_at) as last_ordered,
     DATE(o.created_at) as order_date
@@ -51,20 +51,20 @@ CREATE INDEX IF NOT EXISTS idx_product_performance_category ON product_performan
 CREATE MATERIALIZED VIEW IF NOT EXISTS customer_segment_summary AS
 WITH customer_order_counts AS (
     SELECT 
-        user_id,
+        customer_id,
         DATE(created_at) as date,
-        COUNT(*) OVER (PARTITION BY user_id ORDER BY created_at ROWS UNBOUNDED PRECEDING) as order_number,
+        COUNT(*) OVER (PARTITION BY customer_id ORDER BY created_at ROWS UNBOUNDED PRECEDING) as order_number,
         total_amount,
         created_at
     FROM orders
     WHERE created_at >= CURRENT_DATE - INTERVAL '2 years'
     AND created_at IS NOT NULL
-    AND user_id IS NOT NULL
+    AND customer_id IS NOT NULL
 ),
 segmented_orders AS (
     SELECT 
         date,
-        user_id,
+        customer_id,
         total_amount,
         CASE 
             WHEN order_number = 1 THEN 'new'
@@ -78,7 +78,7 @@ SELECT
     customer_segment,
     date,
     COUNT(*) as orders_count,
-    COUNT(DISTINCT user_id) as customers_count,
+    COUNT(DISTINCT customer_id) as customers_count,
     SUM(total_amount) as total_revenue,
     AVG(total_amount) as avg_order_value
 FROM segmented_orders
@@ -94,7 +94,7 @@ SELECT
     'online' as channel, -- Default channel since not in schema
     DATE(created_at) as date,
     COUNT(*) as orders_count,
-    COUNT(DISTINCT user_id) as customers_count,
+    COUNT(DISTINCT customer_id) as customers_count,
     SUM(total_amount) as total_revenue,
     AVG(total_amount) as avg_order_value
 FROM orders
@@ -110,18 +110,18 @@ CREATE INDEX IF NOT EXISTS idx_channel_performance_summary_date ON channel_perfo
 CREATE MATERIALIZED VIEW IF NOT EXISTS customer_retention_summary AS
 WITH customer_orders AS (
     SELECT 
-        user_id,
+        customer_id,
         DATE(created_at) as order_date,
-        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at) as order_number,
+        ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY created_at) as order_number,
         total_amount
     FROM orders
-    WHERE user_id IS NOT NULL
+    WHERE customer_id IS NOT NULL
     AND created_at IS NOT NULL
     AND created_at >= CURRENT_DATE - INTERVAL '2 years'
 ),
 customer_metrics AS (
     SELECT 
-        user_id,
+        customer_id,
         COUNT(*) as total_orders,
         MIN(order_date) as first_order_date,
         MAX(order_date) as last_order_date,
@@ -135,7 +135,7 @@ customer_metrics AS (
             ELSE 'returning'
         END as calculated_segment
     FROM customer_orders
-    GROUP BY user_id
+    GROUP BY customer_id
 )
 SELECT 
     calculated_segment,
