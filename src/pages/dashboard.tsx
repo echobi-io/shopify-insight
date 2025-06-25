@@ -380,38 +380,14 @@ export default function Dashboard() {
     productPerformance: hasLiveData(realProductPerformanceData)
   };
 
-  // Use data directly based on toggle - no automatic fallback
-  const currentKpiData = useLiveData ? (realKpiData || {
-    totalRevenue: 0,
-    totalOrders: 0,
-    avgOrderValue: 0,
-    percentOrdering: 0,
-    newCustomers: 0,
-    churnRisk: 0
-  }) : fallbackKpiData;
-  
-  const currentSalesKpiData = useLiveData ? (realSalesKpiData || {
-    totalRevenue: 0,
-    totalOrders: 0,
-    avgOrderValue: 0,
-    refundRate: 0,
-    repeatOrderRate: 0
-  }) : fallbackSalesKpiData;
-  
-  const currentRevenueData = useLiveData ? (realRevenueData || []) : getFallbackTrendData(timeRange);
-  const currentProductData = useLiveData ? (realProductData || []) : fallbackProductBreakdownData;
-  const currentSegmentData = useLiveData ? (realSegmentData || []) : fallbackSegmentAnalysisData;
-  const currentChannelData = useLiveData ? (realChannelData || []) : fallbackChannelBreakdownData;
-  const currentProductPerformanceData = useLiveData ? (realProductPerformanceData || {
-    topProductBySales: { name: 'No Data', revenue: 0, unitsSold: 0, aov: 0, refundRate: 0 },
-    mostSoldProduct: { name: 'No Data', unitsSold: 0, revenue: 0, aov: 0, refundRate: 0 },
-    highestAOVProduct: { name: 'No Data', aov: 0, unitsSold: 0, revenue: 0, refundRate: 0 },
-    highestRefundRateProduct: { name: 'No Data', refundRate: 0, unitsSold: 0, revenue: 0, aov: 0 },
-    topProducts: [],
-    productTrendData: [],
-    productRepurchaseData: [],
-    productSegmentData: []
-  }) : fallbackProductPerformanceData;
+  // Use data directly based on toggle - properly handle live data
+  const currentKpiData = useLiveData ? realKpiData : fallbackKpiData;
+  const currentSalesKpiData = useLiveData ? realSalesKpiData : fallbackSalesKpiData;
+  const currentRevenueData = useLiveData ? realRevenueData : getFallbackTrendData(timeRange);
+  const currentProductData = useLiveData ? realProductData : fallbackProductBreakdownData;
+  const currentSegmentData = useLiveData ? realSegmentData : fallbackSegmentAnalysisData;
+  const currentChannelData = useLiveData ? realChannelData : fallbackChannelBreakdownData;
+  const currentProductPerformanceData = useLiveData ? realProductPerformanceData : fallbackProductPerformanceData;
 
   // Check if we have any live data available
   const hasAnyLiveData = Object.values(dataStatus).some(Boolean);
@@ -1072,7 +1048,7 @@ export default function Dashboard() {
                   <>
                     <ClickableKPICard
                       title="Total Revenue"
-                      value={`£${currentKpiData.totalRevenue.toLocaleString()}`}
+                      value={`£${(currentKpiData?.totalRevenue || 0).toLocaleString()}`}
                       change={`+15.5% vs last month`}
                       changeType="positive"
                       icon={<DollarSign className="w-5 h-5" />}
@@ -1080,7 +1056,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Total Orders"
-                      value={currentKpiData.totalOrders.toLocaleString()}
+                      value={(currentKpiData?.totalOrders || 0).toLocaleString()}
                       change={`+20.0% vs last month`}
                       changeType="positive"
                       icon={<ShoppingBag className="w-5 h-5" />}
@@ -1088,7 +1064,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Avg Order Value"
-                      value={`£${currentKpiData.avgOrderValue.toFixed(2)}`}
+                      value={`£${(currentKpiData?.avgOrderValue || 0).toFixed(2)}`}
                       change={`-3.7% vs last month`}
                       changeType="negative"
                       icon={<CreditCard className="w-5 h-5" />}
@@ -1096,7 +1072,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Customers Ordering %"
-                      value={`${currentKpiData.percentOrdering}%`}
+                      value={`${(currentKpiData?.percentOrdering || 0)}%`}
                       change={`+6.6% vs last month`}
                       changeType="positive"
                       icon={<Percent className="w-5 h-5" />}
@@ -1104,7 +1080,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="New Customers"
-                      value={currentKpiData.newCustomers.toLocaleString()}
+                      value={(currentKpiData?.newCustomers || 0).toLocaleString()}
                       change={`+10.9% vs last month`}
                       changeType="positive"
                       icon={<Users className="w-5 h-5" />}
@@ -1112,7 +1088,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Churn Risk %"
-                      value={`${currentKpiData.churnRisk}%`}
+                      value={`${(currentKpiData?.churnRisk || 0)}%`}
                       change={`+34.4% vs last month`}
                       changeType="negative"
                       icon={<AlertTriangle className="w-5 h-5" />}
@@ -1210,7 +1186,7 @@ export default function Dashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {(currentKpiData.comparisonData || []).map((row, index) => (
+                          {(currentKpiData?.comparisonData || comparisonData).map((row, index) => (
                             <tr key={index} className="border-b border-border/50">
                               <td className="py-3 px-4 font-medium">{row.metric}</td>
                               <td className="text-right py-3 px-4">{row.thisMonth}</td>
@@ -1365,7 +1341,7 @@ export default function Dashboard() {
                   <>
                     <ClickableKPICard
                       title="Total Revenue"
-                      value={`£${currentSalesKpiData.totalRevenue.toLocaleString()}`}
+                      value={`£${(currentSalesKpiData?.totalRevenue || 0).toLocaleString()}`}
                       change={`+15.5% vs last month`}
                       changeType="positive"
                       icon={<DollarSign className="w-5 h-5" />}
@@ -1373,7 +1349,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Total Orders"
-                      value={currentSalesKpiData.totalOrders.toLocaleString()}
+                      value={(currentSalesKpiData?.totalOrders || 0).toLocaleString()}
                       change={`+20.0% vs last month`}
                       changeType="positive"
                       icon={<ShoppingBag className="w-5 h-5" />}
@@ -1381,7 +1357,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Average Order Value"
-                      value={`£${currentSalesKpiData.avgOrderValue.toFixed(2)}`}
+                      value={`£${(currentSalesKpiData?.avgOrderValue || 0).toFixed(2)}`}
                       change={`-3.7% vs last month`}
                       changeType="negative"
                       icon={<CreditCard className="w-5 h-5" />}
@@ -1389,7 +1365,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Refund Rate"
-                      value={`${currentSalesKpiData.refundRate}%`}
+                      value={`${(currentSalesKpiData?.refundRate || 0)}%`}
                       change={`+16.7% vs last month`}
                       changeType="negative"
                       icon={<AlertTriangle className="w-5 h-5" />}
@@ -1397,7 +1373,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Repeat Order Rate"
-                      value={`${currentSalesKpiData.repeatOrderRate}%`}
+                      value={`${(currentSalesKpiData?.repeatOrderRate || 0)}%`}
                       change={`+6.7% vs last month`}
                       changeType="positive"
                       icon={<UserCheck className="w-5 h-5" />}
@@ -1529,7 +1505,7 @@ export default function Dashboard() {
                 subtitle="Click on deltas to explore what drove the changes"
                 icon={<Calendar className="w-5 h-5 text-primary" />}
                 badge="Interactive"
-                data={currentKpiData.comparisonData || []}
+                data={currentKpiData?.comparisonData || comparisonData}
                 onDeltaClick={(metric, period) => {
                   handleDrillThrough('trends', { 
                     metric: metric.toLowerCase(), 
