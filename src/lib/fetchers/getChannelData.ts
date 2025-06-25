@@ -13,7 +13,7 @@ export interface ChannelData {
   sessions?: number
 }
 
-export async function getChannelData(filters: FilterState): Promise<ChannelData[]> {
+export async function getChannelData(filters: FilterState, merchant_id?: string): Promise<ChannelData[]> {
   try {
     // Use materialized view for better performance
     let summaryQuery = supabase
@@ -21,6 +21,11 @@ export async function getChannelData(filters: FilterState): Promise<ChannelData[
       .select('*')
       .gte('date', filters.startDate.split('T')[0])
       .lte('date', filters.endDate.split('T')[0])
+
+    // Apply merchant_id filter
+    if (merchant_id) {
+      summaryQuery = summaryQuery.eq('merchant_id', merchant_id)
+    }
 
     if (filters.segment && filters.segment !== 'all') {
       // For channel data, we'll need to join with orders to filter by segment
@@ -30,7 +35,15 @@ export async function getChannelData(filters: FilterState): Promise<ChannelData[
         .select('channel, total_price, customer_id')
         .gte('created_at', filters.startDate)
         .lte('created_at', filters.endDate)
-        .eq('customer_segment', filters.segment)
+
+      // Apply merchant_id filter to orders query
+      if (merchant_id) {
+        ordersQuery = ordersQuery.eq('merchant_id', merchant_id)
+      }
+
+      if (filters.segment !== 'all') {
+        ordersQuery = ordersQuery.eq('customer_segment', filters.segment)
+      }
 
       const { data: orders, error } = await ordersQuery
 
@@ -83,10 +96,12 @@ export async function getChannelData(filters: FilterState): Promise<ChannelData[
 
     if (error) {
       console.error('Error fetching channel data:', error)
+      console.error('Error details:', error)
       throw error
     }
 
     if (!summaryData || summaryData.length === 0) {
+      console.log('No channel data found for filters:', filters, 'merchant_id:', merchant_id)
       return []
     }
 
@@ -136,7 +151,7 @@ export async function getChannelData(filters: FilterState): Promise<ChannelData[
 }
 
 // Get channel performance over time
-export async function getChannelTrends(filters: FilterState): Promise<any[]> {
+export async function getChannelTrends(filters: FilterState, merchant_id?: string): Promise<any[]> {
   try {
     let summaryQuery = supabase
       .from('channel_performance_summary')
@@ -144,6 +159,11 @@ export async function getChannelTrends(filters: FilterState): Promise<any[]> {
       .gte('date', filters.startDate.split('T')[0])
       .lte('date', filters.endDate.split('T')[0])
       .order('date')
+
+    // Apply merchant_id filter
+    if (merchant_id) {
+      summaryQuery = summaryQuery.eq('merchant_id', merchant_id)
+    }
 
     const { data: summaryData, error } = await summaryQuery
 
@@ -184,9 +204,9 @@ export async function getChannelTrends(filters: FilterState): Promise<any[]> {
 }
 
 // Get detailed channel comparison
-export async function getChannelComparison(filters: FilterState): Promise<any> {
+export async function getChannelComparison(filters: FilterState, merchant_id?: string): Promise<any> {
   try {
-    const currentChannels = await getChannelData(filters)
+    const currentChannels = await getChannelData(filters, merchant_id)
     
     // Get previous period for comparison
     const startDate = new Date(filters.startDate)
@@ -202,7 +222,7 @@ export async function getChannelComparison(filters: FilterState): Promise<any> {
       endDate: previousEndDate.toISOString()
     }
 
-    const previousChannels = await getChannelData(previousFilters)
+    const previousChannels = await getChannelData(previousFilters, merchant_id)
 
     // Compare channels
     const comparison = currentChannels.map(current => {

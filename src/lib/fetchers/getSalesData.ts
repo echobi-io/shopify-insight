@@ -1,7 +1,7 @@
 import { supabase } from '../supabaseClient'
 import { FilterState } from './getKpis'
 
-export async function getSalesKPIs(filters: FilterState) {
+export async function getSalesKPIs(filters: FilterState, merchant_id?: string) {
   try {
     // Fetch orders within date range
     let ordersQuery = supabase
@@ -9,6 +9,11 @@ export async function getSalesKPIs(filters: FilterState) {
       .select('*')
       .gte('created_at', filters.startDate)
       .lte('created_at', filters.endDate)
+
+    // Apply merchant_id filter
+    if (merchant_id) {
+      ordersQuery = ordersQuery.eq('merchant_id', merchant_id)
+    }
 
     // Apply filters
     if (filters.segment && filters.segment !== 'all') {
@@ -22,10 +27,12 @@ export async function getSalesKPIs(filters: FilterState) {
 
     if (ordersError) {
       console.error('Error fetching sales orders:', ordersError)
+      console.error('Error details:', ordersError)
       throw ordersError
     }
 
     if (!orders || orders.length === 0) {
+      console.log('No orders found for filters:', filters, 'merchant_id:', merchant_id)
       return {
         totalRevenue: 0,
         totalOrders: 0,
@@ -41,11 +48,17 @@ export async function getSalesKPIs(filters: FilterState) {
     const avgOrderValue = totalRevenue / totalOrders
 
     // Fetch refunds for the period
-    const { data: refunds, error: refundsError } = await supabase
+    let refundsQuery = supabase
       .from('refunds')
       .select('amount')
       .gte('created_at', filters.startDate)
       .lte('created_at', filters.endDate)
+
+    if (merchant_id) {
+      refundsQuery = refundsQuery.eq('merchant_id', merchant_id)
+    }
+
+    const { data: refunds, error: refundsError } = await refundsQuery
 
     if (refundsError) {
       console.error('Error fetching refunds:', refundsError)
@@ -85,25 +98,22 @@ export async function getSalesKPIs(filters: FilterState) {
   }
 }
 
-export async function getProductBreakdown(filters: FilterState) {
+export async function getProductBreakdown(filters: FilterState, merchant_id?: string) {
   try {
-    // Fetch order items with product details
+    // Fetch order line items with product details
     let orderItemsQuery = supabase
-      .from('order_items')
+      .from('order_line_items')
       .select(`
         *,
-        orders!inner(created_at, customer_id, channel, customer_segment),
+        orders!inner(created_at, customer_id, merchant_id),
         products(name)
       `)
       .gte('orders.created_at', filters.startDate)
       .lte('orders.created_at', filters.endDate)
 
-    // Apply filters through the orders relation
-    if (filters.segment && filters.segment !== 'all') {
-      orderItemsQuery = orderItemsQuery.eq('orders.customer_segment', filters.segment)
-    }
-    if (filters.channel && filters.channel !== 'all') {
-      orderItemsQuery = orderItemsQuery.eq('orders.channel', filters.channel)
+    // Apply merchant_id filter
+    if (merchant_id) {
+      orderItemsQuery = orderItemsQuery.eq('orders.merchant_id', merchant_id)
     }
 
     const { data: orderItems, error } = await orderItemsQuery
@@ -144,11 +154,17 @@ export async function getProductBreakdown(filters: FilterState) {
     }, {} as Record<string, any>)
 
     // Fetch refunds by product (if refunds table has product_id)
-    const { data: refunds } = await supabase
+    let refundsQuery = supabase
       .from('refunds')
       .select('amount, product_id')
       .gte('created_at', filters.startDate)
       .lte('created_at', filters.endDate)
+
+    if (merchant_id) {
+      refundsQuery = refundsQuery.eq('merchant_id', merchant_id)
+    }
+
+    const { data: refunds } = await refundsQuery
 
     // Calculate repeat order rates and format data
     const result = await Promise.all(
@@ -184,13 +200,18 @@ export async function getProductBreakdown(filters: FilterState) {
   }
 }
 
-export async function getSegmentAnalysis(filters: FilterState) {
+export async function getSegmentAnalysis(filters: FilterState, merchant_id?: string) {
   try {
     let ordersQuery = supabase
       .from('orders')
       .select('customer_segment, total_price, customer_id')
       .gte('created_at', filters.startDate)
       .lte('created_at', filters.endDate)
+
+    // Apply merchant_id filter
+    if (merchant_id) {
+      ordersQuery = ordersQuery.eq('merchant_id', merchant_id)
+    }
 
     if (filters.channel && filters.channel !== 'all') {
       ordersQuery = ordersQuery.eq('channel', filters.channel)
@@ -243,13 +264,18 @@ export async function getSegmentAnalysis(filters: FilterState) {
   }
 }
 
-export async function getChannelBreakdown(filters: FilterState) {
+export async function getChannelBreakdown(filters: FilterState, merchant_id?: string) {
   try {
     let ordersQuery = supabase
       .from('orders')
       .select('channel, total_price')
       .gte('created_at', filters.startDate)
       .lte('created_at', filters.endDate)
+
+    // Apply merchant_id filter
+    if (merchant_id) {
+      ordersQuery = ordersQuery.eq('merchant_id', merchant_id)
+    }
 
     if (filters.segment && filters.segment !== 'all') {
       ordersQuery = ordersQuery.eq('customer_segment', filters.segment)

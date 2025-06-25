@@ -16,6 +16,7 @@ import ClickableChart from "@/components/ClickableChart";
 import ClickableTable from "@/components/ClickableTable";
 import ClickableComparison from "@/components/ClickableComparison";
 import DataToggle from "@/components/DataToggle";
+import DatabaseDebug from "@/components/DatabaseDebug";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { exportToCSV, exportToJSON, formatDataForExport } from "@/lib/utils/exportUtils";
 import { 

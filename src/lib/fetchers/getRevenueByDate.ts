@@ -11,7 +11,7 @@ export interface RevenueByDateData {
   week?: string
 }
 
-export async function getRevenueByDate(filters: FilterState): Promise<RevenueByDateData[]> {
+export async function getRevenueByDate(filters: FilterState, merchant_id?: string): Promise<RevenueByDateData[]> {
   try {
     // Use materialized view for better performance
     let summaryQuery = supabase
@@ -20,6 +20,11 @@ export async function getRevenueByDate(filters: FilterState): Promise<RevenueByD
       .gte('date', filters.startDate.split('T')[0])
       .lte('date', filters.endDate.split('T')[0])
       .order('date')
+
+    // Apply merchant_id filter
+    if (merchant_id) {
+      summaryQuery = summaryQuery.eq('merchant_id', merchant_id)
+    }
 
     // Apply filters
     if (filters.segment && filters.segment !== 'all') {
@@ -79,9 +84,9 @@ export async function getRevenueByDate(filters: FilterState): Promise<RevenueByD
 }
 
 // Get revenue data grouped by week
-export async function getRevenueByWeek(filters: FilterState): Promise<RevenueByDateData[]> {
+export async function getRevenueByWeek(filters: FilterState, merchant_id?: string): Promise<RevenueByDateData[]> {
   try {
-    const dailyData = await getRevenueByDate(filters)
+    const dailyData = await getRevenueByDate(filters, merchant_id)
     
     if (!dailyData.length) return []
 
@@ -124,9 +129,9 @@ export async function getRevenueByWeek(filters: FilterState): Promise<RevenueByD
 }
 
 // Get revenue data grouped by month
-export async function getRevenueByMonth(filters: FilterState): Promise<RevenueByDateData[]> {
+export async function getRevenueByMonth(filters: FilterState, merchant_id?: string): Promise<RevenueByDateData[]> {
   try {
-    const dailyData = await getRevenueByDate(filters)
+    const dailyData = await getRevenueByDate(filters, merchant_id)
     
     if (!dailyData.length) return []
 
@@ -167,13 +172,13 @@ export async function getRevenueByMonth(filters: FilterState): Promise<RevenueBy
 }
 
 // Get revenue data based on time range preference
-export async function getRevenueByTimeRange(filters: FilterState, timeRange: 'daily' | 'weekly' | 'monthly' = 'daily'): Promise<RevenueByDateData[]> {
+export async function getRevenueByTimeRange(filters: FilterState, timeRange: 'daily' | 'weekly' | 'monthly' = 'daily', merchant_id?: string): Promise<RevenueByDateData[]> {
   switch (timeRange) {
     case 'weekly':
-      return getRevenueByWeek(filters)
+      return getRevenueByWeek(filters, merchant_id)
     case 'monthly':
-      return getRevenueByMonth(filters)
+      return getRevenueByMonth(filters, merchant_id)
     default:
-      return getRevenueByDate(filters)
+      return getRevenueByDate(filters, merchant_id)
   }
 }

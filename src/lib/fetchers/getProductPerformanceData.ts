@@ -59,19 +59,18 @@ export interface ProductPerformanceData {
   }>
 }
 
-export async function getProductPerformanceData(filters: FilterState): Promise<ProductPerformanceData> {
+export async function getProductPerformanceData(filters: FilterState, merchant_id?: string): Promise<ProductPerformanceData> {
   try {
     // Fetch comprehensive product data with all related information
-    const { data: orderItems, error: orderItemsError } = await supabase
-      .from('order_items')
+    let orderItemsQuery = supabase
+      .from('order_line_items')
       .select(`
         *,
         orders!inner(
           id,
           created_at,
           customer_id,
-          channel,
-          customer_segment,
+          merchant_id,
           status
         ),
         products!inner(
@@ -83,15 +82,22 @@ export async function getProductPerformanceData(filters: FilterState): Promise<P
       `)
       .gte('orders.created_at', filters.startDate)
       .lte('orders.created_at', filters.endDate)
-      .eq('orders.status', 'delivered') // Only completed orders
+
+    // Apply merchant_id filter
+    if (merchant_id) {
+      orderItemsQuery = orderItemsQuery.eq('orders.merchant_id', merchant_id)
+    }
+
+    const { data: orderItems, error: orderItemsError } = await orderItemsQuery
 
     if (orderItemsError) {
       console.error('Error fetching order items:', orderItemsError)
+      console.error('Error details:', orderItemsError)
       throw orderItemsError
     }
 
     // Fetch refunds data
-    const { data: refunds, error: refundsError } = await supabase
+    let refundsQuery = supabase
       .from('refunds')
       .select(`
         *,
@@ -99,14 +105,19 @@ export async function getProductPerformanceData(filters: FilterState): Promise<P
       `)
       .gte('created_at', filters.startDate)
       .lte('created_at', filters.endDate)
-      .eq('status', 'processed')
+
+    if (merchant_id) {
+      refundsQuery = refundsQuery.eq('merchant_id', merchant_id)
+    }
+
+    const { data: refunds, error: refundsError } = await refundsQuery
 
     if (refundsError) {
       console.error('Error fetching refunds:', refundsError)
-      throw refundsError
     }
 
     if (!orderItems || orderItems.length === 0) {
+      console.log('No order items found for product performance. Filters:', filters, 'merchant_id:', merchant_id)
       return getEmptyProductPerformanceData()
     }
 

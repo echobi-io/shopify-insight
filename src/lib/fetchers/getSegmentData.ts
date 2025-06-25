@@ -11,7 +11,7 @@ export interface SegmentData {
   customerLifetimeValue?: number
 }
 
-export async function getSegmentData(filters: FilterState): Promise<SegmentData[]> {
+export async function getSegmentData(filters: FilterState, merchant_id?: string): Promise<SegmentData[]> {
   try {
     // Use materialized view for better performance
     let summaryQuery = supabase
@@ -20,14 +20,21 @@ export async function getSegmentData(filters: FilterState): Promise<SegmentData[
       .gte('date', filters.startDate.split('T')[0])
       .lte('date', filters.endDate.split('T')[0])
 
+    // Apply merchant_id filter
+    if (merchant_id) {
+      summaryQuery = summaryQuery.eq('merchant_id', merchant_id)
+    }
+
     const { data: summaryData, error } = await summaryQuery
 
     if (error) {
       console.error('Error fetching segment data:', error)
+      console.error('Error details:', error)
       throw error
     }
 
     if (!summaryData || summaryData.length === 0) {
+      console.log('No segment data found for filters:', filters, 'merchant_id:', merchant_id)
       return []
     }
 
@@ -54,9 +61,15 @@ export async function getSegmentData(filters: FilterState): Promise<SegmentData[
     const totalRevenue = Object.values(segments).reduce((sum: number, seg: any) => sum + seg.revenue, 0)
 
     // Get additional customer retention data for enhanced segment analysis
-    const { data: retentionData } = await supabase
+    let retentionQuery = supabase
       .from('customer_retention_summary')
       .select('*')
+
+    if (merchant_id) {
+      retentionQuery = retentionQuery.eq('merchant_id', merchant_id)
+    }
+
+    const { data: retentionData } = await retentionQuery
 
     const result = Object.values(segments).map((seg: any) => {
       const retentionInfo = retentionData?.find(r => r.calculated_segment === seg.segment.toLowerCase())
@@ -80,7 +93,7 @@ export async function getSegmentData(filters: FilterState): Promise<SegmentData[
 }
 
 // Get segment performance over time
-export async function getSegmentTrends(filters: FilterState): Promise<any[]> {
+export async function getSegmentTrends(filters: FilterState, merchant_id?: string): Promise<any[]> {
   try {
     let summaryQuery = supabase
       .from('customer_segment_summary')
@@ -88,6 +101,11 @@ export async function getSegmentTrends(filters: FilterState): Promise<any[]> {
       .gte('date', filters.startDate.split('T')[0])
       .lte('date', filters.endDate.split('T')[0])
       .order('date')
+
+    // Apply merchant_id filter
+    if (merchant_id) {
+      summaryQuery = summaryQuery.eq('merchant_id', merchant_id)
+    }
 
     const { data: summaryData, error } = await summaryQuery
 
@@ -128,9 +146,9 @@ export async function getSegmentTrends(filters: FilterState): Promise<any[]> {
 }
 
 // Get detailed segment comparison
-export async function getSegmentComparison(filters: FilterState): Promise<any> {
+export async function getSegmentComparison(filters: FilterState, merchant_id?: string): Promise<any> {
   try {
-    const currentSegments = await getSegmentData(filters)
+    const currentSegments = await getSegmentData(filters, merchant_id)
     
     // Get previous period for comparison
     const startDate = new Date(filters.startDate)
@@ -146,7 +164,7 @@ export async function getSegmentComparison(filters: FilterState): Promise<any> {
       endDate: previousEndDate.toISOString()
     }
 
-    const previousSegments = await getSegmentData(previousFilters)
+    const previousSegments = await getSegmentData(previousFilters, merchant_id)
 
     // Compare segments
     const comparison = currentSegments.map(current => {

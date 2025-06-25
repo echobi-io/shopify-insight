@@ -1,35 +1,34 @@
 import { supabase } from '../supabaseClient'
 import { FilterState } from './getKpis'
 
-export async function getProductData(filters: FilterState) {
+export async function getProductData(filters: FilterState, merchant_id?: string) {
   try {
-    // Fetch order items with product details
+    // Fetch order line items with product details
     let orderItemsQuery = supabase
-      .from('order_items')
+      .from('order_line_items')
       .select(`
         *,
-        orders!inner(created_at, customer_id, channel, customer_segment),
+        orders!inner(created_at, customer_id, merchant_id),
         products(name)
       `)
       .gte('orders.created_at', filters.startDate)
       .lte('orders.created_at', filters.endDate)
 
-    // Apply filters through the orders relation
-    if (filters.segment && filters.segment !== 'all') {
-      orderItemsQuery = orderItemsQuery.eq('orders.customer_segment', filters.segment)
-    }
-    if (filters.channel && filters.channel !== 'all') {
-      orderItemsQuery = orderItemsQuery.eq('orders.channel', filters.channel)
+    // Apply merchant_id filter
+    if (merchant_id) {
+      orderItemsQuery = orderItemsQuery.eq('orders.merchant_id', merchant_id)
     }
 
     const { data: orderItems, error } = await orderItemsQuery
 
     if (error) {
       console.error('Error fetching product data:', error)
+      console.error('Error details:', error)
       throw error
     }
 
     if (!orderItems || orderItems.length === 0) {
+      console.log('No order items found for filters:', filters, 'merchant_id:', merchant_id)
       return []
     }
 
@@ -60,12 +59,17 @@ export async function getProductData(filters: FilterState) {
     }, {} as Record<string, any>)
 
     // Fetch refunds by product (simplified - distribute evenly for demo)
-    const { data: refunds } = await supabase
+    let refundsQuery = supabase
       .from('refunds')
       .select('amount, product_id')
       .gte('created_at', filters.startDate)
       .lte('created_at', filters.endDate)
 
+    if (merchant_id) {
+      refundsQuery = refundsQuery.eq('merchant_id', merchant_id)
+    }
+
+    const { data: refunds } = await refundsQuery
     const totalRefunds = refunds?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0
 
     // Calculate repeat order rates and format data
