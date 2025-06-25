@@ -237,24 +237,48 @@ export function getFallbackTrendData(timeRange: string) {
 
 // Helper function to check if data is available
 export function hasLiveData(data: any): boolean {
+  if (data === null || data === undefined) {
+    return false;
+  }
+  
   if (Array.isArray(data)) {
     return data.length > 0;
   }
-  if (typeof data === 'object' && data !== null) {
+  
+  if (typeof data === 'object') {
+    // For KPI objects, check if they have meaningful values (not all zeros)
+    if (data.totalRevenue !== undefined || data.totalOrders !== undefined) {
+      return data.totalRevenue > 0 || data.totalOrders > 0 || data.newCustomers > 0;
+    }
     return Object.keys(data).length > 0;
   }
-  return data != null;
+  
+  return true; // For primitive values, assume they're valid
 }
 
 // Helper function to get data with fallback
 export function getDataWithFallback<T>(liveData: T, fallbackData: T, useLiveData: boolean): T {
+  // If user explicitly wants demo data, return fallback
   if (!useLiveData) {
     return fallbackData;
   }
   
-  if (hasLiveData(liveData)) {
+  // If we have live data (even if it's zeros), use it
+  if (liveData !== null && liveData !== undefined) {
+    // For arrays, use live data even if empty (empty is valid data)
+    if (Array.isArray(liveData)) {
+      return liveData;
+    }
+    
+    // For objects, use live data even if values are zero (zero is valid data)
+    if (typeof liveData === 'object') {
+      return liveData;
+    }
+    
+    // For other types, use live data
     return liveData;
   }
   
+  // Only fall back if live data is null/undefined (indicating a fetch error)
   return fallbackData;
 }

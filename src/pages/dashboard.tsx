@@ -379,14 +379,38 @@ export default function Dashboard() {
     productPerformance: hasLiveData(realProductPerformanceData)
   };
 
-  // Use fallback system - either live data or demo data based on toggle
-  const currentKpiData = getDataWithFallback(realKpiData, fallbackKpiData, useLiveData);
-  const currentSalesKpiData = getDataWithFallback(realSalesKpiData, fallbackSalesKpiData, useLiveData);
-  const currentRevenueData = getDataWithFallback(realRevenueData, getFallbackTrendData(timeRange), useLiveData);
-  const currentProductData = getDataWithFallback(realProductData, fallbackProductBreakdownData, useLiveData);
-  const currentSegmentData = getDataWithFallback(realSegmentData, fallbackSegmentAnalysisData, useLiveData);
-  const currentChannelData = getDataWithFallback(realChannelData, fallbackChannelBreakdownData, useLiveData);
-  const currentProductPerformanceData = getDataWithFallback(realProductPerformanceData, fallbackProductPerformanceData, useLiveData);
+  // Use data directly based on toggle - no automatic fallback
+  const currentKpiData = useLiveData ? (realKpiData || {
+    totalRevenue: 0,
+    totalOrders: 0,
+    avgOrderValue: 0,
+    percentOrdering: 0,
+    newCustomers: 0,
+    churnRisk: 0
+  }) : fallbackKpiData;
+  
+  const currentSalesKpiData = useLiveData ? (realSalesKpiData || {
+    totalRevenue: 0,
+    totalOrders: 0,
+    avgOrderValue: 0,
+    refundRate: 0,
+    repeatOrderRate: 0
+  }) : fallbackSalesKpiData;
+  
+  const currentRevenueData = useLiveData ? (realRevenueData || []) : getFallbackTrendData(timeRange);
+  const currentProductData = useLiveData ? (realProductData || []) : fallbackProductBreakdownData;
+  const currentSegmentData = useLiveData ? (realSegmentData || []) : fallbackSegmentAnalysisData;
+  const currentChannelData = useLiveData ? (realChannelData || []) : fallbackChannelBreakdownData;
+  const currentProductPerformanceData = useLiveData ? (realProductPerformanceData || {
+    topProductBySales: { name: 'No Data', revenue: 0, unitsSold: 0, aov: 0, refundRate: 0 },
+    mostSoldProduct: { name: 'No Data', unitsSold: 0, revenue: 0, aov: 0, refundRate: 0 },
+    highestAOVProduct: { name: 'No Data', aov: 0, unitsSold: 0, revenue: 0, refundRate: 0 },
+    highestRefundRateProduct: { name: 'No Data', refundRate: 0, unitsSold: 0, revenue: 0, aov: 0 },
+    topProducts: [],
+    productTrendData: [],
+    productRepurchaseData: [],
+    productSegmentData: []
+  }) : fallbackProductPerformanceData;
 
   // Check if we have any live data available
   const hasAnyLiveData = Object.values(dataStatus).some(Boolean);
