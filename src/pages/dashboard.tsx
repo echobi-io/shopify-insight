@@ -999,6 +999,13 @@ export default function Dashboard() {
             />
           </motion.div>
 
+          {/* Database Debug Panel - Only show when Live Data is enabled */}
+          {useLiveData && (
+            <motion.div variants={fadeInUp} className="mb-6">
+              <DatabaseDebug merchantId="11111111-1111-1111-1111-111111111111" />
+            </motion.div>
+          )}
+
           {/* Premium Overview Tab */}
           {activeTab === 'overview' && (
             <motion.div
