@@ -241,18 +241,45 @@ export const fallbackYearlyTrendData = [
   { month: 'Jun 2024', revenue: 67000, orders: 480, customers: 420, orderingRate: 11.2 },
 ];
 
+// Full 2024 data for "all_2024" selection
+export const fallback2024TrendData = [
+  { month: 'Jan 2024', revenue: 45000, orders: 320, customers: 280, orderingRate: 8.5 },
+  { month: 'Feb 2024', revenue: 52000, orders: 380, customers: 340, orderingRate: 9.2 },
+  { month: 'Mar 2024', revenue: 48000, orders: 350, customers: 310, orderingRate: 8.8 },
+  { month: 'Apr 2024', revenue: 61000, orders: 420, customers: 380, orderingRate: 10.1 },
+  { month: 'May 2024', revenue: 58000, orders: 400, customers: 360, orderingRate: 9.6 },
+  { month: 'Jun 2024', revenue: 67000, orders: 480, customers: 420, orderingRate: 11.2 },
+  { month: 'Jul 2024', revenue: 72000, orders: 520, customers: 450, orderingRate: 11.8 },
+  { month: 'Aug 2024', revenue: 69000, orders: 495, customers: 430, orderingRate: 11.5 },
+  { month: 'Sep 2024', revenue: 74000, orders: 540, customers: 470, orderingRate: 12.1 },
+  { month: 'Oct 2024', revenue: 78000, orders: 580, customers: 510, orderingRate: 12.8 },
+  { month: 'Nov 2024', revenue: 82000, orders: 620, customers: 540, orderingRate: 13.2 },
+  { month: 'Dec 2024', revenue: 89000, orders: 680, customers: 590, orderingRate: 14.1 },
+];
+
 // Helper function to get trend data based on time range
 export function getFallbackTrendData(timeRange: string, globalDateRange?: string) {
-  // If user selected "last year", always return yearly data regardless of timeRange
+  // Handle specific global date ranges first
   if (globalDateRange === 'last_year') {
     return fallbackYearlyTrendData;
+  }
+  
+  if (globalDateRange === 'all_2024' || globalDateRange === 'this_year') {
+    return fallback2024TrendData;
+  }
+  
+  // Handle custom date ranges - for demo purposes, return 2024 data
+  if (globalDateRange?.startsWith('custom_')) {
+    return fallback2024TrendData;
   }
   
   switch (timeRange) {
     case 'daily': return fallbackDailyTrendData;
     case 'weekly': return fallbackWeeklyTrendData;
-    case 'monthly': return fallbackMonthlyTrendData;
-    default: return fallbackMonthlyTrendData;
+    case 'monthly': 
+      // For monthly view, default to 2024 data since user has 2024 data
+      return fallback2024TrendData;
+    default: return fallback2024TrendData;
   }
 }
 

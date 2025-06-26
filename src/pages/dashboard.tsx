@@ -331,7 +331,12 @@ export default function Dashboard() {
   const [selectedSegment, setSelectedSegment] = useState("all");
   const [revenueType, setRevenueType] = useState("net");
   const [chartView, setChartView] = useState("revenue");
-  const [globalDateRange, setGlobalDateRange] = useState("last_30_days");
+  const [globalDateRange, setGlobalDateRange] = useState("all_2024");
+  
+  // Custom date picker state
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [customStartDate, setCustomStartDate] = useState("2024-01-01");
+  const [customEndDate, setCustomEndDate] = useState("2024-12-31");
   
   // Data toggle state - controls whether to use live data or demo data
   const [useLiveData, setUseLiveData] = useState(true);
@@ -877,6 +882,10 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <Select value={globalDateRange} onValueChange={(value) => {
+                if (value === 'custom') {
+                  setShowCustomDatePicker(true);
+                  return;
+                }
                 setGlobalDateRange(value);
                 // Map global date range to appropriate timeRange for visualization
                 switch(value) {
@@ -895,6 +904,12 @@ export default function Dashboard() {
                   case 'last_year':
                     setTimeRange('monthly');
                     break;
+                  case 'this_year':
+                    setTimeRange('monthly');
+                    break;
+                  case 'all_2024':
+                    setTimeRange('monthly');
+                    break;
                   default:
                     setTimeRange('monthly');
                 }
@@ -909,9 +924,46 @@ export default function Dashboard() {
                   <SelectItem value="last_90_days">Last 90 days</SelectItem>
                   <SelectItem value="last_6_months">Last 6 months</SelectItem>
                   <SelectItem value="last_year">Last year</SelectItem>
+                  <SelectItem value="this_year">This year</SelectItem>
+                  <SelectItem value="all_2024">All of 2024</SelectItem>
                   <SelectItem value="custom">Custom range</SelectItem>
                 </SelectContent>
               </Select>
+              {showCustomDatePicker && (
+                <div className="flex items-center gap-2 ml-4">
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="px-3 py-1 border border-border rounded-md text-sm"
+                  />
+                  <span className="text-sm text-muted-foreground">to</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="px-3 py-1 border border-border rounded-md text-sm"
+                  />
+                  <Button 
+                    size="sm" 
+                    onClick={() => {
+                      if (customStartDate && customEndDate) {
+                        setGlobalDateRange(`custom_${customStartDate}_${customEndDate}`);
+                        setShowCustomDatePicker(false);
+                      }
+                    }}
+                  >
+                    Apply
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setShowCustomDatePicker(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
               <Button variant="outline" size="sm" onClick={() => handleExport(currentRevenueData, 'dashboard', 'csv')}>
                 <Download className="w-4 h-4 mr-2" />
                 Export

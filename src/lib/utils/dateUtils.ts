@@ -7,6 +7,20 @@ export function getDateRangeFromTimeframe(timeframe: string): DateRange {
   const endDate = new Date();
   const startDate = new Date();
 
+  // Handle custom date ranges
+  if (timeframe.startsWith('custom_')) {
+    const parts = timeframe.split('_');
+    if (parts.length === 3) {
+      const customStartDate = new Date(parts[1]);
+      const customEndDate = new Date(parts[2]);
+      
+      customStartDate.setHours(0, 0, 0, 0);
+      customEndDate.setHours(23, 59, 59, 999);
+      
+      return { startDate: customStartDate, endDate: customEndDate };
+    }
+  }
+
   switch (timeframe) {
     case 'last_7_days':
     case 'Last 7 days':
@@ -39,6 +53,12 @@ export function getDateRangeFromTimeframe(timeframe: string): DateRange {
       startDate.setMonth(0, 1);
       startDate.setHours(0, 0, 0, 0);
       break;
+    case 'all_2024':
+      startDate.setFullYear(2024, 0, 1); // January 1, 2024
+      endDate.setFullYear(2024, 11, 31); // December 31, 2024
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      return { startDate, endDate };
     case 'daily':
       startDate.setDate(endDate.getDate() - 14); // Last 14 days for daily view
       break;
@@ -49,8 +69,12 @@ export function getDateRangeFromTimeframe(timeframe: string): DateRange {
       startDate.setMonth(endDate.getMonth() - 6); // Last 6 months for monthly view
       break;
     default:
-      // Default to last 30 days
-      startDate.setDate(endDate.getDate() - 30);
+      // Default to all of 2024 since user has 2024 data
+      startDate.setFullYear(2024, 0, 1);
+      endDate.setFullYear(2024, 11, 31);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      return { startDate, endDate };
   }
 
   // Ensure start date is at beginning of day and end date is at end of day
