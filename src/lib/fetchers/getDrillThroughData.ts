@@ -76,7 +76,7 @@ async function getRevenueTodayDrillThrough(filters: FilterState, baseData: any):
       created_at,
       status,
       customer_id,
-      profiles!inner(first_name, last_name, email)
+      profiles(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', `${today}T00:00:00`)
@@ -88,6 +88,8 @@ async function getRevenueTodayDrillThrough(filters: FilterState, baseData: any):
     console.error('Error fetching today revenue orders:', error)
     return createEmptyDrillThrough('revenue', 'Revenue Today', 'No orders found for today')
   }
+
+  console.log('Revenue today orders fetched:', orders?.length || 0, 'orders')
 
   // Get hourly breakdown for time series
   const { data: hourlyData, error: hourlyError } = await supabase
@@ -143,8 +145,7 @@ async function getOrdersTodayDrillThrough(filters: FilterState, baseData: any): 
       created_at,
       status,
       customer_id,
-      profiles!inner(first_name, last_name, email),
-      order_line_items(quantity)
+      profiles(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', `${today}T00:00:00`)
@@ -156,6 +157,8 @@ async function getOrdersTodayDrillThrough(filters: FilterState, baseData: any): 
     console.error('Error fetching today orders:', error)
     return createEmptyDrillThrough('orders', 'Orders Today', 'No orders found for today')
   }
+
+  console.log('Orders today fetched:', orders?.length || 0, 'orders')
 
   // Create hourly time series data
   const timeSeriesData = Array.from({ length: 24 }, (_, hour) => {
@@ -184,7 +187,7 @@ async function getOrdersTodayDrillThrough(filters: FilterState, baseData: any): 
       time: new Date(order.created_at).toLocaleTimeString(),
       order_id: order.order_number || order.id,
       customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown',
-      items: order.order_line_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0,
+      items: 1, // Default to 1 item per order since we don't have line items data
       value: order.total_price || 0,
       status: order.status || 'unknown'
     })) || []
@@ -202,7 +205,7 @@ async function getNewCustomersDrillThrough(filters: FilterState, baseData: any):
       last_name,
       email,
       created_at,
-      orders!inner(id, total_price, created_at)
+      orders(id, total_price, created_at)
     `)
     .gte('created_at', `${today}T00:00:00`)
     .lte('created_at', `${today}T23:59:59`)
@@ -213,6 +216,8 @@ async function getNewCustomersDrillThrough(filters: FilterState, baseData: any):
     console.error('Error fetching new customers:', error)
     return createEmptyDrillThrough('customers', 'New Customers Today', 'No new customers found for today')
   }
+
+  console.log('New customers today fetched:', customers?.length || 0, 'customers')
 
   // Create hourly time series data
   const timeSeriesData = Array.from({ length: 24 }, (_, hour) => {
@@ -328,7 +333,7 @@ async function getFilteredRevenueDrillThrough(filters: FilterState, baseData: an
       created_at,
       status,
       customer_id,
-      profiles!inner(first_name, last_name, email)
+      profiles(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', filters.startDate)
@@ -340,6 +345,8 @@ async function getFilteredRevenueDrillThrough(filters: FilterState, baseData: an
     console.error('Error fetching filtered revenue orders:', error)
     return createEmptyDrillThrough('revenue', 'Total Revenue', 'No orders found for selected period')
   }
+
+  console.log('Filtered revenue orders fetched:', orders?.length || 0, 'orders')
 
   // Get daily revenue summary for time series
   const { data: dailyData, error: dailyError } = await supabase
@@ -385,8 +392,7 @@ async function getFilteredOrdersDrillThrough(filters: FilterState, baseData: any
       created_at,
       status,
       customer_id,
-      profiles!inner(first_name, last_name, email),
-      order_line_items(quantity)
+      profiles(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', filters.startDate)
@@ -398,6 +404,8 @@ async function getFilteredOrdersDrillThrough(filters: FilterState, baseData: any
     console.error('Error fetching filtered orders:', error)
     return createEmptyDrillThrough('orders', 'Total Orders', 'No orders found for selected period')
   }
+
+  console.log('Filtered orders fetched:', orders?.length || 0, 'orders')
 
   // Get daily orders summary for time series
   const { data: dailyData, error: dailyError } = await supabase
@@ -425,7 +433,7 @@ async function getFilteredOrdersDrillThrough(filters: FilterState, baseData: any
       date: new Date(order.created_at).toLocaleDateString(),
       order_id: order.order_number || order.id,
       customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown',
-      items: order.order_line_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0,
+      items: 1, // Default to 1 item per order since we don't have line items data
       value: order.total_price || 0,
       status: order.status || 'unknown'
     })) || []
@@ -441,7 +449,7 @@ async function getFilteredCustomersDrillThrough(filters: FilterState, baseData: 
       last_name,
       email,
       created_at,
-      orders!inner(id, total_price, created_at)
+      orders(id, total_price, created_at)
     `)
     .gte('created_at', filters.startDate)
     .lte('created_at', filters.endDate)
@@ -452,6 +460,8 @@ async function getFilteredCustomersDrillThrough(filters: FilterState, baseData: 
     console.error('Error fetching filtered customers:', error)
     return createEmptyDrillThrough('customers', 'New Customers', 'No new customers found for selected period')
   }
+
+  console.log('Filtered customers fetched:', customers?.length || 0, 'customers')
 
   // Create daily time series data
   const dailyCustomers = customers?.reduce((acc, customer) => {
