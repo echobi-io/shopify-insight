@@ -170,14 +170,17 @@ export function useDashboardData(
 
   // Check if we have any real data
   const hasRealData = useCallback(() => {
-    return !!(kpiData && (
-      kpiData.totalRevenue > 0 || 
-      kpiData.totalOrders > 0 || 
-      revenueData.length > 0 ||
-      segmentData.length > 0 ||
-      channelData.length > 0
-    ))
-  }, [kpiData, revenueData, segmentData, channelData])
+    if (!useLiveData) return false; // If explicitly using demo data, no real data
+    
+    return !!(
+      (kpiData && (kpiData.totalRevenue > 0 || kpiData.totalOrders > 0)) ||
+      (revenueData && revenueData.length > 0) ||
+      (segmentData && segmentData.length > 0) ||
+      (channelData && channelData.length > 0) ||
+      (productData && productData.length > 0) ||
+      (productPerformanceData && productPerformanceData.topProducts && productPerformanceData.topProducts.length > 0)
+    );
+  }, [useLiveData, kpiData, revenueData, segmentData, channelData, productData, productPerformanceData])
 
   return {
     // Data

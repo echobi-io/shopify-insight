@@ -3,7 +3,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Database, AlertCircle, CheckCircle } from 'lucide-react';
+import { RefreshCw, Database, AlertCircle, CheckCircle, Bug } from 'lucide-react';
+import { runFetcherDebug, logDebugResults, DebugResult } from '@/lib/debug/fetcherDebug';
 
 interface DatabaseDebugProps {
   merchantId?: string;
@@ -13,6 +14,8 @@ export default function DatabaseDebug({ merchantId = '11111111-1111-1111-1111-11
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>({});
   const [error, setError] = useState<string | null>(null);
+  const [debugResults, setDebugResults] = useState<DebugResult[]>([]);
+  const [showAdvancedDebug, setShowAdvancedDebug] = useState(false);
 
   const runDatabaseTests = async () => {
     setLoading(true);
@@ -121,6 +124,22 @@ export default function DatabaseDebug({ merchantId = '11111111-1111-1111-1111-11
     }
   };
 
+  const runAdvancedDebug = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('🔍 Running advanced fetcher debug...');
+      const results = await runFetcherDebug('all_2024', merchantId);
+      setDebugResults(results);
+      logDebugResults(results);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Advanced debug failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     runDatabaseTests();
   }, [merchantId]);
@@ -147,15 +166,26 @@ export default function DatabaseDebug({ merchantId = '11111111-1111-1111-1111-11
             <Database className="w-5 h-5" />
             Database Debug Panel
           </CardTitle>
-          <Button 
-            onClick={runDatabaseTests} 
-            disabled={loading}
-            variant="outline"
-            size="sm"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Tests
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={runDatabaseTests} 
+              disabled={loading}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Basic Tests
+            </Button>
+            <Button 
+              onClick={runAdvancedDebug} 
+              disabled={loading}
+              variant="outline"
+              size="sm"
+            >
+              <Bug className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Advanced Debug
+            </Button>
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">
           Testing database connectivity and data availability for merchant: {merchantId}
@@ -168,33 +198,84 @@ export default function DatabaseDebug({ merchantId = '11111111-1111-1111-1111-11
           </div>
         )}
 
-        <div className="space-y-4">
-          {Object.entries(results).map(([testName, result]: [string, any]) => (
-            <div key={testName} className="border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-medium capitalize">{testName.replace(/([A-Z])/g, ' $1')}</h3>
-                {getStatusBadge(result.success)}
+        {/* Basic Test Results */}
+        {Object.keys(results).length > 0 && (
+          <div className="space-y-4 mb-6">
+            <h3 className="text-lg font-semibold">Basic Database Tests</h3>
+            {Object.entries(results).map(([testName, result]: [string, any]) => (
+              <div key={testName} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium capitalize">{testName.replace(/([A-Z])/g, ' $1')}</h4>
+                  {getStatusBadge(result.success)}
+                </div>
+                
+                <div className="text-sm space-y-1">
+                  <p><strong>Count:</strong> {result.count}</p>
+                  {result.error && (
+                    <p className="text-red-600"><strong>Error:</strong> {result.error}</p>
+                  )}
+                  {result.sample && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-blue-600 hover:text-blue-800">
+                        View Sample Data
+                      </summary>
+                      <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
+                        {JSON.stringify(result.sample, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </div>
               </div>
-              
-              <div className="text-sm space-y-1">
-                <p><strong>Count:</strong> {result.count}</p>
-                {result.error && (
-                  <p className="text-red-600"><strong>Error:</strong> {result.error}</p>
-                )}
-                {result.sample && (
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-blue-600 hover:text-blue-800">
-                      View Sample Data
-                    </summary>
-                    <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
-                      {JSON.stringify(result.sample, null, 2)}
-                    </pre>
-                  </details>
-                )}
-              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Advanced Debug Results */}
+        {debugResults.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Advanced Fetcher Debug Results</h3>
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-blue-800 text-sm">
+                ✅ {debugResults.filter(r => r.success).length}/{debugResults.length} tests passed
+              </p>
             </div>
-          ))}
-        </div>
+            {debugResults.map((result, index) => (
+              <div key={index} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium">{result.test}</h4>
+                  {getStatusBadge(result.success)}
+                </div>
+                
+                <div className="text-sm space-y-1">
+                  {result.count !== undefined && (
+                    <p><strong>Count:</strong> {result.count}</p>
+                  )}
+                  {result.error && (
+                    <p className="text-red-600"><strong>Error:</strong> {result.error}</p>
+                  )}
+                  {result.details && (
+                    <div>
+                      <strong>Details:</strong>
+                      <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-auto">
+                        {JSON.stringify(result.details, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                  {result.data && typeof result.data === 'object' && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-blue-600 hover:text-blue-800">
+                        View Data Sample
+                      </summary>
+                      <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
+                        {JSON.stringify(result.data, null, 2).substring(0, 500)}...
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {Object.keys(results).length === 0 && !loading && (
           <div className="text-center py-8 text-muted-foreground">

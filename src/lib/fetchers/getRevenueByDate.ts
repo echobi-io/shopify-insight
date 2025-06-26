@@ -13,56 +13,132 @@ export interface RevenueByDateData {
 
 export async function getRevenueByDate(filters: FilterState, merchant_id?: string): Promise<RevenueByDateData[]> {
   try {
-    // Use materialized view for better performance
-    let summaryQuery = supabase
-      .from('daily_revenue_summary')
-      .select('*')
-      .gte('date', filters.startDate.split('T')[0])
-      .lte('date', filters.endDate.split('T')[0])
-      .order('date')
+    console.log('📈 Fetching revenue by date with filters:', filters, 'merchant_id:', merchant_id);
 
-    // Apply merchant_id filter
-    if (merchant_id) {
-      summaryQuery = summaryQuery.eq('merchant_id', merchant_id)
+    // Try materialized view first
+    let summaryData = null;
+    let summaryError = null;
+
+    try {
+      let summaryQuery = supabase
+        .from('daily_revenue_summary')
+        .select('*')
+        .gte('date', filters.startDate.split('T')[0])
+        .lte('date', filters.endDate.split('T')[0])
+        .order('date');
+
+      if (merchant_id) {
+        summaryQuery = summaryQuery.eq('merchant_id', merchant_id);
+      }
+
+      if (filters.segment && filters.segment !== 'all') {
+        summaryQuery = summaryQuery.eq('customer_segment', filters.segment);
+      }
+      if (filters.channel && filters.channel !== 'all') {
+        summaryQuery = summaryQuery.eq('channel', filters.channel);
+      }
+
+      const result = await summaryQuery;
+      summaryData = result.data;
+      summaryError = result.error;
+
+      console.log('📊 Materialized view revenue query result:', { 
+        success: !summaryError, 
+        count: summaryData?.length || 0,
+        error: summaryError?.message 
+      });
+    } catch (mvError) {
+      console.log('⚠️ Materialized view not available for revenue, falling back to direct queries');
+      summaryError = mvError;
     }
 
-    // Apply filters
-    if (filters.segment && filters.segment !== 'all') {
-      summaryQuery = summaryQuery.eq('customer_segment', filters.segment)
-    }
-    if (filters.channel && filters.channel !== 'all') {
-      summaryQuery = summaryQuery.eq('channel', filters.channel)
+    // If materialized view fails, query orders table directly
+    if (summaryError || !summaryData || summaryData.length === 0) {
+      console.log('🔄 Falling back to direct orders table query for revenue');
+      
+      let ordersQuery = supabase
+        .from('orders')
+        .select('*')
+        .gte('created_at', filters.startDate)
+        .lte('created_at', filters.endDate)
+        .order('created_at');
+
+      if (merchant_id) {
+        ordersQuery = ordersQuery.eq('merchant_id', merchant_id);
+      }
+
+      const { data: orders, error: ordersError } = await ordersQuery;
+      
+      console.log('📦 Direct orders query for revenue result:', { 
+        success: !ordersError, 
+        count: orders?.length || 0,
+        error: ordersError?.message 
+      });
+
+      if (ordersError) {
+        console.error('❌ Error fetching orders for revenue:', ordersError);
+        return [];
+      }
+
+      if (!orders || orders.length === 0) {
+        console.log('📭 No orders found for revenue calculation');
+        return [];
+      }
+
+      // Group orders by date
+      const grouped = orders.reduce((acc, order) => {
+        const dateKey = order.created_at.split('T')[0]; // Extract date part
+        if (!acc[dateKey]) {
+          acc[dateKey] = {
+            date: dateKey,
+            revenue: 0,
+            orders: 0,
+            customers: new Set()
+          };
+        }
+        
+        acc[dateKey].revenue += parseFloat(order.total_price) || 0;
+        acc[dateKey].orders += 1;
+        if (order.customer_id) {
+          acc[dateKey].customers.add(order.customer_id);
+        }
+        
+        return acc;
+      }, {} as Record<string, any>);
+
+      // Convert to array and calculate metrics
+      const result = Object.values(grouped).map((day: any) => ({
+        date: day.date,
+        revenue: parseFloat(day.revenue.toFixed(2)),
+        orders: day.orders,
+        customers: day.customers.size,
+        orderingRate: day.customers.size > 0 ? parseFloat(((day.orders / day.customers.size) * 100).toFixed(1)) : 0,
+        month: new Date(day.date).toLocaleDateString('en-US', { month: 'short' }),
+        week: `Week ${Math.ceil(new Date(day.date).getDate() / 7)}`
+      })).sort((a, b) => a.date.localeCompare(b.date));
+
+      console.log('📈 Calculated revenue data from orders:', { count: result.length });
+      return result;
     }
 
-    const { data: summaryData, error } = await summaryQuery
-
-    if (error) {
-      console.error('Error fetching revenue by date:', error)
-      throw error
-    }
-
-    if (!summaryData || summaryData.length === 0) {
-      return []
-    }
-
-    // Group by date and aggregate if multiple segments/channels per day
+    // Use materialized view data
     const grouped = summaryData.reduce((acc, row) => {
-      const dateKey = row.date
+      const dateKey = row.date;
       if (!acc[dateKey]) {
         acc[dateKey] = {
           date: dateKey,
           revenue: 0,
           orders: 0,
           customers: 0
-        }
+        };
       }
       
-      acc[dateKey].revenue += row.total_revenue || 0
-      acc[dateKey].orders += row.total_orders || 0
-      acc[dateKey].customers += row.unique_customers || 0
+      acc[dateKey].revenue += row.total_revenue || 0;
+      acc[dateKey].orders += row.total_orders || 0;
+      acc[dateKey].customers += row.unique_customers || 0;
       
-      return acc
-    }, {} as Record<string, any>)
+      return acc;
+    }, {} as Record<string, any>);
 
     // Convert to array and calculate ordering rate
     const result = Object.values(grouped).map((day: any) => ({
@@ -71,15 +147,16 @@ export async function getRevenueByDate(filters: FilterState, merchant_id?: strin
       orders: day.orders,
       customers: day.customers,
       orderingRate: day.customers > 0 ? parseFloat(((day.orders / day.customers) * 100).toFixed(1)) : 0,
-      // Add month and week for grouping
       month: new Date(day.date).toLocaleDateString('en-US', { month: 'short' }),
       week: `Week ${Math.ceil(new Date(day.date).getDate() / 7)}`
-    })).sort((a, b) => a.date.localeCompare(b.date))
+    })).sort((a, b) => a.date.localeCompare(b.date));
 
-    return result
+    console.log('📊 Revenue data from materialized view:', { count: result.length });
+    return result;
+
   } catch (error) {
-    console.error('Error fetching revenue by date:', error)
-    return []
+    console.error('❌ Error fetching revenue by date:', error);
+    return [];
   }
 }
 

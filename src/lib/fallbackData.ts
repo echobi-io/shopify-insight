@@ -298,7 +298,16 @@ export function hasLiveData(data: any): boolean {
     if (data.totalRevenue !== undefined || data.totalOrders !== undefined) {
       return data.totalRevenue > 0 || data.totalOrders > 0 || data.newCustomers > 0;
     }
-    return Object.keys(data).length > 0;
+    
+    // For product performance data
+    if (data.topProducts !== undefined) {
+      return Array.isArray(data.topProducts) && data.topProducts.length > 0;
+    }
+    
+    // For other objects, check if they have any meaningful content
+    return Object.keys(data).length > 0 && Object.values(data).some(value => 
+      value !== null && value !== undefined && value !== 0 && value !== ''
+    );
   }
   
   return true; // For primitive values, assume they're valid
