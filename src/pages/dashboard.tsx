@@ -878,15 +878,21 @@ export default function Dashboard() {
             <div className="flex items-center space-x-4">
               <Select value={globalDateRange} onValueChange={(value) => {
                 setGlobalDateRange(value);
-                // Map global date range to timeRange for data fetching
+                // Map global date range to appropriate timeRange for visualization
                 switch(value) {
                   case 'last_7_days':
                     setTimeRange('daily');
                     break;
                   case 'last_30_days':
-                    setTimeRange('weekly');
+                    setTimeRange('daily');
                     break;
                   case 'last_90_days':
+                    setTimeRange('weekly');
+                    break;
+                  case 'last_6_months':
+                    setTimeRange('monthly');
+                    break;
+                  case 'last_year':
                     setTimeRange('monthly');
                     break;
                   default:
@@ -981,6 +987,43 @@ export default function Dashboard() {
               <DatabaseDebug merchantId="11111111-1111-1111-1111-111111111111" />
             </motion.div>
           )}
+
+          {/* Date Range Debug Panel */}
+          <motion.div variants={fadeInUp} className="mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Date Range Debug:</span>
+                    </div>
+                    <Badge variant="outline">
+                      Global: {globalDateRange}
+                    </Badge>
+                    <Badge variant="outline">
+                      Time Range: {timeRange}
+                    </Badge>
+                    <Badge variant="outline">
+                      Data Points: {currentRevenueData?.length || 0}
+                    </Badge>
+                    <Badge variant={useLiveData ? "default" : "secondary"}>
+                      {useLiveData ? "Live Data" : "Demo Data"}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {currentRevenueData?.length > 0 && (
+                      <>
+                        From: {currentRevenueData[0]?.date || currentRevenueData[0]?.month || currentRevenueData[0]?.week} 
+                        {" → "}
+                        To: {currentRevenueData[currentRevenueData.length - 1]?.date || currentRevenueData[currentRevenueData.length - 1]?.month || currentRevenueData[currentRevenueData.length - 1]?.week}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
 
           {/* Premium Overview Tab */}
           {activeTab === 'overview' && (

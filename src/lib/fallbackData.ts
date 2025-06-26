@@ -225,8 +225,29 @@ export const fallbackProductPerformanceData = {
   ]
 };
 
+// Generate year-long monthly data for "last year" selection
+export const fallbackYearlyTrendData = [
+  { month: 'Jul 2023', revenue: 42000, orders: 290, customers: 250, orderingRate: 7.8 },
+  { month: 'Aug 2023', revenue: 48000, orders: 340, customers: 290, orderingRate: 8.5 },
+  { month: 'Sep 2023', revenue: 45000, orders: 320, customers: 280, orderingRate: 8.2 },
+  { month: 'Oct 2023', revenue: 52000, orders: 380, customers: 340, orderingRate: 9.1 },
+  { month: 'Nov 2023', revenue: 58000, orders: 420, customers: 380, orderingRate: 9.8 },
+  { month: 'Dec 2023', revenue: 65000, orders: 480, customers: 420, orderingRate: 10.5 },
+  { month: 'Jan 2024', revenue: 45000, orders: 320, customers: 280, orderingRate: 8.5 },
+  { month: 'Feb 2024', revenue: 52000, orders: 380, customers: 340, orderingRate: 9.2 },
+  { month: 'Mar 2024', revenue: 48000, orders: 350, customers: 310, orderingRate: 8.8 },
+  { month: 'Apr 2024', revenue: 61000, orders: 420, customers: 380, orderingRate: 10.1 },
+  { month: 'May 2024', revenue: 58000, orders: 400, customers: 360, orderingRate: 9.6 },
+  { month: 'Jun 2024', revenue: 67000, orders: 480, customers: 420, orderingRate: 11.2 },
+];
+
 // Helper function to get trend data based on time range
-export function getFallbackTrendData(timeRange: string) {
+export function getFallbackTrendData(timeRange: string, globalDateRange?: string) {
+  // If user selected "last year", always return yearly data regardless of timeRange
+  if (globalDateRange === 'last_year') {
+    return fallbackYearlyTrendData;
+  }
+  
   switch (timeRange) {
     case 'daily': return fallbackDailyTrendData;
     case 'weekly': return fallbackWeeklyTrendData;

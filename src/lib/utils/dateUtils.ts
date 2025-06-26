@@ -26,7 +26,8 @@ export function getDateRangeFromTimeframe(timeframe: string): DateRange {
       break;
     case 'last_year':
     case 'Last year':
-      startDate.setFullYear(endDate.getFullYear() - 1);
+      // Set to exactly 365 days ago to ensure we get a full year of data
+      startDate.setDate(endDate.getDate() - 365);
       break;
     case 'this_month':
     case 'This month':
@@ -51,6 +52,10 @@ export function getDateRangeFromTimeframe(timeframe: string): DateRange {
       // Default to last 30 days
       startDate.setDate(endDate.getDate() - 30);
   }
+
+  // Ensure start date is at beginning of day and end date is at end of day
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
 
   return { startDate, endDate };
 }

@@ -79,9 +79,10 @@ export function useDashboardData(
       // Use globalDateRange to select fallback trend data
       let trendType: 'daily' | 'weekly' | 'monthly' = 'monthly';
       if (globalDateRange === 'last_7_days') trendType = 'daily';
-      else if (globalDateRange === 'last_30_days') trendType = 'weekly';
-      else if (globalDateRange === 'last_90_days') trendType = 'monthly';
-      setRevenueData(getFallbackTrendData(trendType));
+      else if (globalDateRange === 'last_30_days') trendType = 'daily';
+      else if (globalDateRange === 'last_90_days') trendType = 'weekly';
+      else if (globalDateRange === 'last_6_months' || globalDateRange === 'last_year') trendType = 'monthly';
+      setRevenueData(getFallbackTrendData(trendType, globalDateRange));
       setProductData(fallbackProductBreakdownData);
       setSegmentData(fallbackSegmentAnalysisData);
       setChannelData(fallbackChannelBreakdownData);
