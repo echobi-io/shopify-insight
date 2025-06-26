@@ -38,7 +38,7 @@ SELECT
     MIN(o.created_at) as first_ordered,
     MAX(o.created_at) as last_ordered,
     DATE(o.created_at) as order_date
-FROM order_line_items oi
+FROM order_items oi
 JOIN orders o ON oi.order_id = o.id
 LEFT JOIN products p ON oi.product_id = p.id
 WHERE o.created_at >= CURRENT_DATE - INTERVAL '2 years'

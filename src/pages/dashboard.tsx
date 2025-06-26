@@ -12,7 +12,7 @@ import { getRevenueByDate, type RevenueByDateData } from '@/lib/fetchers/getReve
 import { getProductData } from '@/lib/fetchers/getProductData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 
-const MERCHANT_ID = 'merchant_123' // Hardcoded merchant ID as requested
+const MERCHANT_ID = '11111111-1111-1111-1111-111111111111' // Hardcoded merchant ID matching sample data
 
 interface ProductData {
   product: string
