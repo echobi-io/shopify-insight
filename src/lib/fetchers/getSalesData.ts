@@ -102,7 +102,7 @@ export async function getProductBreakdown(filters: FilterState, merchant_id?: st
   try {
     // Fetch order line items with product details
     let orderItemsQuery = supabase
-      .from('order_line_items')
+      .from('order_items')
       .select(`
         *,
         orders!inner(created_at, customer_id, merchant_id),

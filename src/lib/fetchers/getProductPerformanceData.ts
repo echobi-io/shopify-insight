@@ -63,7 +63,7 @@ export async function getProductPerformanceData(filters: FilterState, merchant_i
   try {
     // Fetch comprehensive product data with all related information
     let orderItemsQuery = supabase
-      .from('order_line_items')
+      .from('order_items')
       .select(`
         *,
         orders!inner(
