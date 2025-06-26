@@ -11,6 +11,7 @@ import { getKPIs, getPreviousKPIs, calculateKPIChanges, type KPIData, type Filte
 import { getRevenueByDate, type RevenueByDateData } from '@/lib/fetchers/getRevenueByDate'
 import { getProductData } from '@/lib/fetchers/getProductData'
 import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type CustomerSegmentData, type AICommentaryData } from '@/lib/fetchers/getDashboardData'
+import { getDrillThroughData } from '@/lib/fetchers/getDrillThroughData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import Sidebar from '@/components/Sidebar'
 import DataDebugPanel from '@/components/DataDebugPanel'
@@ -178,162 +179,72 @@ export default function Dashboard() {
   }
 
   // Drill-through handler
-  const handleDrillThrough = (type: string, data: any) => {
-    // Generate mock drill-through data based on type
-    const generateDrillThroughData = (type: string) => {
-      switch (type) {
-        case 'revenue_today':
-          return {
-            type: 'revenue',
-            title: 'Revenue Today - Detailed Breakdown',
-            subtitle: 'All revenue transactions for today',
-            value: formatCurrency(data.value || 0),
-            change: '+12.5%',
-            changeType: 'positive' as const,
-            filters: { dateRange: 'Today' },
-            data: Array.from({ length: 15 }, (_, i) => ({
-              date: new Date().toLocaleDateString(),
-              order_id: `ORD-${1000 + i}`,
-              customer: `Customer ${i + 1}`,
-              product: `Product ${String.fromCharCode(65 + (i % 5))}`,
-              value: (Math.random() * 200 + 50).toFixed(2),
-              status: Math.random() > 0.2 ? 'completed' : 'pending'
-            }))
-          }
-        case 'orders_today':
-          return {
-            type: 'orders',
-            title: 'Orders Today - Detailed View',
-            subtitle: 'All orders placed today',
-            value: formatNumber(data.value || 0),
-            change: '+8.3%',
-            changeType: 'positive' as const,
-            filters: { dateRange: 'Today' },
-            data: Array.from({ length: 12 }, (_, i) => ({
-              date: new Date().toLocaleDateString(),
-              order_id: `ORD-${2000 + i}`,
-              customer: `Customer ${i + 1}`,
-              items: Math.floor(Math.random() * 5) + 1,
-              value: (Math.random() * 300 + 100).toFixed(2),
-              status: Math.random() > 0.15 ? 'completed' : 'processing'
-            }))
-          }
-        case 'new_customers':
-          return {
-            type: 'customers',
-            title: 'New Customers - Today',
-            subtitle: 'Customers who signed up today',
-            value: formatNumber(data.value || 0),
-            change: '+15.2%',
-            changeType: 'positive' as const,
-            filters: { dateRange: 'Today' },
-            data: Array.from({ length: 8 }, (_, i) => ({
-              name: `New Customer ${i + 1}`,
-              email: `customer${i + 1}@example.com`,
-              signup_date: new Date().toLocaleDateString(),
-              orders: Math.floor(Math.random() * 3),
-              ltv: (Math.random() * 500 + 100).toFixed(2),
-              segment: ['new', 'returning'][Math.floor(Math.random() * 2)]
-            }))
-          }
-        case 'avg_order_value':
-          return {
-            type: 'aov',
-            title: 'Average Order Value Analysis',
-            subtitle: '7-day rolling average breakdown',
-            value: formatCurrency(data.value || 0),
-            change: '+5.7%',
-            changeType: 'positive' as const,
-            filters: { dateRange: 'Last 7 Days' },
-            data: [
-              { range: '$0-50', count: 45 },
-              { range: '$51-100', count: 78 },
-              { range: '$101-200', count: 92 },
-              { range: '$201-500', count: 34 },
-              { range: '$500+', count: 12 }
-            ]
-          }
-        case 'filtered_revenue':
-          return {
-            type: 'revenue',
-            title: `Total Revenue - ${timeframe.replace('_', ' ').toUpperCase()}`,
-            subtitle: 'Detailed revenue breakdown for selected period',
-            value: formatCurrency(data.value || 0),
-            change: '+18.4%',
-            changeType: 'positive' as const,
-            filters: { dateRange: timeframe.replace('_', ' ') },
-            data: Array.from({ length: 25 }, (_, i) => ({
-              date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
-              order_id: `ORD-${3000 + i}`,
-              customer: `Customer ${i + 1}`,
-              product: `Product ${String.fromCharCode(65 + (i % 8))}`,
-              value: (Math.random() * 400 + 75).toFixed(2),
-              status: Math.random() > 0.1 ? 'completed' : 'refunded'
-            }))
-          }
-        case 'filtered_orders':
-          return {
-            type: 'orders',
-            title: `Total Orders - ${timeframe.replace('_', ' ').toUpperCase()}`,
-            subtitle: 'All orders for selected period',
-            value: formatNumber(data.value || 0),
-            change: '+22.1%',
-            changeType: 'positive' as const,
-            filters: { dateRange: timeframe.replace('_', ' ') },
-            data: Array.from({ length: 30 }, (_, i) => ({
-              date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
-              order_id: `ORD-${4000 + i}`,
-              customer: `Customer ${i + 1}`,
-              items: Math.floor(Math.random() * 6) + 1,
-              value: (Math.random() * 350 + 80).toFixed(2),
-              status: Math.random() > 0.12 ? 'completed' : 'cancelled'
-            }))
-          }
-        case 'filtered_customers':
-          return {
-            type: 'customers',
-            title: `New Customers - ${timeframe.replace('_', ' ').toUpperCase()}`,
-            subtitle: 'Customer acquisition for selected period',
-            value: formatNumber(data.value || 0),
-            change: '+28.9%',
-            changeType: 'positive' as const,
-            filters: { dateRange: timeframe.replace('_', ' ') },
-            data: Array.from({ length: 20 }, (_, i) => ({
-              name: `Customer ${i + 1}`,
-              email: `customer${i + 1}@example.com`,
-              signup_date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
-              orders: Math.floor(Math.random() * 8) + 1,
-              ltv: (Math.random() * 800 + 150).toFixed(2),
-              segment: ['new', 'returning', 'vip'][Math.floor(Math.random() * 3)]
-            }))
-          }
-        case 'filtered_aov':
-          return {
-            type: 'aov',
-            title: `Average Order Value - ${timeframe.replace('_', ' ').toUpperCase()}`,
-            subtitle: 'AOV distribution for selected period',
-            value: formatCurrency(data.value || 0),
-            change: '+11.3%',
-            changeType: 'positive' as const,
-            filters: { dateRange: timeframe.replace('_', ' ') },
-            data: [
-              { range: '$0-50', count: 156 },
-              { range: '$51-100', count: 234 },
-              { range: '$101-200', count: 189 },
-              { range: '$201-500', count: 87 },
-              { range: '$500+', count: 23 }
-            ]
-          }
-        default:
-          return null
+  const handleDrillThrough = async (type: string, data: any) => {
+    try {
+      console.log('🔍 Opening drill-through for:', type, data)
+      
+      // Get current filters based on the drill-through type
+      let filters: FilterState
+      
+      if (type.includes('today') || type === 'new_customers' || type === 'avg_order_value') {
+        // For "today" KPIs, use today's date range
+        const today = new Date()
+        filters = {
+          startDate: formatDateForSQL(today),
+          endDate: formatDateForSQL(today)
+        }
+      } else {
+        // For filtered KPIs, use the current timeframe
+        const dateRange = getDateRangeFromTimeframe(timeframe)
+        filters = {
+          startDate: formatDateForSQL(dateRange.startDate),
+          endDate: formatDateForSQL(dateRange.endDate)
+        }
       }
-    }
 
-    const drillData = generateDrillThroughData(type)
-    if (drillData) {
+      // Fetch real drill-through data
+      const drillData = await getDrillThroughData(type, filters)
+      
+      if (drillData) {
+        console.log('📊 Drill-through data loaded:', drillData)
+        setDrillThroughModal({
+          isOpen: true,
+          data: drillData
+        })
+      } else {
+        console.warn('⚠️ No drill-through data available for type:', type)
+        // Show a fallback modal with no data message
+        setDrillThroughModal({
+          isOpen: true,
+          data: {
+            type,
+            title: 'No Data Available',
+            subtitle: 'No data found for the selected period',
+            value: '0',
+            change: '0%',
+            changeType: 'positive',
+            filters: { dateRange: 'Selected Period' },
+            timeSeriesData: [],
+            data: []
+          }
+        })
+      }
+    } catch (error) {
+      console.error('❌ Error loading drill-through data:', error)
+      // Show error modal
       setDrillThroughModal({
         isOpen: true,
-        data: drillData
+        data: {
+          type,
+          title: 'Error Loading Data',
+          subtitle: 'There was an error loading the drill-through data',
+          value: 'Error',
+          change: '0%',
+          changeType: 'positive',
+          filters: { dateRange: 'Selected Period' },
+          timeSeriesData: [],
+          data: []
+        }
       })
     }
   }

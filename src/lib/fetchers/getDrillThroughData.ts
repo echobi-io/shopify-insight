@@ -9,8 +9,11 @@ export interface DrillThroughData {
   change: string
   changeType: 'positive' | 'negative'
   data: any[]
+  timeSeriesData: any[]
   filters: any
 }
+
+const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 export async function getDrillThroughData(
   type: string, 
@@ -27,32 +30,29 @@ export async function getDrillThroughData(
     }
 
     switch (type) {
-      case 'revenue':
-        return await getRevenueDrillThrough(filters, baseData)
+      case 'revenue_today':
+        return await getRevenueTodayDrillThrough(filters, baseData)
       
-      case 'orders':
-        return await getOrdersDrillThrough(filters, baseData)
+      case 'orders_today':
+        return await getOrdersTodayDrillThrough(filters, baseData)
       
-      case 'aov':
+      case 'new_customers':
+        return await getNewCustomersDrillThrough(filters, baseData)
+      
+      case 'avg_order_value':
         return await getAOVDrillThrough(filters, baseData)
       
-      case 'customers':
-        return await getCustomersDrillThrough(filters, baseData, additionalFilters)
+      case 'filtered_revenue':
+        return await getFilteredRevenueDrillThrough(filters, baseData)
       
-      case 'churn':
-        return await getChurnDrillThrough(filters, baseData)
+      case 'filtered_orders':
+        return await getFilteredOrdersDrillThrough(filters, baseData)
       
-      case 'trends':
-        return await getTrendsDrillThrough(filters, baseData, additionalFilters)
+      case 'filtered_customers':
+        return await getFilteredCustomersDrillThrough(filters, baseData)
       
-      case 'product-sales':
-        return await getProductSalesDrillThrough(filters, baseData, additionalFilters)
-      
-      case 'segment-analysis':
-        return await getSegmentAnalysisDrillThrough(filters, baseData, additionalFilters)
-      
-      case 'channel-analysis':
-        return await getChannelAnalysisDrillThrough(filters, baseData, additionalFilters)
+      case 'filtered_aov':
+        return await getFilteredAOVDrillThrough(filters, baseData)
       
       default:
         return null
@@ -63,7 +63,10 @@ export async function getDrillThroughData(
   }
 }
 
-async function getRevenueDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+async function getRevenueTodayDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+  const today = new Date().toISOString().split('T')[0]
+  
+  // Get today's orders
   const { data: orders, error } = await supabase
     .from('orders')
     .select(`
@@ -72,43 +75,65 @@ async function getRevenueDrillThrough(filters: FilterState, baseData: any): Prom
       total_price,
       created_at,
       status,
-      customers(first_name, last_name, email),
-      order_items(
-        quantity,
-        price,
-        products(name)
-      )
+      customer_id,
+      profiles!inner(first_name, last_name, email)
     `)
-    .gte('created_at', filters.startDate)
-    .lte('created_at', filters.endDate)
-    .eq('status', 'delivered')
+    .eq('merchant_id', MERCHANT_ID)
+    .gte('created_at', `${today}T00:00:00`)
+    .lte('created_at', `${today}T23:59:59`)
     .order('created_at', { ascending: false })
     .limit(100)
 
-  if (error) throw error
+  if (error) {
+    console.error('Error fetching today revenue orders:', error)
+    return createEmptyDrillThrough('revenue', 'Revenue Today', 'No orders found for today')
+  }
+
+  // Get hourly breakdown for time series
+  const { data: hourlyData, error: hourlyError } = await supabase
+    .from('daily_revenue_summary')
+    .select('*')
+    .eq('merchant_id', MERCHANT_ID)
+    .eq('date', today)
 
   const totalRevenue = orders?.reduce((sum, order) => sum + (order.total_price || 0), 0) || 0
 
+  // Create hourly time series data
+  const timeSeriesData = Array.from({ length: 24 }, (_, hour) => {
+    const hourOrders = orders?.filter(order => 
+      new Date(order.created_at).getHours() === hour
+    ) || []
+    
+    return {
+      time: `${String(hour).padStart(2, '0')}:00`,
+      revenue: hourOrders.reduce((sum, order) => sum + (order.total_price || 0), 0),
+      orders: hourOrders.length
+    }
+  })
+
   return {
     type: 'revenue',
-    title: 'Revenue Breakdown',
-    subtitle: `Detailed revenue analysis for ${baseData.filters.dateRange}`,
+    title: 'Revenue Today - Detailed Breakdown',
+    subtitle: `All revenue transactions for ${today}`,
     value: `£${totalRevenue.toLocaleString()}`,
-    change: '+15.5% vs last period',
+    change: calculateDayOverDayChange(totalRevenue, 'revenue'),
     changeType: 'positive',
     filters: baseData.filters,
+    timeSeriesData,
     data: orders?.map(order => ({
       date: new Date(order.created_at).toLocaleDateString(),
-      order_id: order.order_number,
-      customer: `${order.customers?.first_name || ''} ${order.customers?.last_name || ''}`.trim() || order.customers?.email || 'Unknown',
-      products: order.order_items?.map(item => item.products?.name).join(', ') || 'N/A',
-      value: order.total_price,
-      status: order.status
+      time: new Date(order.created_at).toLocaleTimeString(),
+      order_id: order.order_number || order.id,
+      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown',
+      value: order.total_price || 0,
+      status: order.status || 'unknown'
     })) || []
   }
 }
 
-async function getOrdersDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+async function getOrdersTodayDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+  const today = new Date().toISOString().split('T')[0]
+  
   const { data: orders, error } = await supabase
     .from('orders')
     .select(`
@@ -117,53 +142,158 @@ async function getOrdersDrillThrough(filters: FilterState, baseData: any): Promi
       total_price,
       created_at,
       status,
-      customers(first_name, last_name, email),
-      order_items(quantity, products(name))
+      customer_id,
+      profiles!inner(first_name, last_name, email),
+      order_line_items(quantity)
     `)
-    .gte('created_at', filters.startDate)
-    .lte('created_at', filters.endDate)
+    .eq('merchant_id', MERCHANT_ID)
+    .gte('created_at', `${today}T00:00:00`)
+    .lte('created_at', `${today}T23:59:59`)
     .order('created_at', { ascending: false })
     .limit(100)
 
-  if (error) throw error
+  if (error) {
+    console.error('Error fetching today orders:', error)
+    return createEmptyDrillThrough('orders', 'Orders Today', 'No orders found for today')
+  }
+
+  // Create hourly time series data
+  const timeSeriesData = Array.from({ length: 24 }, (_, hour) => {
+    const hourOrders = orders?.filter(order => 
+      new Date(order.created_at).getHours() === hour
+    ) || []
+    
+    return {
+      time: `${String(hour).padStart(2, '0')}:00`,
+      orders: hourOrders.length,
+      revenue: hourOrders.reduce((sum, order) => sum + (order.total_price || 0), 0)
+    }
+  })
 
   return {
     type: 'orders',
-    title: 'Orders Breakdown',
-    subtitle: `Detailed orders analysis for ${baseData.filters.dateRange}`,
+    title: 'Orders Today - Detailed View',
+    subtitle: `All orders placed on ${today}`,
     value: orders?.length.toString() || '0',
-    change: '+20.0% vs last period',
+    change: calculateDayOverDayChange(orders?.length || 0, 'orders'),
     changeType: 'positive',
     filters: baseData.filters,
+    timeSeriesData,
     data: orders?.map(order => ({
       date: new Date(order.created_at).toLocaleDateString(),
-      order_id: order.order_number,
-      customer: `${order.customers?.first_name || ''} ${order.customers?.last_name || ''}`.trim() || order.customers?.email || 'Unknown',
-      items: order.order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0,
-      value: order.total_price,
-      status: order.status
+      time: new Date(order.created_at).toLocaleTimeString(),
+      order_id: order.order_number || order.id,
+      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown',
+      items: order.order_line_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0,
+      value: order.total_price || 0,
+      status: order.status || 'unknown'
+    })) || []
+  }
+}
+
+async function getNewCustomersDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+  const today = new Date().toISOString().split('T')[0]
+  
+  const { data: customers, error } = await supabase
+    .from('profiles')
+    .select(`
+      id,
+      first_name,
+      last_name,
+      email,
+      created_at,
+      orders!inner(id, total_price, created_at)
+    `)
+    .gte('created_at', `${today}T00:00:00`)
+    .lte('created_at', `${today}T23:59:59`)
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  if (error) {
+    console.error('Error fetching new customers:', error)
+    return createEmptyDrillThrough('customers', 'New Customers Today', 'No new customers found for today')
+  }
+
+  // Create hourly time series data
+  const timeSeriesData = Array.from({ length: 24 }, (_, hour) => {
+    const hourCustomers = customers?.filter(customer => 
+      new Date(customer.created_at).getHours() === hour
+    ) || []
+    
+    return {
+      time: `${String(hour).padStart(2, '0')}:00`,
+      customers: hourCustomers.length,
+      revenue: hourCustomers.reduce((sum, customer) => 
+        sum + (customer.orders?.reduce((orderSum, order) => orderSum + (order.total_price || 0), 0) || 0), 0
+      )
+    }
+  })
+
+  return {
+    type: 'customers',
+    title: 'New Customers Today',
+    subtitle: `Customers who signed up on ${today}`,
+    value: customers?.length.toString() || '0',
+    change: calculateDayOverDayChange(customers?.length || 0, 'customers'),
+    changeType: 'positive',
+    filters: baseData.filters,
+    timeSeriesData,
+    data: customers?.map(customer => ({
+      name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown',
+      email: customer.email,
+      signup_date: new Date(customer.created_at).toLocaleDateString(),
+      signup_time: new Date(customer.created_at).toLocaleTimeString(),
+      orders: customer.orders?.length || 0,
+      ltv: customer.orders?.reduce((sum, order) => sum + (order.total_price || 0), 0) || 0,
+      segment: 'new'
     })) || []
   }
 }
 
 async function getAOVDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  
   const { data: orders, error } = await supabase
     .from('orders')
-    .select('total_price')
-    .gte('created_at', filters.startDate)
-    .lte('created_at', filters.endDate)
+    .select('total_price, created_at')
+    .eq('merchant_id', MERCHANT_ID)
+    .gte('created_at', sevenDaysAgo.toISOString())
     .not('total_price', 'is', null)
 
-  if (error) throw error
+  if (error) {
+    console.error('Error fetching AOV data:', error)
+    return createEmptyDrillThrough('aov', 'Average Order Value (7d)', 'No orders found for the last 7 days')
+  }
+
+  // Create daily time series data
+  const timeSeriesData = Array.from({ length: 7 }, (_, dayIndex) => {
+    const date = new Date()
+    date.setDate(date.getDate() - (6 - dayIndex))
+    const dateStr = date.toISOString().split('T')[0]
+    
+    const dayOrders = orders?.filter(order => 
+      order.created_at.startsWith(dateStr)
+    ) || []
+    
+    const dayRevenue = dayOrders.reduce((sum, order) => sum + (order.total_price || 0), 0)
+    const dayOrderCount = dayOrders.length
+    
+    return {
+      date: dateStr,
+      aov: dayOrderCount > 0 ? dayRevenue / dayOrderCount : 0,
+      orders: dayOrderCount,
+      revenue: dayRevenue
+    }
+  })
 
   // Create AOV distribution
   const aovRanges = [
     { range: '£0-50', min: 0, max: 50, count: 0 },
     { range: '£51-100', min: 51, max: 100, count: 0 },
-    { range: '£101-150', min: 101, max: 150, count: 0 },
-    { range: '£151-200', min: 151, max: 200, count: 0 },
-    { range: '£201-300', min: 201, max: 300, count: 0 },
-    { range: '£300+', min: 301, max: Infinity, count: 0 }
+    { range: '£101-200', min: 101, max: 200, count: 0 },
+    { range: '£201-500', min: 201, max: 500, count: 0 },
+    { range: '£500+', min: 501, max: Infinity, count: 0 }
   ]
 
   orders?.forEach(order => {
@@ -177,288 +307,275 @@ async function getAOVDrillThrough(filters: FilterState, baseData: any): Promise<
 
   return {
     type: 'aov',
-    title: 'Average Order Value Distribution',
-    subtitle: `AOV breakdown for ${baseData.filters.dateRange}`,
+    title: 'Average Order Value (7 Days)',
+    subtitle: 'AOV analysis for the last 7 days',
     value: `£${avgOrderValue.toFixed(2)}`,
-    change: '-3.7% vs last period',
-    changeType: 'negative',
+    change: calculatePercentageChange(avgOrderValue, avgOrderValue * 0.95), // Mock comparison
+    changeType: 'positive',
     filters: baseData.filters,
-    data: aovRanges.map(range => ({
-      range: range.range,
-      count: range.count
-    }))
+    timeSeriesData,
+    data: aovRanges
   }
 }
 
-async function getCustomersDrillThrough(filters: FilterState, baseData: any, additionalFilters?: any): Promise<DrillThroughData> {
-  let query = supabase
-    .from('customers')
+async function getFilteredRevenueDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+  const { data: orders, error } = await supabase
+    .from('orders')
+    .select(`
+      id,
+      order_number,
+      total_price,
+      created_at,
+      status,
+      customer_id,
+      profiles!inner(first_name, last_name, email)
+    `)
+    .eq('merchant_id', MERCHANT_ID)
+    .gte('created_at', filters.startDate)
+    .lte('created_at', filters.endDate)
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  if (error) {
+    console.error('Error fetching filtered revenue orders:', error)
+    return createEmptyDrillThrough('revenue', 'Total Revenue', 'No orders found for selected period')
+  }
+
+  // Get daily revenue summary for time series
+  const { data: dailyData, error: dailyError } = await supabase
+    .from('daily_revenue_summary')
+    .select('date, total_revenue, total_orders')
+    .eq('merchant_id', MERCHANT_ID)
+    .gte('date', filters.startDate.split('T')[0])
+    .lte('date', filters.endDate.split('T')[0])
+    .order('date')
+
+  const totalRevenue = orders?.reduce((sum, order) => sum + (order.total_price || 0), 0) || 0
+
+  return {
+    type: 'revenue',
+    title: 'Total Revenue - Detailed Breakdown',
+    subtitle: `Revenue analysis for ${baseData.filters.dateRange}`,
+    value: `£${totalRevenue.toLocaleString()}`,
+    change: calculatePercentageChange(totalRevenue, totalRevenue * 0.85), // Mock comparison
+    changeType: 'positive',
+    filters: baseData.filters,
+    timeSeriesData: dailyData?.map(day => ({
+      date: day.date,
+      revenue: day.total_revenue || 0,
+      orders: day.total_orders || 0
+    })) || [],
+    data: orders?.map(order => ({
+      date: new Date(order.created_at).toLocaleDateString(),
+      order_id: order.order_number || order.id,
+      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown',
+      value: order.total_price || 0,
+      status: order.status || 'unknown'
+    })) || []
+  }
+}
+
+async function getFilteredOrdersDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+  const { data: orders, error } = await supabase
+    .from('orders')
+    .select(`
+      id,
+      order_number,
+      total_price,
+      created_at,
+      status,
+      customer_id,
+      profiles!inner(first_name, last_name, email),
+      order_line_items(quantity)
+    `)
+    .eq('merchant_id', MERCHANT_ID)
+    .gte('created_at', filters.startDate)
+    .lte('created_at', filters.endDate)
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  if (error) {
+    console.error('Error fetching filtered orders:', error)
+    return createEmptyDrillThrough('orders', 'Total Orders', 'No orders found for selected period')
+  }
+
+  // Get daily orders summary for time series
+  const { data: dailyData, error: dailyError } = await supabase
+    .from('daily_revenue_summary')
+    .select('date, total_orders, total_revenue')
+    .eq('merchant_id', MERCHANT_ID)
+    .gte('date', filters.startDate.split('T')[0])
+    .lte('date', filters.endDate.split('T')[0])
+    .order('date')
+
+  return {
+    type: 'orders',
+    title: 'Total Orders - Detailed View',
+    subtitle: `Orders analysis for ${baseData.filters.dateRange}`,
+    value: orders?.length.toString() || '0',
+    change: calculatePercentageChange(orders?.length || 0, (orders?.length || 0) * 0.8), // Mock comparison
+    changeType: 'positive',
+    filters: baseData.filters,
+    timeSeriesData: dailyData?.map(day => ({
+      date: day.date,
+      orders: day.total_orders || 0,
+      revenue: day.total_revenue || 0
+    })) || [],
+    data: orders?.map(order => ({
+      date: new Date(order.created_at).toLocaleDateString(),
+      order_id: order.order_number || order.id,
+      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown',
+      items: order.order_line_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0,
+      value: order.total_price || 0,
+      status: order.status || 'unknown'
+    })) || []
+  }
+}
+
+async function getFilteredCustomersDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+  const { data: customers, error } = await supabase
+    .from('profiles')
     .select(`
       id,
       first_name,
       last_name,
       email,
       created_at,
-      total_spent,
-      orders_count,
-      customer_segment
+      orders!inner(id, total_price, created_at)
     `)
     .gte('created_at', filters.startDate)
     .lte('created_at', filters.endDate)
     .order('created_at', { ascending: false })
-    .limit(100)
+    .limit(200)
 
-  if (additionalFilters?.segment === 'new') {
-    query = query.eq('customer_segment', 'new')
-  } else if (additionalFilters?.segment === 'ordering') {
-    query = query.gt('orders_count', 0)
+  if (error) {
+    console.error('Error fetching filtered customers:', error)
+    return createEmptyDrillThrough('customers', 'New Customers', 'No new customers found for selected period')
   }
 
-  const { data: customers, error } = await query
+  // Create daily time series data
+  const dailyCustomers = customers?.reduce((acc, customer) => {
+    const date = customer.created_at.split('T')[0]
+    if (!acc[date]) {
+      acc[date] = { date, customers: 0, revenue: 0 }
+    }
+    acc[date].customers++
+    acc[date].revenue += customer.orders?.reduce((sum, order) => sum + (order.total_price || 0), 0) || 0
+    return acc
+  }, {} as Record<string, any>) || {}
 
-  if (error) throw error
+  const timeSeriesData = Object.values(dailyCustomers).sort((a: any, b: any) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
 
   return {
     type: 'customers',
-    title: additionalFilters?.segment === 'new' ? 'New Customers' : 'Customer Details',
-    subtitle: `Customer analysis for ${baseData.filters.dateRange}`,
+    title: 'New Customers - Detailed Analysis',
+    subtitle: `Customer acquisition for ${baseData.filters.dateRange}`,
     value: customers?.length.toString() || '0',
-    change: '+10.9% vs last period',
+    change: calculatePercentageChange(customers?.length || 0, (customers?.length || 0) * 0.7), // Mock comparison
     changeType: 'positive',
     filters: baseData.filters,
+    timeSeriesData,
     data: customers?.map(customer => ({
       name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown',
       email: customer.email,
       signup_date: new Date(customer.created_at).toLocaleDateString(),
-      orders: customer.orders_count || 0,
-      ltv: customer.total_spent || 0,
-      segment: customer.customer_segment || 'Unknown'
+      orders: customer.orders?.length || 0,
+      ltv: customer.orders?.reduce((sum, order) => sum + (order.total_price || 0), 0) || 0,
+      segment: customer.orders?.length === 1 ? 'new' : customer.orders?.length > 5 ? 'vip' : 'returning'
     })) || []
   }
 }
 
-async function getChurnDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
-  // Get customers who haven't ordered in the last 60 days
-  const sixtyDaysAgo = new Date()
-  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60)
-
-  const { data: atRiskCustomers, error } = await supabase
-    .from('customers')
-    .select(`
-      id,
-      first_name,
-      last_name,
-      email,
-      total_spent,
-      last_order_date,
-      customer_segment
-    `)
-    .lt('last_order_date', sixtyDaysAgo.toISOString())
-    .gt('total_spent', 100) // Only customers with some value
-    .order('total_spent', { ascending: false })
-    .limit(50)
-
-  if (error) throw error
-
-  return {
-    type: 'churn',
-    title: 'Churn Risk Analysis',
-    subtitle: `High-risk customers for ${baseData.filters.dateRange}`,
-    value: `${atRiskCustomers?.length || 0}`,
-    change: '+34.4% vs last period',
-    changeType: 'negative',
-    filters: baseData.filters,
-    data: atRiskCustomers?.map(customer => {
-      const daysSinceLastOrder = customer.last_order_date ? 
-        Math.floor((new Date().getTime() - new Date(customer.last_order_date).getTime()) / (1000 * 60 * 60 * 24)) : 999
-      
-      return {
-        customer: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || customer.email || 'Unknown',
-        last_order: customer.last_order_date ? `${daysSinceLastOrder} days ago` : 'Never',
-        risk_score: `${Math.min(100, Math.max(60, daysSinceLastOrder))}%`,
-        predicted_churn: `${Math.min(95, Math.max(70, daysSinceLastOrder + 10))}%`,
-        ltv: customer.total_spent || 0,
-        action: daysSinceLastOrder > 90 ? 'Personal Outreach' : daysSinceLastOrder > 60 ? 'Email Campaign' : 'Discount Offer'
-      }
-    }) || []
-  }
-}
-
-async function getTrendsDrillThrough(filters: FilterState, baseData: any, additionalFilters?: any): Promise<DrillThroughData> {
-  // Get hourly breakdown for a specific date or overall trends
+async function getFilteredAOVDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
   const { data: orders, error } = await supabase
     .from('orders')
-    .select('created_at, total_price')
+    .select('total_price, created_at')
+    .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', filters.startDate)
     .lte('created_at', filters.endDate)
-    .order('created_at')
+    .not('total_price', 'is', null)
 
-  if (error) throw error
+  if (error) {
+    console.error('Error fetching filtered AOV data:', error)
+    return createEmptyDrillThrough('aov', 'Average Order Value', 'No orders found for selected period')
+  }
 
-  // Group by hour
-  const hourlyData = Array.from({ length: 24 }, (_, hour) => ({
-    hour: `${String(hour).padStart(2, '0')}:00`,
-    revenue: 0,
-    orders: 0,
-    aov: 0
-  }))
+  // Create daily AOV time series
+  const dailyAOV = orders?.reduce((acc, order) => {
+    const date = order.created_at.split('T')[0]
+    if (!acc[date]) {
+      acc[date] = { date, revenue: 0, orders: 0, aov: 0 }
+    }
+    acc[date].revenue += order.total_price || 0
+    acc[date].orders++
+    return acc
+  }, {} as Record<string, any>) || {}
+
+  // Calculate AOV for each day
+  Object.values(dailyAOV).forEach((day: any) => {
+    day.aov = day.orders > 0 ? day.revenue / day.orders : 0
+  })
+
+  const timeSeriesData = Object.values(dailyAOV).sort((a: any, b: any) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
+
+  // Create AOV distribution
+  const aovRanges = [
+    { range: '£0-50', min: 0, max: 50, count: 0 },
+    { range: '£51-100', min: 51, max: 100, count: 0 },
+    { range: '£101-200', min: 101, max: 200, count: 0 },
+    { range: '£201-500', min: 201, max: 500, count: 0 },
+    { range: '£500+', min: 501, max: Infinity, count: 0 }
+  ]
 
   orders?.forEach(order => {
-    const hour = new Date(order.created_at).getHours()
-    hourlyData[hour].revenue += order.total_price || 0
-    hourlyData[hour].orders += 1
+    const price = order.total_price || 0
+    const range = aovRanges.find(r => price >= r.min && price <= r.max)
+    if (range) range.count++
   })
 
-  // Calculate AOV for each hour
-  hourlyData.forEach(data => {
-    data.aov = data.orders > 0 ? data.revenue / data.orders : 0
-  })
+  const avgOrderValue = orders?.length ? 
+    orders.reduce((sum, order) => sum + (order.total_price || 0), 0) / orders.length : 0
 
   return {
-    type: 'trends',
-    title: 'Sales Trends Analysis',
-    subtitle: `Trend breakdown for ${additionalFilters?.date || baseData.filters.dateRange}`,
-    value: additionalFilters?.date || 'Selected Period',
-    change: '+15.8% vs previous period',
+    type: 'aov',
+    title: 'Average Order Value - Distribution Analysis',
+    subtitle: `AOV breakdown for ${baseData.filters.dateRange}`,
+    value: `£${avgOrderValue.toFixed(2)}`,
+    change: calculatePercentageChange(avgOrderValue, avgOrderValue * 0.9), // Mock comparison
     changeType: 'positive',
     filters: baseData.filters,
-    data: hourlyData
+    timeSeriesData,
+    data: aovRanges
   }
 }
 
-async function getProductSalesDrillThrough(filters: FilterState, baseData: any, additionalFilters?: any): Promise<DrillThroughData> {
-  let query = supabase
-    .from('order_items')
-    .select(`
-      quantity,
-      price,
-      total,
-      created_at,
-      products(name),
-      orders!inner(created_at, customer_id, order_number)
-    `)
-    .gte('orders.created_at', filters.startDate)
-    .lte('orders.created_at', filters.endDate)
-
-  if (additionalFilters?.product) {
-    query = query.eq('products.name', additionalFilters.product)
-  }
-
-  const { data: orderItems, error } = await query.limit(100)
-
-  if (error) throw error
-
-  const totalRevenue = orderItems?.reduce((sum, item) => sum + (item.total || 0), 0) || 0
-
+// Helper functions
+function createEmptyDrillThrough(type: string, title: string, subtitle: string): DrillThroughData {
   return {
-    type: 'product-sales',
-    title: `Product Sales: ${additionalFilters?.product || 'All Products'}`,
-    subtitle: `Product performance for ${baseData.filters.dateRange}`,
-    value: `£${totalRevenue.toLocaleString()}`,
-    change: '+22.3% vs last period',
+    type,
+    title,
+    subtitle,
+    value: '0',
+    change: '0%',
     changeType: 'positive',
-    filters: baseData.filters,
-    data: orderItems?.map(item => ({
-      date: new Date(item.orders.created_at).toLocaleDateString(),
-      product: item.products?.name || 'Unknown',
-      quantity: item.quantity,
-      price: item.price,
-      revenue: item.total,
-      order_number: item.orders.order_number
-    })) || []
+    filters: {},
+    timeSeriesData: [],
+    data: []
   }
 }
 
-async function getSegmentAnalysisDrillThrough(filters: FilterState, baseData: any, additionalFilters?: any): Promise<DrillThroughData> {
-  const { data: segmentData, error } = await supabase
-    .from('customer_segment_summary')
-    .select('*')
-    .gte('date', filters.startDate.split('T')[0])
-    .lte('date', filters.endDate.split('T')[0])
-
-  if (error) throw error
-
-  // Aggregate by segment
-  const segments = segmentData?.reduce((acc, row) => {
-    const segment = row.customer_segment || 'Unknown'
-    if (!acc[segment]) {
-      acc[segment] = {
-        segment,
-        customers: 0,
-        revenue: 0,
-        orders: 0,
-        aov: 0
-      }
-    }
-    acc[segment].customers += row.customers_count || 0
-    acc[segment].revenue += row.total_revenue || 0
-    acc[segment].orders += row.orders_count || 0
-    return acc
-  }, {} as Record<string, any>) || {}
-
-  // Calculate AOV for each segment
-  Object.values(segments).forEach((seg: any) => {
-    seg.aov = seg.orders > 0 ? seg.revenue / seg.orders : 0
-  })
-
-  const totalRevenue = Object.values(segments).reduce((sum: number, seg: any) => sum + seg.revenue, 0)
-
-  return {
-    type: 'segment-analysis',
-    title: `Segment Analysis: ${additionalFilters?.segment || 'All Segments'}`,
-    subtitle: `Customer segment breakdown for ${baseData.filters.dateRange}`,
-    value: `£${totalRevenue.toLocaleString()}`,
-    change: '+28.4% vs last period',
-    changeType: 'positive',
-    filters: baseData.filters,
-    data: Object.values(segments)
-  }
+function calculateDayOverDayChange(currentValue: number, metric: string): string {
+  // Mock day-over-day calculation - in real implementation, you'd fetch yesterday's data
+  const mockPreviousValue = currentValue * (0.8 + Math.random() * 0.4) // Random between 80-120% of current
+  return calculatePercentageChange(currentValue, mockPreviousValue)
 }
 
-async function getChannelAnalysisDrillThrough(filters: FilterState, baseData: any, additionalFilters?: any): Promise<DrillThroughData> {
-  const { data: channelData, error } = await supabase
-    .from('channel_performance_summary')
-    .select('*')
-    .gte('date', filters.startDate.split('T')[0])
-    .lte('date', filters.endDate.split('T')[0])
-
-  if (error) throw error
-
-  // Aggregate by channel
-  const channels = channelData?.reduce((acc, row) => {
-    const channel = row.channel || 'Direct'
-    if (!acc[channel]) {
-      acc[channel] = {
-        channel,
-        revenue: 0,
-        orders: 0,
-        customers: 0,
-        aov: 0,
-        conversion: (Math.random() * 5 + 1).toFixed(1), // Mock conversion rate
-        sessions: Math.floor(Math.random() * 5000 + 1000) // Mock sessions
-      }
-    }
-    acc[channel].revenue += row.total_revenue || 0
-    acc[channel].orders += row.orders_count || 0
-    acc[channel].customers += row.customers_count || 0
-    return acc
-  }, {} as Record<string, any>) || {}
-
-  // Calculate AOV for each channel
-  Object.values(channels).forEach((ch: any) => {
-    ch.aov = ch.orders > 0 ? ch.revenue / ch.orders : 0
-  })
-
-  const totalRevenue = Object.values(channels).reduce((sum: number, ch: any) => sum + ch.revenue, 0)
-
-  return {
-    type: 'channel-analysis',
-    title: `Channel Analysis: ${additionalFilters?.channel || 'All Channels'}`,
-    subtitle: `Channel performance for ${baseData.filters.dateRange}`,
-    value: `£${totalRevenue.toLocaleString()}`,
-    change: '+19.7% vs last period',
-    changeType: 'positive',
-    filters: baseData.filters,
-    data: Object.values(channels)
-  }
+function calculatePercentageChange(current: number, previous: number): string {
+  if (previous === 0) return current > 0 ? '+100%' : '0%'
+  const change = ((current - previous) / previous) * 100
+  return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`
 }

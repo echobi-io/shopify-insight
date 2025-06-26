@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 interface DrillThroughModalProps {
   isOpen: boolean;
@@ -16,144 +16,233 @@ interface DrillThroughModalProps {
 const DrillThroughModal: React.FC<DrillThroughModalProps> = ({ isOpen, onClose, data }) => {
   if (!data) return null;
 
+  const renderTimeSeriesChart = () => {
+    if (!data.timeSeriesData || data.timeSeriesData.length === 0) {
+      return null;
+    }
+
+    const isHourlyData = data.timeSeriesData[0]?.time;
+    const xAxisKey = isHourlyData ? 'time' : 'date';
+    
+    return (
+      <div className="mb-6">
+        <h4 className="text-sm font-medium text-muted-foreground mb-3">Time Series Analysis</h4>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={data.timeSeriesData}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+            <XAxis 
+              dataKey={xAxisKey} 
+              fontSize={12}
+              tickFormatter={(value) => {
+                if (isHourlyData) {
+                  return value;
+                } else {
+                  return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                }
+              }}
+            />
+            <YAxis fontSize={12} />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'hsl(var(--card))', 
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px'
+              }}
+              labelFormatter={(value) => {
+                if (isHourlyData) {
+                  return `Time: ${value}`;
+                } else {
+                  return new Date(value).toLocaleDateString();
+                }
+              }}
+              formatter={(value: any, name: string) => {
+                if (name === 'revenue') return [`£${Number(value).toLocaleString()}`, 'Revenue'];
+                if (name === 'orders') return [Number(value).toLocaleString(), 'Orders'];
+                if (name === 'customers') return [Number(value).toLocaleString(), 'Customers'];
+                if (name === 'aov') return [`£${Number(value).toFixed(2)}`, 'AOV'];
+                return [value, name];
+              }}
+            />
+            {data.timeSeriesData[0]?.revenue !== undefined && (
+              <Line 
+                type="monotone" 
+                dataKey="revenue" 
+                stroke="#3b82f6" 
+                strokeWidth={2}
+                dot={false}
+              />
+            )}
+            {data.timeSeriesData[0]?.orders !== undefined && (
+              <Line 
+                type="monotone" 
+                dataKey="orders" 
+                stroke="#10b981" 
+                strokeWidth={2}
+                dot={false}
+              />
+            )}
+            {data.timeSeriesData[0]?.customers !== undefined && (
+              <Line 
+                type="monotone" 
+                dataKey="customers" 
+                stroke="#8b5cf6" 
+                strokeWidth={2}
+                dot={false}
+              />
+            )}
+            {data.timeSeriesData[0]?.aov !== undefined && (
+              <Line 
+                type="monotone" 
+                dataKey="aov" 
+                stroke="#f59e0b" 
+                strokeWidth={2}
+                dot={false}
+              />
+            )}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (data.type) {
       case 'revenue':
       case 'orders':
       case 'customers':
-      case 'sales-revenue':
-      case 'sales-orders':
         return (
-          <div className="space-y-4">
-            <div className="overflow-x-auto max-h-96">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    {(data.type === 'revenue' || data.type === 'sales-revenue') && (
-                      <>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Date</th>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Order ID</th>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Customer</th>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Product</th>
-                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">Value</th>
-                        {data.type === 'sales-revenue' && (
-                          <th className="text-right py-2 px-3 font-medium text-muted-foreground">Refunds</th>
-                        )}
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
-                      </>
-                    )}
-                    {(data.type === 'orders' || data.type === 'sales-orders') && (
-                      <>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Date</th>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Order ID</th>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Customer</th>
-                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">Items</th>
-                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">Value</th>
-                        {data.type === 'sales-orders' && (
-                          <th className="text-right py-2 px-3 font-medium text-muted-foreground">AOV</th>
-                        )}
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
-                      </>
-                    )}
-                    {data.type === 'customers' && (
-                      <>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Name</th>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Email</th>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Signup Date</th>
-                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">Orders</th>
-                        <th className="text-right py-2 px-3 font-medium text-muted-foreground">LTV</th>
-                        <th className="text-left py-2 px-3 font-medium text-muted-foreground">Segment</th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.data.slice(0, 20).map((row: any, index: number) => (
-                    <tr key={index} className="border-b border-border/50 hover:bg-muted/50">
-                      {(data.type === 'revenue' || data.type === 'sales-revenue') && (
+          <div className="space-y-6">
+            {renderTimeSeriesChart()}
+            
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Detailed Records</h4>
+              <div className="overflow-x-auto max-h-96">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      {data.type === 'revenue' && (
                         <>
-                          <td className="py-2 px-3 text-sm">{row.date}</td>
-                          <td className="py-2 px-3 text-sm font-mono">{row.order_id}</td>
-                          <td className="py-2 px-3 text-sm">{row.customer}</td>
-                          <td className="py-2 px-3 text-sm">{row.product}</td>
-                          <td className="py-2 px-3 text-sm text-right">£{row.value}</td>
-                          {data.type === 'sales-revenue' && (
-                            <td className="py-2 px-3 text-sm text-right">£{row.refunds}</td>
-                          )}
-                          <td className="py-2 px-3 text-sm">
-                            <Badge variant={row.status === 'completed' ? 'default' : 'secondary'}>
-                              {row.status}
-                            </Badge>
-                          </td>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Date</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Time</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Order ID</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Customer</th>
+                          <th className="text-right py-2 px-3 font-medium text-muted-foreground">Value</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
                         </>
                       )}
-                      {(data.type === 'orders' || data.type === 'sales-orders') && (
+                      {data.type === 'orders' && (
                         <>
-                          <td className="py-2 px-3 text-sm">{row.date}</td>
-                          <td className="py-2 px-3 text-sm font-mono">{row.order_id}</td>
-                          <td className="py-2 px-3 text-sm">{row.customer}</td>
-                          <td className="py-2 px-3 text-sm text-right">{row.items}</td>
-                          <td className="py-2 px-3 text-sm text-right">£{row.value}</td>
-                          {data.type === 'sales-orders' && (
-                            <td className="py-2 px-3 text-sm text-right">£{row.aov}</td>
-                          )}
-                          <td className="py-2 px-3 text-sm">
-                            <Badge variant={row.status === 'completed' ? 'default' : 'secondary'}>
-                              {row.status}
-                            </Badge>
-                          </td>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Date</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Time</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Order ID</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Customer</th>
+                          <th className="text-right py-2 px-3 font-medium text-muted-foreground">Items</th>
+                          <th className="text-right py-2 px-3 font-medium text-muted-foreground">Value</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
                         </>
                       )}
                       {data.type === 'customers' && (
                         <>
-                          <td className="py-2 px-3 text-sm">{row.name}</td>
-                          <td className="py-2 px-3 text-sm">{row.email}</td>
-                          <td className="py-2 px-3 text-sm">{row.signup_date}</td>
-                          <td className="py-2 px-3 text-sm text-right">{row.orders}</td>
-                          <td className="py-2 px-3 text-sm text-right">£{row.ltv}</td>
-                          <td className="py-2 px-3 text-sm">
-                            <Badge variant="outline">{row.segment}</Badge>
-                          </td>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Name</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Email</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Signup Date</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Time</th>
+                          <th className="text-right py-2 px-3 font-medium text-muted-foreground">Orders</th>
+                          <th className="text-right py-2 px-3 font-medium text-muted-foreground">LTV</th>
+                          <th className="text-left py-2 px-3 font-medium text-muted-foreground">Segment</th>
                         </>
                       )}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {data.data.slice(0, 50).map((row: any, index: number) => (
+                      <tr key={index} className="border-b border-border/50 hover:bg-muted/50">
+                        {data.type === 'revenue' && (
+                          <>
+                            <td className="py-2 px-3 text-sm">{row.date}</td>
+                            <td className="py-2 px-3 text-sm text-muted-foreground">{row.time}</td>
+                            <td className="py-2 px-3 text-sm font-mono">{row.order_id}</td>
+                            <td className="py-2 px-3 text-sm">{row.customer}</td>
+                            <td className="py-2 px-3 text-sm text-right">£{Number(row.value).toLocaleString()}</td>
+                            <td className="py-2 px-3 text-sm">
+                              <Badge variant={row.status === 'completed' || row.status === 'delivered' ? 'default' : 'secondary'}>
+                                {row.status}
+                              </Badge>
+                            </td>
+                          </>
+                        )}
+                        {data.type === 'orders' && (
+                          <>
+                            <td className="py-2 px-3 text-sm">{row.date}</td>
+                            <td className="py-2 px-3 text-sm text-muted-foreground">{row.time}</td>
+                            <td className="py-2 px-3 text-sm font-mono">{row.order_id}</td>
+                            <td className="py-2 px-3 text-sm">{row.customer}</td>
+                            <td className="py-2 px-3 text-sm text-right">{row.items}</td>
+                            <td className="py-2 px-3 text-sm text-right">£{Number(row.value).toLocaleString()}</td>
+                            <td className="py-2 px-3 text-sm">
+                              <Badge variant={row.status === 'completed' || row.status === 'delivered' ? 'default' : 'secondary'}>
+                                {row.status}
+                              </Badge>
+                            </td>
+                          </>
+                        )}
+                        {data.type === 'customers' && (
+                          <>
+                            <td className="py-2 px-3 text-sm">{row.name}</td>
+                            <td className="py-2 px-3 text-sm">{row.email}</td>
+                            <td className="py-2 px-3 text-sm">{row.signup_date}</td>
+                            <td className="py-2 px-3 text-sm text-muted-foreground">{row.signup_time}</td>
+                            <td className="py-2 px-3 text-sm text-right">{row.orders}</td>
+                            <td className="py-2 px-3 text-sm text-right">£{Number(row.ltv).toLocaleString()}</td>
+                            <td className="py-2 px-3 text-sm">
+                              <Badge variant="outline">{row.segment}</Badge>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {data.data.length > 50 && (
+                <p className="text-sm text-muted-foreground text-center mt-3">
+                  Showing 50 of {data.data.length} results
+                </p>
+              )}
             </div>
-            {data.data.length > 20 && (
-              <p className="text-sm text-muted-foreground text-center">
-                Showing 20 of {data.data.length} results
-              </p>
-            )}
           </div>
         );
 
       case 'aov':
         return (
-          <div className="space-y-4">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.data}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="range" fontSize={12} />
-                <YAxis fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-4">
-              {data.data.map((item: any, index: number) => (
-                <div key={index} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                  <span className="text-sm font-medium">{item.range}</span>
-                  <span className="text-sm text-muted-foreground">{item.count} orders</span>
-                </div>
-              ))}
+          <div className="space-y-6">
+            {renderTimeSeriesChart()}
+            
+            <div>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">AOV Distribution</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={data.data}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="range" fontSize={12} />
+                  <YAxis fontSize={12} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                {data.data.map((item: any, index: number) => (
+                  <div key={index} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                    <span className="text-sm font-medium">{item.range}</span>
+                    <span className="text-sm text-muted-foreground">{item.count} orders</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         );
