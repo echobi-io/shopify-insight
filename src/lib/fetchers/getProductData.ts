@@ -84,7 +84,7 @@ export async function getProductData(filters: FilterState, merchant_id?: string)
       const productRefunds = Math.floor(totalRefunds / Object.keys(productGroups).length)
 
       // Generate trend data (simplified - would need historical data)
-      const trend = Array.from({ length: 12 }, () => Math.floor(Math.random() * 30) + 10)
+      const trend: number[] = [] // No fallback data - return empty array if no real data
 
       return {
         product: group.product,

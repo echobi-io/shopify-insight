@@ -157,7 +157,7 @@ export async function getKPIs(filters: FilterState, merchant_id?: string): Promi
       }
 
       // Calculate basic churn risk (simplified)
-      const churnRisk = Math.random() * 20 + 5; // Placeholder calculation
+      const churnRisk = 0; // No fallback data - return 0 if no real data
 
       return {
         totalRevenue: parseFloat(totalRevenue.toFixed(2)),
@@ -232,7 +232,7 @@ export async function getKPIs(filters: FilterState, merchant_id?: string): Promi
       churnRisk = (atRiskCustomers / totalCustomersInRetention) * 100;
     } catch (error) {
       console.log('⚠️ Could not fetch churn risk:', error);
-      churnRisk = Math.random() * 20 + 5; // Placeholder
+      churnRisk = 0; // No fallback data - return 0 if no real data
     }
 
     const percentOrdering = totalCustomersCount > 0 ? (uniqueCustomers / totalCustomersCount) * 100 : 0;
