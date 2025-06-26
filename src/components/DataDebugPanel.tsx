@@ -31,19 +31,22 @@ export default function DataDebugPanel() {
 
   const rawTables = [
     'orders',
-    'order_items',
+    'order_line_items',
     'products',
-    'customers'
+    'profiles'
   ]
 
   const checkViewStatus = async (viewName: string): Promise<ViewStatus> => {
     try {
+      console.log(`🔍 Checking view: ${viewName}`)
+      
       // Check if view exists and get total row count
-      const { data: allData, error: allError } = await supabase
+      const { data: allData, error: allError, count: totalCount } = await supabase
         .from(viewName)
         .select('*', { count: 'exact', head: true })
 
       if (allError) {
+        console.error(`❌ Error checking view ${viewName}:`, allError)
         return {
           name: viewName,
           exists: false,
@@ -53,24 +56,29 @@ export default function DataDebugPanel() {
         }
       }
 
-      const totalRows = allData?.length || 0
+      console.log(`✅ View ${viewName} exists with ${totalCount} total rows`)
 
       // Check merchant-specific data
-      const { data: merchantData, error: merchantError } = await supabase
+      const { data: merchantData, error: merchantError, count: merchantCount } = await supabase
         .from(viewName)
         .select('*', { count: 'exact', head: true })
         .eq('merchant_id', MERCHANT_ID)
 
-      const merchantRows = merchantData?.length || 0
+      if (merchantError) {
+        console.error(`❌ Error checking merchant data for ${viewName}:`, merchantError)
+      }
+
+      console.log(`📊 View ${viewName} has ${merchantCount || 0} rows for merchant ${MERCHANT_ID}`)
 
       return {
         name: viewName,
         exists: true,
-        rowCount: totalRows,
-        merchantData: merchantRows,
+        rowCount: totalCount || 0,
+        merchantData: merchantCount || 0,
         error: merchantError?.message
       }
     } catch (error) {
+      console.error(`❌ Exception checking view ${viewName}:`, error)
       return {
         name: viewName,
         exists: false,
@@ -156,6 +164,173 @@ export default function DataDebugPanel() {
     }
   }
 
+  const populateTestData = async () => {
+    try {
+      setLoading(true)
+      console.log('🔄 Populating test data...')
+
+      // Add test merchant data to orders table
+      const testOrders = [
+        {
+          id: 'order_1',
+          merchant_id: MERCHANT_ID,
+          customer_id: 'customer_1',
+          total_price: 150.00,
+          created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+          channel: 'online'
+        },
+        {
+          id: 'order_2',
+          merchant_id: MERCHANT_ID,
+          customer_id: 'customer_2',
+          total_price: 89.99,
+          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+          channel: 'online'
+        },
+        {
+          id: 'order_3',
+          merchant_id: MERCHANT_ID,
+          customer_id: 'customer_1',
+          total_price: 200.00,
+          created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+          channel: 'retail'
+        }
+      ]
+
+      const { error: ordersError } = await supabase
+        .from('orders')
+        .upsert(testOrders, { onConflict: 'id' })
+
+      if (ordersError) {
+        console.error('Error inserting test orders:', ordersError)
+        alert(`Error inserting test orders: ${ordersError.message}`)
+        return
+      }
+
+      // Add test products
+      const testProducts = [
+        {
+          id: 'product_1',
+          merchant_id: MERCHANT_ID,
+          name: 'Test Product A',
+          category: 'Electronics'
+        },
+        {
+          id: 'product_2',
+          merchant_id: MERCHANT_ID,
+          name: 'Test Product B',
+          category: 'Clothing'
+        }
+      ]
+
+      const { error: productsError } = await supabase
+        .from('products')
+        .upsert(testProducts, { onConflict: 'id' })
+
+      if (productsError) {
+        console.error('Error inserting test products:', productsError)
+        alert(`Error inserting test products: ${productsError.message}`)
+        return
+      }
+
+      // Add test order line items
+      const testOrderItems = [
+        {
+          id: 'item_1',
+          order_id: 'order_1',
+          product_id: 'product_1',
+          quantity: 1,
+          price: 150.00
+        },
+        {
+          id: 'item_2',
+          order_id: 'order_2',
+          product_id: 'product_2',
+          quantity: 2,
+          price: 44.99
+        },
+        {
+          id: 'item_3',
+          order_id: 'order_3',
+          product_id: 'product_1',
+          quantity: 1,
+          price: 200.00
+        }
+      ]
+
+      const { error: itemsError } = await supabase
+        .from('order_line_items')
+        .upsert(testOrderItems, { onConflict: 'id' })
+
+      if (itemsError) {
+        console.error('Error inserting test order items:', itemsError)
+        alert(`Error inserting test order items: ${itemsError.message}`)
+        return
+      }
+
+      // Add test profiles
+      const testProfiles = [
+        {
+          id: 'customer_1',
+          merchant_id: MERCHANT_ID,
+          email: 'customer1@test.com',
+          first_name: 'John',
+          last_name: 'Doe'
+        },
+        {
+          id: 'customer_2',
+          merchant_id: MERCHANT_ID,
+          email: 'customer2@test.com',
+          first_name: 'Jane',
+          last_name: 'Smith'
+        }
+      ]
+
+      const { error: profilesError } = await supabase
+        .from('profiles')
+        .upsert(testProfiles, { onConflict: 'id' })
+
+      if (profilesError) {
+        console.error('Error inserting test profiles:', profilesError)
+        alert(`Error inserting test profiles: ${profilesError.message}`)
+        return
+      }
+
+      console.log('✅ Test data populated successfully')
+      alert('Test data populated successfully! Now refreshing materialized views...')
+
+      // Refresh materialized views after populating data
+      await refreshMaterializedViews()
+
+    } catch (error) {
+      console.error('Error populating test data:', error)
+      alert('Error populating test data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const testFetchers = async () => {
+    try {
+      setLoading(true)
+      console.log('🧪 Testing dashboard fetchers...')
+
+      // Import and test the dashboard data fetcher
+      const { getAllDashboardData } = await import('@/lib/fetchers/getDashboardData')
+      
+      const dashboardData = await getAllDashboardData(MERCHANT_ID)
+      console.log('📊 Dashboard data result:', dashboardData)
+
+      alert(`Fetcher test complete! Check console for results. KPIs: ${JSON.stringify(dashboardData.kpis, null, 2)}`)
+
+    } catch (error) {
+      console.error('Error testing fetchers:', error)
+      alert(`Error testing fetchers: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     runDiagnostics()
   }, [])
@@ -168,7 +343,7 @@ export default function DataDebugPanel() {
             <Database className="h-5 w-5 mr-2" />
             Data Debug Panel
           </CardTitle>
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             <Button onClick={runDiagnostics} disabled={loading} size="sm">
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Run Diagnostics
@@ -176,6 +351,14 @@ export default function DataDebugPanel() {
             <Button onClick={refreshMaterializedViews} disabled={loading} size="sm" variant="outline">
               <Database className="h-4 w-4 mr-2" />
               Refresh Views
+            </Button>
+            <Button onClick={populateTestData} disabled={loading} size="sm" variant="secondary">
+              <Database className="h-4 w-4 mr-2" />
+              Populate Test Data
+            </Button>
+            <Button onClick={testFetchers} disabled={loading} size="sm" variant="secondary">
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Test Fetchers
             </Button>
           </div>
         </CardHeader>

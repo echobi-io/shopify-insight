@@ -87,6 +87,14 @@ export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKP
     };
 
     console.log('✅ Dashboard KPIs result:', result);
+    
+    // Check if we have any meaningful data
+    const hasData = result.revenueToday > 0 || result.ordersToday > 0 || result.newCustomers > 0 || result.avgOrderValue7d > 0;
+    
+    if (!hasData) {
+      console.log('⚠️ No real data found, but returning zeros for "Not enough data yet" display');
+    }
+    
     return result;
 
   } catch (error) {
