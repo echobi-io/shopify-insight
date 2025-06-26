@@ -14,6 +14,8 @@ import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type 
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import Sidebar from '@/components/Sidebar'
 import DataDebugPanel from '@/components/DataDebugPanel'
+import ClickableKPICard from '@/components/ClickableKPICard'
+import DrillThroughModal from '@/components/DrillThroughModal'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111' // Hardcoded merchant ID matching sample data
 
@@ -51,6 +53,15 @@ export default function Dashboard() {
   const [segmentData, setSegmentData] = useState<CustomerSegmentData[]>([])
   const [aiCommentary, setAiCommentary] = useState<AICommentaryData | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
+  
+  // Drill-through modal state
+  const [drillThroughModal, setDrillThroughModal] = useState<{
+    isOpen: boolean;
+    data: any;
+  }>({
+    isOpen: false,
+    data: null
+  })
 
   const timeframeOptions = [
     { value: 'last_7_days', label: 'Last 7 Days' },
@@ -166,6 +177,180 @@ export default function Dashboard() {
     return trend === 'up' ? 'text-green-600' : 'text-red-600'
   }
 
+  // Drill-through handler
+  const handleDrillThrough = (type: string, data: any) => {
+    // Generate mock drill-through data based on type
+    const generateDrillThroughData = (type: string) => {
+      switch (type) {
+        case 'revenue_today':
+          return {
+            type: 'revenue',
+            title: 'Revenue Today - Detailed Breakdown',
+            subtitle: 'All revenue transactions for today',
+            value: formatCurrency(data.value || 0),
+            change: '+12.5%',
+            changeType: 'positive' as const,
+            filters: { dateRange: 'Today' },
+            data: Array.from({ length: 15 }, (_, i) => ({
+              date: new Date().toLocaleDateString(),
+              order_id: `ORD-${1000 + i}`,
+              customer: `Customer ${i + 1}`,
+              product: `Product ${String.fromCharCode(65 + (i % 5))}`,
+              value: (Math.random() * 200 + 50).toFixed(2),
+              status: Math.random() > 0.2 ? 'completed' : 'pending'
+            }))
+          }
+        case 'orders_today':
+          return {
+            type: 'orders',
+            title: 'Orders Today - Detailed View',
+            subtitle: 'All orders placed today',
+            value: formatNumber(data.value || 0),
+            change: '+8.3%',
+            changeType: 'positive' as const,
+            filters: { dateRange: 'Today' },
+            data: Array.from({ length: 12 }, (_, i) => ({
+              date: new Date().toLocaleDateString(),
+              order_id: `ORD-${2000 + i}`,
+              customer: `Customer ${i + 1}`,
+              items: Math.floor(Math.random() * 5) + 1,
+              value: (Math.random() * 300 + 100).toFixed(2),
+              status: Math.random() > 0.15 ? 'completed' : 'processing'
+            }))
+          }
+        case 'new_customers':
+          return {
+            type: 'customers',
+            title: 'New Customers - Today',
+            subtitle: 'Customers who signed up today',
+            value: formatNumber(data.value || 0),
+            change: '+15.2%',
+            changeType: 'positive' as const,
+            filters: { dateRange: 'Today' },
+            data: Array.from({ length: 8 }, (_, i) => ({
+              name: `New Customer ${i + 1}`,
+              email: `customer${i + 1}@example.com`,
+              signup_date: new Date().toLocaleDateString(),
+              orders: Math.floor(Math.random() * 3),
+              ltv: (Math.random() * 500 + 100).toFixed(2),
+              segment: ['new', 'returning'][Math.floor(Math.random() * 2)]
+            }))
+          }
+        case 'avg_order_value':
+          return {
+            type: 'aov',
+            title: 'Average Order Value Analysis',
+            subtitle: '7-day rolling average breakdown',
+            value: formatCurrency(data.value || 0),
+            change: '+5.7%',
+            changeType: 'positive' as const,
+            filters: { dateRange: 'Last 7 Days' },
+            data: [
+              { range: '$0-50', count: 45 },
+              { range: '$51-100', count: 78 },
+              { range: '$101-200', count: 92 },
+              { range: '$201-500', count: 34 },
+              { range: '$500+', count: 12 }
+            ]
+          }
+        case 'filtered_revenue':
+          return {
+            type: 'revenue',
+            title: `Total Revenue - ${timeframe.replace('_', ' ').toUpperCase()}`,
+            subtitle: 'Detailed revenue breakdown for selected period',
+            value: formatCurrency(data.value || 0),
+            change: '+18.4%',
+            changeType: 'positive' as const,
+            filters: { dateRange: timeframe.replace('_', ' ') },
+            data: Array.from({ length: 25 }, (_, i) => ({
+              date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
+              order_id: `ORD-${3000 + i}`,
+              customer: `Customer ${i + 1}`,
+              product: `Product ${String.fromCharCode(65 + (i % 8))}`,
+              value: (Math.random() * 400 + 75).toFixed(2),
+              status: Math.random() > 0.1 ? 'completed' : 'refunded'
+            }))
+          }
+        case 'filtered_orders':
+          return {
+            type: 'orders',
+            title: `Total Orders - ${timeframe.replace('_', ' ').toUpperCase()}`,
+            subtitle: 'All orders for selected period',
+            value: formatNumber(data.value || 0),
+            change: '+22.1%',
+            changeType: 'positive' as const,
+            filters: { dateRange: timeframe.replace('_', ' ') },
+            data: Array.from({ length: 30 }, (_, i) => ({
+              date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
+              order_id: `ORD-${4000 + i}`,
+              customer: `Customer ${i + 1}`,
+              items: Math.floor(Math.random() * 6) + 1,
+              value: (Math.random() * 350 + 80).toFixed(2),
+              status: Math.random() > 0.12 ? 'completed' : 'cancelled'
+            }))
+          }
+        case 'filtered_customers':
+          return {
+            type: 'customers',
+            title: `New Customers - ${timeframe.replace('_', ' ').toUpperCase()}`,
+            subtitle: 'Customer acquisition for selected period',
+            value: formatNumber(data.value || 0),
+            change: '+28.9%',
+            changeType: 'positive' as const,
+            filters: { dateRange: timeframe.replace('_', ' ') },
+            data: Array.from({ length: 20 }, (_, i) => ({
+              name: `Customer ${i + 1}`,
+              email: `customer${i + 1}@example.com`,
+              signup_date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
+              orders: Math.floor(Math.random() * 8) + 1,
+              ltv: (Math.random() * 800 + 150).toFixed(2),
+              segment: ['new', 'returning', 'vip'][Math.floor(Math.random() * 3)]
+            }))
+          }
+        case 'filtered_aov':
+          return {
+            type: 'aov',
+            title: `Average Order Value - ${timeframe.replace('_', ' ').toUpperCase()}`,
+            subtitle: 'AOV distribution for selected period',
+            value: formatCurrency(data.value || 0),
+            change: '+11.3%',
+            changeType: 'positive' as const,
+            filters: { dateRange: timeframe.replace('_', ' ') },
+            data: [
+              { range: '$0-50', count: 156 },
+              { range: '$51-100', count: 234 },
+              { range: '$101-200', count: 189 },
+              { range: '$201-500', count: 87 },
+              { range: '$500+', count: 23 }
+            ]
+          }
+        default:
+          return null
+      }
+    }
+
+    const drillData = generateDrillThroughData(type)
+    if (drillData) {
+      setDrillThroughModal({
+        isOpen: true,
+        data: drillData
+      })
+    }
+  }
+
+  const closeDrillThrough = () => {
+    setDrillThroughModal({
+      isOpen: false,
+      data: null
+    })
+  }
+
+  // Helper function to get timeframe label
+  const getTimeframeLabel = () => {
+    const option = timeframeOptions.find(opt => opt.value === timeframe)
+    return option ? option.label : 'Selected Period'
+  }
+
   // Section Components
   const DashboardSection = () => {
     if (dashboardLoading) {
@@ -193,75 +378,112 @@ export default function Dashboard() {
         transition={{ duration: 0.3 }}
         className="space-y-6"
       >
-        {/* KPI Tiles - Dashboard Specific */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Revenue Today</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {dashboardKpis ? formatCurrency(dashboardKpis.revenueToday) : 
-                  <span className="text-slate-400">Not enough data yet</span>
-                }
-              </div>
-              <p className="text-xs text-muted-foreground">
-                From today's orders
-              </p>
-            </CardContent>
-          </Card>
+        {/* Current Data KPIs - Smaller */}
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Current Data</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <ClickableKPICard
+              title="Revenue Today"
+              value={dashboardKpis ? formatCurrency(dashboardKpis.revenueToday) : '$0'}
+              change="+12.5%"
+              changeType="positive"
+              icon={<DollarSign />}
+              size="small"
+              onClick={() => handleDrillThrough('revenue_today', { 
+                value: dashboardKpis?.revenueToday || 0,
+                period: 'today'
+              })}
+            />
+            <ClickableKPICard
+              title="Orders Today"
+              value={dashboardKpis ? formatNumber(dashboardKpis.ordersToday) : '0'}
+              change="+8.3%"
+              changeType="positive"
+              icon={<ShoppingCart />}
+              size="small"
+              onClick={() => handleDrillThrough('orders_today', { 
+                value: dashboardKpis?.ordersToday || 0,
+                period: 'today'
+              })}
+            />
+            <ClickableKPICard
+              title="New Customers"
+              value={dashboardKpis ? formatNumber(dashboardKpis.newCustomers) : '0'}
+              change="+15.2%"
+              changeType="positive"
+              icon={<Users />}
+              size="small"
+              onClick={() => handleDrillThrough('new_customers', { 
+                value: dashboardKpis?.newCustomers || 0,
+                period: 'today'
+              })}
+            />
+            <ClickableKPICard
+              title="Avg Order Value (7d)"
+              value={dashboardKpis ? formatCurrency(dashboardKpis.avgOrderValue7d) : '$0'}
+              change="+5.7%"
+              changeType="positive"
+              icon={<DollarSign />}
+              size="small"
+              onClick={() => handleDrillThrough('avg_order_value', { 
+                value: dashboardKpis?.avgOrderValue7d || 0,
+                period: '7d'
+              })}
+            />
+          </div>
+        </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Orders Today</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {dashboardKpis ? formatNumber(dashboardKpis.ordersToday) : 
-                  <span className="text-slate-400">Not enough data yet</span>
-                }
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Orders placed today
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">New Customers</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {dashboardKpis ? formatNumber(dashboardKpis.newCustomers) : 
-                  <span className="text-slate-400">Not enough data yet</span>
-                }
-              </div>
-              <p className="text-xs text-muted-foreground">
-                First-time customers
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Order Value (7d)</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {dashboardKpis ? formatCurrency(dashboardKpis.avgOrderValue7d) : 
-                  <span className="text-slate-400">Not enough data yet</span>
-                }
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Rolling 7-day average
-              </p>
-            </CardContent>
-          </Card>
+        {/* Filtered Period KPIs - Regular Size */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            {getTimeframeLabel()} Performance
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <ClickableKPICard
+              title="Total Revenue"
+              value={kpiData ? formatCurrency(kpiData.totalRevenue) : '$0'}
+              change="+18.4%"
+              changeType="positive"
+              icon={<DollarSign />}
+              onClick={() => handleDrillThrough('filtered_revenue', { 
+                value: kpiData?.totalRevenue || 0,
+                period: timeframe
+              })}
+            />
+            <ClickableKPICard
+              title="Total Orders"
+              value={kpiData ? formatNumber(kpiData.totalOrders) : '0'}
+              change="+22.1%"
+              changeType="positive"
+              icon={<ShoppingCart />}
+              onClick={() => handleDrillThrough('filtered_orders', { 
+                value: kpiData?.totalOrders || 0,
+                period: timeframe
+              })}
+            />
+            <ClickableKPICard
+              title="New Customers"
+              value={kpiData ? formatNumber(kpiData.newCustomers) : '0'}
+              change="+28.9%"
+              changeType="positive"
+              icon={<Users />}
+              onClick={() => handleDrillThrough('filtered_customers', { 
+                value: kpiData?.newCustomers || 0,
+                period: timeframe
+              })}
+            />
+            <ClickableKPICard
+              title="Avg Order Value"
+              value={kpiData ? formatCurrency(kpiData.avgOrderValue) : '$0'}
+              change="+11.3%"
+              changeType="positive"
+              icon={<DollarSign />}
+              onClick={() => handleDrillThrough('filtered_aov', { 
+                value: kpiData?.avgOrderValue || 0,
+                period: timeframe
+              })}
+            />
+          </div>
         </div>
 
         {/* Revenue & Orders Trend */}
@@ -768,6 +990,13 @@ export default function Dashboard() {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Drill-Through Modal */}
+      <DrillThroughModal
+        isOpen={drillThroughModal.isOpen}
+        onClose={closeDrillThrough}
+        data={drillThroughModal.data}
+      />
     </div>
   )
 }
