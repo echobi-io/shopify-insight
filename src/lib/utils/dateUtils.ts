@@ -59,6 +59,12 @@ export function getDateRangeFromTimeframe(timeframe: string): DateRange {
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(23, 59, 59, 999);
       return { startDate, endDate };
+    case 'all_2023':
+      startDate.setFullYear(2023, 0, 1); // January 1, 2023
+      endDate.setFullYear(2023, 11, 31); // December 31, 2023
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      return { startDate, endDate };
     case 'daily':
       startDate.setDate(endDate.getDate() - 14); // Last 14 days for daily view
       break;
