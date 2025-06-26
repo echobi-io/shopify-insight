@@ -25,14 +25,14 @@ export default function DatabaseDebug({ merchantId = '11111111-1111-1111-1111-11
     try {
       // Test 1: Basic connection
       console.log('Testing basic Supabase connection...');
-      const { data: connectionTest, error: connectionError } = await supabase
+      const { count: connectionCount, error: connectionError } = await supabase
         .from('orders')
-        .select('count', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true });
       
       testResults.connection = {
         success: !connectionError,
         error: connectionError?.message,
-        count: connectionTest || 0
+        count: connectionCount || 0
       };
 
       // Test 2: Check if orders table has data
@@ -98,14 +98,14 @@ export default function DatabaseDebug({ merchantId = '11111111-1111-1111-1111-11
       const tables = ['customers', 'products', 'order_line_items', 'refunds'];
       for (const table of tables) {
         try {
-          const { data, error } = await supabase
+          const { count, error } = await supabase
             .from(table)
-            .select('count', { count: 'exact', head: true });
+            .select('*', { count: 'exact', head: true });
           
           testResults[table] = {
             success: !error,
             error: error?.message,
-            count: data || 0
+            count: count || 0
           };
         } catch (err) {
           testResults[table] = {
