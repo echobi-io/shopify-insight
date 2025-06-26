@@ -5,11 +5,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
-import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Users, Package, RefreshCw, Brain, Target, Settings } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
+import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Users, Package, RefreshCw, Brain, Target, Settings, AlertCircle } from 'lucide-react'
 import { getKPIs, getPreviousKPIs, calculateKPIChanges, type KPIData, type FilterState } from '@/lib/fetchers/getKpis'
 import { getRevenueByDate, type RevenueByDateData } from '@/lib/fetchers/getRevenueByDate'
 import { getProductData } from '@/lib/fetchers/getProductData'
+import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type CustomerSegmentData, type AICommentaryData } from '@/lib/fetchers/getDashboardData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import Sidebar from '@/components/Sidebar'
 
@@ -25,6 +26,14 @@ interface ProductData {
   trend: number[]
 }
 
+// Colors for segment pie chart
+const SEGMENT_COLORS = {
+  new: '#3b82f6',
+  returning: '#10b981', 
+  vip: '#8b5cf6',
+  at_risk: '#ef4444'
+}
+
 export default function Dashboard() {
   const [activeSection, setActiveSection] = useState('dashboard')
   const [timeframe, setTimeframe] = useState('all_2024')
@@ -34,6 +43,13 @@ export default function Dashboard() {
   const [revenueData, setRevenueData] = useState<RevenueByDateData[]>([])
   const [productData, setProductData] = useState<ProductData[]>([])
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  
+  // New dashboard-specific state
+  const [dashboardKpis, setDashboardKpis] = useState<DashboardKPIs | null>(null)
+  const [dashboardTrendData, setDashboardTrendData] = useState<DashboardTrendData[]>([])
+  const [segmentData, setSegmentData] = useState<CustomerSegmentData[]>([])
+  const [aiCommentary, setAiCommentary] = useState<AICommentaryData | null>(null)
+  const [dashboardLoading, setDashboardLoading] = useState(true)
 
   const timeframeOptions = [
     { value: 'last_7_days', label: 'Last 7 Days' },
@@ -86,9 +102,37 @@ export default function Dashboard() {
     }
   }
 
+  const loadDashboardData = async () => {
+    try {
+      setDashboardLoading(true)
+      console.log('🔄 Loading live dashboard data for merchant:', MERCHANT_ID)
+
+      const dashboardData = await getAllDashboardData(MERCHANT_ID)
+      
+      console.log('📊 Dashboard data loaded:', dashboardData)
+
+      setDashboardKpis(dashboardData.kpis)
+      setDashboardTrendData(dashboardData.trendData)
+      setSegmentData(dashboardData.segmentData)
+      setAiCommentary(dashboardData.aiCommentary)
+      setLastUpdated(new Date())
+    } catch (error) {
+      console.error('❌ Error loading dashboard data:', error)
+    } finally {
+      setDashboardLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadData()
   }, [timeframe])
+
+  useEffect(() => {
+    // Load dashboard-specific data when dashboard section is active
+    if (activeSection === 'dashboard') {
+      loadDashboardData()
+    }
+  }, [activeSection])
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -116,184 +160,262 @@ export default function Dashboard() {
   }
 
   // Section Components
-  const DashboardSection = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-6"
-    >
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {kpiData ? formatCurrency(kpiData.totalRevenue) : '$0'}
-            </div>
-            {kpiChanges?.totalRevenue && (
-              <div className={`flex items-center text-xs ${getTrendColor(kpiChanges.totalRevenue.trend)}`}>
-                {getTrendIcon(kpiChanges.totalRevenue.trend)}
-                <span className="ml-1">
-                  {formatPercentage(Math.abs(kpiChanges.totalRevenue.change))} from previous period
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {kpiData ? formatNumber(kpiData.totalOrders) : '0'}
-            </div>
-            {kpiChanges?.totalOrders && (
-              <div className={`flex items-center text-xs ${getTrendColor(kpiChanges.totalOrders.trend)}`}>
-                {getTrendIcon(kpiChanges.totalOrders.trend)}
-                <span className="ml-1">
-                  {formatPercentage(Math.abs(kpiChanges.totalOrders.change))} from previous period
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Order Value</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {kpiData ? formatCurrency(kpiData.avgOrderValue) : '$0'}
-            </div>
-            {kpiChanges?.avgOrderValue && (
-              <div className={`flex items-center text-xs ${getTrendColor(kpiChanges.avgOrderValue.trend)}`}>
-                {getTrendIcon(kpiChanges.avgOrderValue.trend)}
-                <span className="ml-1">
-                  {formatPercentage(Math.abs(kpiChanges.avgOrderValue.change))} from previous period
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {kpiData ? formatNumber(kpiData.newCustomers) : '0'}
-            </div>
-            {kpiChanges?.newCustomers && (
-              <div className={`flex items-center text-xs ${getTrendColor(kpiChanges.newCustomers.trend)}`}>
-                {getTrendIcon(kpiChanges.newCustomers.trend)}
-                <span className="ml-1">
-                  {formatPercentage(Math.abs(kpiChanges.newCustomers.change))} from previous period
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Customer Ordering Rate</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {kpiData ? formatPercentage(kpiData.percentOrdering) : '0%'}
-            </div>
-            {kpiChanges?.percentOrdering && (
-              <div className={`flex items-center text-xs ${getTrendColor(kpiChanges.percentOrdering.trend)}`}>
-                {getTrendIcon(kpiChanges.percentOrdering.trend)}
-                <span className="ml-1">
-                  {formatPercentage(Math.abs(kpiChanges.percentOrdering.change))} from previous period
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Churn Risk</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {kpiData ? formatPercentage(kpiData.churnRisk) : '0%'}
-            </div>
-            {kpiChanges?.churnRisk && (
-              <div className={`flex items-center text-xs ${getTrendColor(kpiChanges.churnRisk.trend)}`}>
-                {getTrendIcon(kpiChanges.churnRisk.trend)}
-                <span className="ml-1">
-                  {formatPercentage(Math.abs(kpiChanges.churnRisk.change))} from previous period
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Revenue Trend Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Revenue Trend</CardTitle>
-          <CardDescription>Daily revenue and order volume over time</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={(value) => new Date(value).toLocaleDateString()}
-                />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip 
-                  labelFormatter={(value) => new Date(value).toLocaleDateString()}
-                  formatter={(value: any, name: string) => [
-                    name === 'revenue' ? formatCurrency(value) : formatNumber(value),
-                    name === 'revenue' ? 'Revenue' : 'Orders'
-                  ]}
-                />
-                <Line 
-                  yAxisId="left"
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                  dot={false}
-                />
-                <Line 
-                  yAxisId="right"
-                  type="monotone" 
-                  dataKey="orders" 
-                  stroke="#10b981" 
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+  const DashboardSection = () => {
+    if (dashboardLoading) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-6"
+        >
+          <div className="flex items-center justify-center py-16">
+            <RefreshCw className="h-8 w-8 animate-spin text-purple-600 mr-3" />
+            <span className="text-slate-600">Loading dashboard data...</span>
           </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  )
+        </motion.div>
+      )
+    }
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3 }}
+        className="space-y-6"
+      >
+        {/* KPI Tiles - Dashboard Specific */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Revenue Today</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {dashboardKpis ? formatCurrency(dashboardKpis.revenueToday) : 
+                  <span className="text-slate-400">Not enough data yet</span>
+                }
+              </div>
+              <p className="text-xs text-muted-foreground">
+                From today's orders
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Orders Today</CardTitle>
+              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {dashboardKpis ? formatNumber(dashboardKpis.ordersToday) : 
+                  <span className="text-slate-400">Not enough data yet</span>
+                }
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Orders placed today
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">New Customers</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {dashboardKpis ? formatNumber(dashboardKpis.newCustomers) : 
+                  <span className="text-slate-400">Not enough data yet</span>
+                }
+              </div>
+              <p className="text-xs text-muted-foreground">
+                First-time customers
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Order Value (7d)</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {dashboardKpis ? formatCurrency(dashboardKpis.avgOrderValue7d) : 
+                  <span className="text-slate-400">Not enough data yet</span>
+                }
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Rolling 7-day average
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Revenue & Orders Trend (Last 30 Days) */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenue & Orders Trend (Last 30 Days)</CardTitle>
+            <CardDescription>Daily revenue and order volume from live data</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {dashboardTrendData.length > 0 ? (
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={dashboardTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="date" 
+                      tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                    />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip 
+                      labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                      formatter={(value: any, name: string) => [
+                        name === 'total_revenue' ? formatCurrency(value) : formatNumber(value),
+                        name === 'total_revenue' ? 'Revenue' : 'Orders'
+                      ]}
+                    />
+                    <Line 
+                      yAxisId="left"
+                      type="monotone" 
+                      dataKey="total_revenue" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line 
+                      yAxisId="right"
+                      type="monotone" 
+                      dataKey="total_orders" 
+                      stroke="#10b981" 
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-80 flex items-center justify-center">
+                <div className="text-center">
+                  <AlertCircle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                  <p className="text-slate-500">Not enough data yet for trend analysis</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Customer Segment Breakdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Customer Segment Mix</CardTitle>
+              <CardDescription>Orders by customer type (last 30 days)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {segmentData.length > 0 ? (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={segmentData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ customer_segment, percentage }) => `${customer_segment}: ${percentage}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="orders_count"
+                      >
+                        {segmentData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={SEGMENT_COLORS[entry.customer_segment as keyof typeof SEGMENT_COLORS] || '#8884d8'} 
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: any, name: string) => [formatNumber(value), 'Orders']}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="text-center">
+                    <AlertCircle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-500">Not enough data yet for segment analysis</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* AI Commentary Panel */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Brain className="h-5 w-5 mr-2 text-purple-600" />
+                AI Business Insights
+              </CardTitle>
+              <CardDescription>Live analysis of your business performance</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {aiCommentary ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-50 rounded-lg">
+                    <p className="text-sm text-slate-700 leading-relaxed">
+                      {aiCommentary.commentary}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-slate-500">Revenue Change:</span>
+                      <div className={`font-semibold ${aiCommentary.revenueChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {aiCommentary.revenueChange >= 0 ? '+' : ''}{aiCommentary.revenueChange.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Top Product:</span>
+                      <div className="font-semibold text-slate-900 truncate">
+                        {aiCommentary.topProduct}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">At Risk Customers:</span>
+                      <div className="font-semibold text-orange-600">
+                        {formatNumber(aiCommentary.customerChurnIndicator)}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Product Growth:</span>
+                      <div className="font-semibold text-blue-600">
+                        {aiCommentary.topProductGrowth.toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <AlertCircle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-500">Not enough data yet to generate insights</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </motion.div>
+    )
+  }
 
   const SalesAnalysisSection = () => (
     <motion.div
@@ -608,8 +730,19 @@ export default function Dashboard() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button onClick={loadData} variant="outline" size="sm">
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                <Button 
+                  onClick={() => {
+                    if (activeSection === 'dashboard') {
+                      loadDashboardData()
+                    } else {
+                      loadData()
+                    }
+                  }} 
+                  variant="outline" 
+                  size="sm"
+                  disabled={activeSection === 'dashboard' ? dashboardLoading : loading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${(activeSection === 'dashboard' ? dashboardLoading : loading) ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
               </div>
