@@ -1159,7 +1159,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Avg Order Value"
-                      value={`£${(currentKpiData?.avgOrderValue || 0).toFixed(2)}`}
+                      value={`£${typeof currentKpiData?.avgOrderValue === 'number' ? currentKpiData.avgOrderValue.toFixed(2) : '0.00'}`}
                       change={`-3.7% vs last month`}
                       changeType="negative"
                       icon={<CreditCard className="w-5 h-5" />}
@@ -1167,7 +1167,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Customers Ordering %"
-                      value={`${(currentKpiData?.percentOrdering || 0)}%`}
+                      value={`${typeof currentKpiData?.percentOrdering === 'number' ? currentKpiData.percentOrdering.toFixed(1) : '0.0'}%`}
                       change={`+6.6% vs last month`}
                       changeType="positive"
                       icon={<Percent className="w-5 h-5" />}
@@ -1183,7 +1183,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Churn Risk %"
-                      value={`${(currentKpiData?.churnRisk || 0)}%`}
+                      value={`${typeof currentKpiData?.churnRisk === 'number' ? currentKpiData.churnRisk.toFixed(1) : '0.0'}%`}
                       change={`+34.4% vs last month`}
                       changeType="negative"
                       icon={<AlertTriangle className="w-5 h-5" />}
@@ -1452,7 +1452,7 @@ export default function Dashboard() {
                     />
                     <ClickableKPICard
                       title="Average Order Value"
-                      value={`£${(currentSalesKpiData?.avgOrderValue || 0).toFixed(2)}`}
+                      value={`£${typeof currentSalesKpiData?.avgOrderValue === 'number' ? currentSalesKpiData.avgOrderValue.toFixed(2) : '0.00'}`}
                       change={`-3.7% vs last month`}
                       changeType="negative"
                       icon={<CreditCard className="w-5 h-5" />}
