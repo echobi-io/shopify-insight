@@ -106,9 +106,15 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     try {
       setDashboardLoading(true)
-      console.log('🔄 Loading live dashboard data for merchant:', MERCHANT_ID)
+      console.log('🔄 Loading live dashboard data for merchant:', MERCHANT_ID, 'with timeframe:', timeframe)
 
-      const dashboardData = await getAllDashboardData(MERCHANT_ID)
+      const dateRange = getDateRangeFromTimeframe(timeframe)
+      const filters = {
+        startDate: formatDateForSQL(dateRange.startDate),
+        endDate: formatDateForSQL(dateRange.endDate)
+      }
+
+      const dashboardData = await getAllDashboardData(MERCHANT_ID, filters)
       
       console.log('📊 Dashboard data loaded:', dashboardData)
 
@@ -129,11 +135,11 @@ export default function Dashboard() {
   }, [timeframe])
 
   useEffect(() => {
-    // Load dashboard-specific data when dashboard section is active
+    // Load dashboard-specific data when dashboard section is active or timeframe changes
     if (activeSection === 'dashboard') {
       loadDashboardData()
     }
-  }, [activeSection])
+  }, [activeSection, timeframe])
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -258,11 +264,11 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Revenue & Orders Trend (Last 30 Days) */}
+        {/* Revenue & Orders Trend */}
         <Card>
           <CardHeader>
-            <CardTitle>Revenue & Orders Trend (Last 30 Days)</CardTitle>
-            <CardDescription>Daily revenue and order volume from live data</CardDescription>
+            <CardTitle>Revenue & Orders Trend</CardTitle>
+            <CardDescription>Revenue and order volume for selected period</CardDescription>
           </CardHeader>
           <CardContent>
             {dashboardTrendData.length > 0 ? (
@@ -318,7 +324,7 @@ export default function Dashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Customer Segment Mix</CardTitle>
-              <CardDescription>Orders by customer type (last 30 days)</CardDescription>
+              <CardDescription>Orders by customer type for selected period</CardDescription>
             </CardHeader>
             <CardContent>
               {segmentData.length > 0 ? (
@@ -436,7 +442,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueData.slice(-30)}> {/* Last 30 days */}
+                <BarChart data={revenueData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 
@@ -463,7 +469,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueData.slice(-30)}> {/* Last 30 days */}
+                <BarChart data={revenueData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 

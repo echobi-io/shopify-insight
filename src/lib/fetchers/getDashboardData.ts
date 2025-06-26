@@ -108,20 +108,23 @@ export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKP
   }
 }
 
-export async function getDashboardTrendData(merchant_id: string): Promise<DashboardTrendData[]> {
+export async function getDashboardTrendData(merchant_id: string, filters?: FilterState): Promise<DashboardTrendData[]> {
   try {
-    console.log('📈 Fetching dashboard trend data for merchant:', merchant_id);
+    console.log('📈 Fetching dashboard trend data for merchant:', merchant_id, 'with filters:', filters);
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const today = new Date().toISOString().split('T')[0];
-
-    const { data, error } = await supabase
+    let query = supabase
       .from('daily_revenue_summary')
       .select('date, total_orders, total_revenue')
-      .eq('merchant_id', merchant_id)
-      .gte('date', thirtyDaysAgo)
-      .lte('date', today)
-      .order('date');
+      .eq('merchant_id', merchant_id);
+
+    if (filters?.startDate) {
+      query = query.gte('date', filters.startDate);
+    }
+    if (filters?.endDate) {
+      query = query.lte('date', filters.endDate);
+    }
+
+    const { data, error } = await query.order('date');
 
     if (error) {
       console.error('❌ Error fetching trend data:', error);
@@ -148,19 +151,23 @@ export async function getDashboardTrendData(merchant_id: string): Promise<Dashbo
   }
 }
 
-export async function getCustomerSegmentBreakdown(merchant_id: string): Promise<CustomerSegmentData[]> {
+export async function getCustomerSegmentBreakdown(merchant_id: string, filters?: FilterState): Promise<CustomerSegmentData[]> {
   try {
-    console.log('👥 Fetching customer segment breakdown for merchant:', merchant_id);
+    console.log('👥 Fetching customer segment breakdown for merchant:', merchant_id, 'with filters:', filters);
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const today = new Date().toISOString().split('T')[0];
-
-    const { data, error } = await supabase
+    let query = supabase
       .from('customer_segment_summary')
       .select('customer_segment, orders_count')
-      .eq('merchant_id', merchant_id)
-      .gte('date', thirtyDaysAgo)
-      .lte('date', today);
+      .eq('merchant_id', merchant_id);
+
+    if (filters?.startDate) {
+      query = query.gte('date', filters.startDate);
+    }
+    if (filters?.endDate) {
+      query = query.lte('date', filters.endDate);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('❌ Error fetching segment data:', error);
@@ -199,49 +206,60 @@ export async function getCustomerSegmentBreakdown(merchant_id: string): Promise<
   }
 }
 
-export async function generateAICommentary(merchant_id: string): Promise<AICommentaryData> {
+export async function generateAICommentary(merchant_id: string, filters?: FilterState): Promise<AICommentaryData> {
   try {
-    console.log('🤖 Generating AI commentary for merchant:', merchant_id);
+    console.log('🤖 Generating AI commentary for merchant:', merchant_id, 'with filters:', filters);
 
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const today = new Date().toISOString().split('T')[0];
+    // Use filters if provided, otherwise default to last 30 days for comparison
+    const endDate = filters?.endDate || new Date().toISOString().split('T')[0];
+    const startDate = filters?.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    // Calculate previous period for comparison
+    const periodLength = new Date(endDate).getTime() - new Date(startDate).getTime();
+    const previousEndDate = new Date(new Date(startDate).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const previousStartDate = new Date(new Date(startDate).getTime() - periodLength).toISOString().split('T')[0];
 
-    // Get current month revenue
-    const { data: currentMonthData, error: currentError } = await supabase
+    // Get current period revenue
+    const { data: currentPeriodData, error: currentError } = await supabase
       .from('daily_revenue_summary')
       .select('total_revenue')
       .eq('merchant_id', merchant_id)
-      .gte('date', thirtyDaysAgo)
-      .lte('date', today);
+      .gte('date', startDate)
+      .lte('date', endDate);
 
-    // Get previous month revenue
-    const { data: previousMonthData, error: previousError } = await supabase
+    // Get previous period revenue
+    const { data: previousPeriodData, error: previousError } = await supabase
       .from('daily_revenue_summary')
       .select('total_revenue')
       .eq('merchant_id', merchant_id)
-      .gte('date', sixtyDaysAgo)
-      .lt('date', thirtyDaysAgo);
+      .gte('date', previousStartDate)
+      .lte('date', previousEndDate);
 
     if (currentError || previousError) {
       console.error('❌ Error fetching revenue data for AI commentary:', currentError || previousError);
     }
 
     // Calculate revenue change
-    const currentRevenue = currentMonthData?.reduce((sum, row) => sum + (row.total_revenue || 0), 0) || 0;
-    const previousRevenue = previousMonthData?.reduce((sum, row) => sum + (row.total_revenue || 0), 0) || 0;
+    const currentRevenue = currentPeriodData?.reduce((sum, row) => sum + (row.total_revenue || 0), 0) || 0;
+    const previousRevenue = previousPeriodData?.reduce((sum, row) => sum + (row.total_revenue || 0), 0) || 0;
     const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
 
-    // Get top product
-    const { data: topProductData, error: productError } = await supabase
+    // Get top product for the selected period
+    let productQuery = supabase
       .from('product_performance_summary')
       .select('product_name, total_revenue')
       .eq('merchant_id', merchant_id)
-      .gte('order_date', thirtyDaysAgo)
-      .lte('order_date', today)
       .order('total_revenue', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
+
+    if (filters?.startDate) {
+      productQuery = productQuery.gte('order_date', filters.startDate);
+    }
+    if (filters?.endDate) {
+      productQuery = productQuery.lte('order_date', filters.endDate);
+    }
+
+    const { data: topProductData, error: productError } = await productQuery.single();
 
     if (productError && productError.code !== 'PGRST116') {
       console.error('❌ Error fetching top product:', productError);
@@ -267,7 +285,7 @@ export async function generateAICommentary(merchant_id: string): Promise<AIComme
     let commentary = '';
     
     if (revenueChange > 0) {
-      commentary = `Revenue grew by ${Math.abs(revenueChange).toFixed(1)}% last month`;
+      commentary = `Revenue grew by ${Math.abs(revenueChange).toFixed(1)}% compared to the previous period`;
       if (topProduct !== 'Unknown Product') {
         commentary += `, largely driven by strong performance from ${topProduct}`;
       }
@@ -276,13 +294,13 @@ export async function generateAICommentary(merchant_id: string): Promise<AIComme
       }
       commentary += '.';
     } else if (revenueChange < 0) {
-      commentary = `Revenue declined by ${Math.abs(revenueChange).toFixed(1)}% last month`;
+      commentary = `Revenue declined by ${Math.abs(revenueChange).toFixed(1)}% compared to the previous period`;
       if (customerChurnIndicator > 0) {
         commentary += `, with ${customerChurnIndicator} customers at risk of churning`;
       }
       commentary += '. Focus on customer retention strategies.';
     } else {
-      commentary = 'Revenue remained stable last month';
+      commentary = 'Revenue remained stable compared to the previous period';
       if (topProduct !== 'Unknown Product') {
         commentary += `, with ${topProduct} being your top performer`;
       }
@@ -312,15 +330,15 @@ export async function generateAICommentary(merchant_id: string): Promise<AIComme
   }
 }
 
-export async function getAllDashboardData(merchant_id: string) {
+export async function getAllDashboardData(merchant_id: string, filters?: FilterState) {
   try {
-    console.log('🔄 Fetching all dashboard data for merchant:', merchant_id);
+    console.log('🔄 Fetching all dashboard data for merchant:', merchant_id, 'with filters:', filters);
 
     const [kpis, trendData, segmentData, aiCommentary] = await Promise.all([
       getDashboardKPIs(merchant_id),
-      getDashboardTrendData(merchant_id),
-      getCustomerSegmentBreakdown(merchant_id),
-      generateAICommentary(merchant_id)
+      getDashboardTrendData(merchant_id, filters),
+      getCustomerSegmentBreakdown(merchant_id, filters),
+      generateAICommentary(merchant_id, filters)
     ]);
 
     return {
