@@ -182,6 +182,8 @@ export default function Dashboard() {
   const handleDrillThrough = async (type: string, data: any) => {
     try {
       console.log('🔍 Opening drill-through for:', type, data)
+      console.log('🔍 Current timeframe:', timeframe)
+      console.log('🔍 Current kpiData:', kpiData)
       
       // Get current filters based on the drill-through type
       let filters: FilterState
@@ -193,6 +195,7 @@ export default function Dashboard() {
           startDate: formatDateForSQL(today),
           endDate: formatDateForSQL(today)
         }
+        console.log('🔍 Using today filters:', filters)
       } else {
         // For filtered KPIs, use the current timeframe
         const dateRange = getDateRangeFromTimeframe(timeframe)
@@ -200,19 +203,31 @@ export default function Dashboard() {
           startDate: formatDateForSQL(dateRange.startDate),
           endDate: formatDateForSQL(dateRange.endDate)
         }
+        console.log('🔍 Using timeframe filters:', filters)
       }
+
+      console.log('🔍 About to call getDrillThroughData with:', { type, filters })
 
       // Fetch real drill-through data
       const drillData = await getDrillThroughData(type, filters)
       
+      console.log('🔍 getDrillThroughData returned:', drillData)
+      
       if (drillData) {
-        console.log('📊 Drill-through data loaded:', drillData)
+        console.log('📊 Drill-through data loaded successfully:', {
+          type: drillData.type,
+          title: drillData.title,
+          dataLength: drillData.data?.length || 0,
+          timeSeriesLength: drillData.timeSeriesData?.length || 0,
+          value: drillData.value
+        })
         setDrillThroughModal({
           isOpen: true,
           data: drillData
         })
       } else {
         console.warn('⚠️ No drill-through data available for type:', type)
+        console.warn('⚠️ getDrillThroughData returned null/undefined')
         // Show a fallback modal with no data message
         setDrillThroughModal({
           isOpen: true,
@@ -231,13 +246,19 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('❌ Error loading drill-through data:', error)
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        type,
+        timeframe
+      })
       // Show error modal
       setDrillThroughModal({
         isOpen: true,
         data: {
           type,
           title: 'Error Loading Data',
-          subtitle: 'There was an error loading the drill-through data',
+          subtitle: `There was an error loading the drill-through data: ${error.message}`,
           value: 'Error',
           change: '0%',
           changeType: 'positive',
@@ -356,7 +377,7 @@ export default function Dashboard() {
               change="+18.4%"
               changeType="positive"
               icon={<DollarSign className="h-4 w-4" />}
-              size="medium"
+              size="normal"
               onClick={() => handleDrillThrough('filtered_revenue', { 
                 value: kpiData?.totalRevenue || 0,
                 period: timeframe
@@ -368,7 +389,7 @@ export default function Dashboard() {
               change="+22.1%"
               changeType="positive"
               icon={<ShoppingCart className="h-4 w-4" />}
-              size="medium"
+              size="normal"
               onClick={() => handleDrillThrough('filtered_orders', { 
                 value: kpiData?.totalOrders || 0,
                 period: timeframe
@@ -380,7 +401,7 @@ export default function Dashboard() {
               change="+28.9%"
               changeType="positive"
               icon={<Users className="h-4 w-4" />}
-              size="medium"
+              size="normal"
               onClick={() => handleDrillThrough('filtered_customers', { 
                 value: kpiData?.newCustomers || 0,
                 period: timeframe
@@ -392,7 +413,7 @@ export default function Dashboard() {
               change="+11.3%"
               changeType="positive"
               icon={<DollarSign className="h-4 w-4" />}
-              size="medium"
+              size="normal"
               onClick={() => handleDrillThrough('filtered_aov', { 
                 value: kpiData?.avgOrderValue || 0,
                 period: timeframe
