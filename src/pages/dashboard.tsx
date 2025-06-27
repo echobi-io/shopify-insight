@@ -11,12 +11,10 @@ import { getKPIs, getPreviousKPIs, calculateKPIChanges, type KPIData, type Filte
 import { getRevenueByDate, type RevenueByDateData } from '@/lib/fetchers/getRevenueByDate'
 import { getProductData } from '@/lib/fetchers/getProductData'
 import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type CustomerSegmentData, type AICommentaryData } from '@/lib/fetchers/getDashboardData'
-import { getDrillThroughData } from '@/lib/fetchers/getDrillThroughData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import Sidebar from '@/components/Sidebar'
 import DataDebugPanel from '@/components/DataDebugPanel'
-import ClickableKPICard from '@/components/ClickableKPICard'
-import DrillThroughModal from '@/components/DrillThroughModal'
+import SimpleKPICard from '@/components/SimpleKPICard'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111' // Hardcoded merchant ID matching sample data
 
@@ -54,15 +52,6 @@ export default function Dashboard() {
   const [segmentData, setSegmentData] = useState<CustomerSegmentData[]>([])
   const [aiCommentary, setAiCommentary] = useState<AICommentaryData | null>(null)
   const [dashboardLoading, setDashboardLoading] = useState(true)
-  
-  // Drill-through modal state
-  const [drillThroughModal, setDrillThroughModal] = useState<{
-    isOpen: boolean;
-    data: any;
-  }>({
-    isOpen: false,
-    data: null
-  })
 
   const timeframeOptions = [
     { value: 'last_7_days', label: 'Last 7 Days' },
@@ -168,115 +157,6 @@ export default function Dashboard() {
     return `${value.toFixed(1)}%`
   }
 
-  const getTrendIcon = (trend: 'up' | 'down') => {
-    return trend === 'up' ? 
-      <TrendingUp className="h-4 w-4 text-green-600" /> : 
-      <TrendingDown className="h-4 w-4 text-red-600" />
-  }
-
-  const getTrendColor = (trend: 'up' | 'down') => {
-    return trend === 'up' ? 'text-green-600' : 'text-red-600'
-  }
-
-  // Drill-through handler
-  const handleDrillThrough = async (type: string, data: any) => {
-    try {
-      console.log('🔍 Opening drill-through for:', type, data)
-      console.log('🔍 Current timeframe:', timeframe)
-      console.log('🔍 Current kpiData:', kpiData)
-      
-      // Get current filters based on the drill-through type
-      let filters: FilterState
-      
-      if (type.includes('today') || type === 'new_customers' || type === 'avg_order_value') {
-        // For "today" KPIs, use today's date range
-        const today = new Date()
-        filters = {
-          startDate: formatDateForSQL(today),
-          endDate: formatDateForSQL(today)
-        }
-        console.log('🔍 Using today filters:', filters)
-      } else {
-        // For filtered KPIs, use the current timeframe
-        const dateRange = getDateRangeFromTimeframe(timeframe)
-        filters = {
-          startDate: formatDateForSQL(dateRange.startDate),
-          endDate: formatDateForSQL(dateRange.endDate)
-        }
-        console.log('🔍 Using timeframe filters:', filters)
-      }
-
-      console.log('🔍 About to call getDrillThroughData with:', { type, filters })
-
-      // Fetch real drill-through data
-      const drillData = await getDrillThroughData(type, filters)
-      
-      console.log('🔍 getDrillThroughData returned:', drillData)
-      
-      if (drillData) {
-        console.log('📊 Drill-through data loaded successfully:', {
-          type: drillData.type,
-          title: drillData.title,
-          dataLength: drillData.data?.length || 0,
-          timeSeriesLength: drillData.timeSeriesData?.length || 0,
-          value: drillData.value
-        })
-        setDrillThroughModal({
-          isOpen: true,
-          data: drillData
-        })
-      } else {
-        console.warn('⚠️ No drill-through data available for type:', type)
-        console.warn('⚠️ getDrillThroughData returned null/undefined')
-        // Show a fallback modal with no data message
-        setDrillThroughModal({
-          isOpen: true,
-          data: {
-            type,
-            title: 'No Data Available',
-            subtitle: 'No data found for the selected period',
-            value: '0',
-            change: '0%',
-            changeType: 'positive',
-            filters: { dateRange: 'Selected Period' },
-            timeSeriesData: [],
-            data: []
-          }
-        })
-      }
-    } catch (error) {
-      console.error('❌ Error loading drill-through data:', error)
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        type,
-        timeframe
-      })
-      // Show error modal
-      setDrillThroughModal({
-        isOpen: true,
-        data: {
-          type,
-          title: 'Error Loading Data',
-          subtitle: `There was an error loading the drill-through data: ${error.message}`,
-          value: 'Error',
-          change: '0%',
-          changeType: 'positive',
-          filters: { dateRange: 'Selected Period' },
-          timeSeriesData: [],
-          data: []
-        }
-      })
-    }
-  }
-
-  const closeDrillThrough = () => {
-    setDrillThroughModal({
-      isOpen: false,
-      data: null
-    })
-  }
-
   // Helper function to get timeframe label
   const getTimeframeLabel = () => {
     const option = timeframeOptions.find(opt => opt.value === timeframe)
@@ -314,53 +194,29 @@ export default function Dashboard() {
         <div className="mb-4">
           <h2 className="text-base font-semibold text-gray-900 mb-3">Today's Performance</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <ClickableKPICard
+            <SimpleKPICard
               title="Revenue Today"
               value={dashboardKpis ? formatCurrency(dashboardKpis.revenueToday) : '$0'}
-              change="+12.5%"
-              changeType="positive"
               icon={<DollarSign className="h-4 w-4" />}
               size="small"
-              onClick={() => handleDrillThrough('revenue_today', { 
-                value: dashboardKpis?.revenueToday || 0,
-                period: 'today'
-              })}
             />
-            <ClickableKPICard
+            <SimpleKPICard
               title="Orders Today"
               value={dashboardKpis ? formatNumber(dashboardKpis.ordersToday) : '0'}
-              change="+8.3%"
-              changeType="positive"
               icon={<ShoppingCart className="h-4 w-4" />}
               size="small"
-              onClick={() => handleDrillThrough('orders_today', { 
-                value: dashboardKpis?.ordersToday || 0,
-                period: 'today'
-              })}
             />
-            <ClickableKPICard
+            <SimpleKPICard
               title="New Customers"
               value={dashboardKpis ? formatNumber(dashboardKpis.newCustomers) : '0'}
-              change="+15.2%"
-              changeType="positive"
               icon={<Users className="h-4 w-4" />}
               size="small"
-              onClick={() => handleDrillThrough('new_customers', { 
-                value: dashboardKpis?.newCustomers || 0,
-                period: 'today'
-              })}
             />
-            <ClickableKPICard
+            <SimpleKPICard
               title="AOV (7d)"
               value={dashboardKpis ? formatCurrency(dashboardKpis.avgOrderValue7d) : '$0'}
-              change="+5.7%"
-              changeType="positive"
               icon={<DollarSign className="h-4 w-4" />}
               size="small"
-              onClick={() => handleDrillThrough('avg_order_value', { 
-                value: dashboardKpis?.avgOrderValue7d || 0,
-                period: '7d'
-              })}
             />
           </div>
         </div>
@@ -371,53 +227,29 @@ export default function Dashboard() {
             {getTimeframeLabel()} Overview
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <ClickableKPICard
+            <SimpleKPICard
               title="Total Revenue"
               value={kpiData ? formatCurrency(kpiData.totalRevenue) : '$0'}
-              change="+18.4%"
-              changeType="positive"
               icon={<DollarSign className="h-4 w-4" />}
               size="normal"
-              onClick={() => handleDrillThrough('filtered_revenue', { 
-                value: kpiData?.totalRevenue || 0,
-                period: timeframe
-              })}
             />
-            <ClickableKPICard
+            <SimpleKPICard
               title="Total Orders"
               value={kpiData ? formatNumber(kpiData.totalOrders) : '0'}
-              change="+22.1%"
-              changeType="positive"
               icon={<ShoppingCart className="h-4 w-4" />}
               size="normal"
-              onClick={() => handleDrillThrough('filtered_orders', { 
-                value: kpiData?.totalOrders || 0,
-                period: timeframe
-              })}
             />
-            <ClickableKPICard
+            <SimpleKPICard
               title="New Customers"
               value={kpiData ? formatNumber(kpiData.newCustomers) : '0'}
-              change="+28.9%"
-              changeType="positive"
               icon={<Users className="h-4 w-4" />}
               size="normal"
-              onClick={() => handleDrillThrough('filtered_customers', { 
-                value: kpiData?.newCustomers || 0,
-                period: timeframe
-              })}
             />
-            <ClickableKPICard
+            <SimpleKPICard
               title="Avg Order Value"
               value={kpiData ? formatCurrency(kpiData.avgOrderValue) : '$0'}
-              change="+11.3%"
-              changeType="positive"
               icon={<DollarSign className="h-4 w-4" />}
               size="normal"
-              onClick={() => handleDrillThrough('filtered_aov', { 
-                value: kpiData?.avgOrderValue || 0,
-                period: timeframe
-              })}
             />
           </div>
         </div>
@@ -928,13 +760,6 @@ export default function Dashboard() {
           </AnimatePresence>
         </main>
       </div>
-
-      {/* Drill-Through Modal */}
-      <DrillThroughModal
-        isOpen={drillThroughModal.isOpen}
-        onClose={closeDrillThrough}
-        data={drillThroughModal.data}
-      />
     </div>
   )
 }
