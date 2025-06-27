@@ -289,16 +289,16 @@ export default function Dashboard() {
         transition={{ duration: 0.3 }}
         className="space-y-6"
       >
-        {/* Current Data KPIs - Smaller */}
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Current Data</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Current Data KPIs - Compact */}
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-gray-900 mb-3">Today's Performance</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <ClickableKPICard
               title="Revenue Today"
               value={dashboardKpis ? formatCurrency(dashboardKpis.revenueToday) : '$0'}
               change="+12.5%"
               changeType="positive"
-              icon={<DollarSign />}
+              icon={<DollarSign className="h-4 w-4" />}
               size="small"
               onClick={() => handleDrillThrough('revenue_today', { 
                 value: dashboardKpis?.revenueToday || 0,
@@ -310,7 +310,7 @@ export default function Dashboard() {
               value={dashboardKpis ? formatNumber(dashboardKpis.ordersToday) : '0'}
               change="+8.3%"
               changeType="positive"
-              icon={<ShoppingCart />}
+              icon={<ShoppingCart className="h-4 w-4" />}
               size="small"
               onClick={() => handleDrillThrough('orders_today', { 
                 value: dashboardKpis?.ordersToday || 0,
@@ -322,7 +322,7 @@ export default function Dashboard() {
               value={dashboardKpis ? formatNumber(dashboardKpis.newCustomers) : '0'}
               change="+15.2%"
               changeType="positive"
-              icon={<Users />}
+              icon={<Users className="h-4 w-4" />}
               size="small"
               onClick={() => handleDrillThrough('new_customers', { 
                 value: dashboardKpis?.newCustomers || 0,
@@ -330,11 +330,11 @@ export default function Dashboard() {
               })}
             />
             <ClickableKPICard
-              title="Avg Order Value (7d)"
+              title="AOV (7d)"
               value={dashboardKpis ? formatCurrency(dashboardKpis.avgOrderValue7d) : '$0'}
               change="+5.7%"
               changeType="positive"
-              icon={<DollarSign />}
+              icon={<DollarSign className="h-4 w-4" />}
               size="small"
               onClick={() => handleDrillThrough('avg_order_value', { 
                 value: dashboardKpis?.avgOrderValue7d || 0,
@@ -344,18 +344,19 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Filtered Period KPIs - Regular Size */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {getTimeframeLabel()} Performance
+        {/* Filtered Period KPIs - Compact */}
+        <div className="mb-6">
+          <h2 className="text-base font-semibold text-gray-900 mb-3">
+            {getTimeframeLabel()} Overview
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <ClickableKPICard
               title="Total Revenue"
               value={kpiData ? formatCurrency(kpiData.totalRevenue) : '$0'}
               change="+18.4%"
               changeType="positive"
-              icon={<DollarSign />}
+              icon={<DollarSign className="h-4 w-4" />}
+              size="medium"
               onClick={() => handleDrillThrough('filtered_revenue', { 
                 value: kpiData?.totalRevenue || 0,
                 period: timeframe
@@ -366,7 +367,8 @@ export default function Dashboard() {
               value={kpiData ? formatNumber(kpiData.totalOrders) : '0'}
               change="+22.1%"
               changeType="positive"
-              icon={<ShoppingCart />}
+              icon={<ShoppingCart className="h-4 w-4" />}
+              size="medium"
               onClick={() => handleDrillThrough('filtered_orders', { 
                 value: kpiData?.totalOrders || 0,
                 period: timeframe
@@ -377,7 +379,8 @@ export default function Dashboard() {
               value={kpiData ? formatNumber(kpiData.newCustomers) : '0'}
               change="+28.9%"
               changeType="positive"
-              icon={<Users />}
+              icon={<Users className="h-4 w-4" />}
+              size="medium"
               onClick={() => handleDrillThrough('filtered_customers', { 
                 value: kpiData?.newCustomers || 0,
                 period: timeframe
@@ -388,7 +391,8 @@ export default function Dashboard() {
               value={kpiData ? formatCurrency(kpiData.avgOrderValue) : '$0'}
               change="+11.3%"
               changeType="positive"
-              icon={<DollarSign />}
+              icon={<DollarSign className="h-4 w-4" />}
+              size="medium"
               onClick={() => handleDrillThrough('filtered_aov', { 
                 value: kpiData?.avgOrderValue || 0,
                 period: timeframe
@@ -397,71 +401,73 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Revenue & Orders Trend */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue & Orders Trend</CardTitle>
-            <CardDescription>Revenue and order volume for selected period</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {dashboardTrendData.length > 0 ? (
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={dashboardTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="date" 
-                      tickFormatter={(value) => new Date(value).toLocaleDateString()}
-                    />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip 
-                      labelFormatter={(value) => new Date(value).toLocaleDateString()}
-                      formatter={(value: any, name: string) => [
-                        name === 'total_revenue' ? formatCurrency(value) : formatNumber(value),
-                        name === 'total_revenue' ? 'Revenue' : 'Orders'
-                      ]}
-                    />
-                    <Line 
-                      yAxisId="left"
-                      type="monotone" 
-                      dataKey="total_revenue" 
-                      stroke="#3b82f6" 
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                    <Line 
-                      yAxisId="right"
-                      type="monotone" 
-                      dataKey="total_orders" 
-                      stroke="#10b981" 
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="h-80 flex items-center justify-center">
-                <div className="text-center">
-                  <AlertCircle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <p className="text-slate-500">Not enough data yet for trend analysis</p>
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          {/* Revenue & Orders Trend - Compact */}
+          <Card className="lg:col-span-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Revenue & Orders Trend</CardTitle>
+              <CardDescription className="text-sm">Performance over selected period</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {dashboardTrendData.length > 0 ? (
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={dashboardTrendData}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                      <XAxis 
+                        dataKey="date" 
+                        fontSize={11}
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      />
+                      <YAxis yAxisId="left" fontSize={11} />
+                      <YAxis yAxisId="right" orientation="right" fontSize={11} />
+                      <Tooltip 
+                        labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                        formatter={(value: any, name: string) => [
+                          name === 'total_revenue' ? formatCurrency(value) : formatNumber(value),
+                          name === 'total_revenue' ? 'Revenue' : 'Orders'
+                        ]}
+                      />
+                      <Line 
+                        yAxisId="left"
+                        type="monotone" 
+                        dataKey="total_revenue" 
+                        stroke="#3b82f6" 
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                      <Line 
+                        yAxisId="right"
+                        type="monotone" 
+                        dataKey="total_orders" 
+                        stroke="#10b981" 
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="h-48 flex items-center justify-center">
+                  <div className="text-center">
+                    <AlertCircle className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">No trend data available</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Customer Segment Breakdown */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Customer Segments - Compact */}
           <Card>
-            <CardHeader>
-              <CardTitle>Customer Segment Mix</CardTitle>
-              <CardDescription>Orders by customer type for selected period</CardDescription>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Customer Segments</CardTitle>
+              <CardDescription className="text-sm">Order distribution by type</CardDescription>
             </CardHeader>
             <CardContent>
               {segmentData.length > 0 ? (
-                <div className="h-64">
+                <div className="h-48">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -470,7 +476,7 @@ export default function Dashboard() {
                         cy="50%"
                         labelLine={false}
                         label={({ customer_segment, percentage }) => `${customer_segment}: ${percentage}%`}
-                        outerRadius={80}
+                        outerRadius={60}
                         fill="#8884d8"
                         dataKey="orders_count"
                       >
@@ -488,71 +494,71 @@ export default function Dashboard() {
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="h-64 flex items-center justify-center">
+                <div className="h-48 flex items-center justify-center">
                   <div className="text-center">
-                    <AlertCircle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                    <p className="text-slate-500">Not enough data yet for segment analysis</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* AI Commentary Panel */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Brain className="h-5 w-5 mr-2 text-purple-600" />
-                AI Business Insights
-              </CardTitle>
-              <CardDescription>Live analysis of your business performance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {aiCommentary ? (
-                <div className="space-y-4">
-                  <div className="p-4 bg-slate-50 rounded-lg">
-                    <p className="text-sm text-slate-700 leading-relaxed">
-                      {aiCommentary.commentary}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-slate-500">Revenue Change:</span>
-                      <div className={`font-semibold ${aiCommentary.revenueChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {aiCommentary.revenueChange >= 0 ? '+' : ''}{aiCommentary.revenueChange.toFixed(1)}%
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-slate-500">Top Product:</span>
-                      <div className="font-semibold text-slate-900 truncate">
-                        {aiCommentary.topProduct}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-slate-500">At Risk Customers:</span>
-                      <div className="font-semibold text-orange-600">
-                        {formatNumber(aiCommentary.customerChurnIndicator)}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-slate-500">Product Growth:</span>
-                      <div className="font-semibold text-blue-600">
-                        {aiCommentary.topProductGrowth.toFixed(1)}%
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-center">
-                    <AlertCircle className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                    <p className="text-slate-500">Not enough data yet to generate insights</p>
+                    <AlertCircle className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">No segment data available</p>
                   </div>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
+
+        {/* AI Insights - Compact */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center">
+              <Brain className="h-4 w-4 mr-2 text-purple-600" />
+              AI Business Insights
+            </CardTitle>
+            <CardDescription className="text-sm">Live analysis of your business performance</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {aiCommentary ? (
+              <div className="space-y-3">
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    {aiCommentary.commentary}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  <div>
+                    <span className="text-slate-500 text-xs">Revenue Change:</span>
+                    <div className={`font-semibold ${aiCommentary.revenueChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {aiCommentary.revenueChange >= 0 ? '+' : ''}{aiCommentary.revenueChange.toFixed(1)}%
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 text-xs">Top Product:</span>
+                    <div className="font-semibold text-slate-900 truncate">
+                      {aiCommentary.topProduct}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 text-xs">At Risk Customers:</span>
+                    <div className="font-semibold text-orange-600">
+                      {formatNumber(aiCommentary.customerChurnIndicator)}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 text-xs">Product Growth:</span>
+                    <div className="font-semibold text-blue-600">
+                      {aiCommentary.topProductGrowth.toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-6">
+                <div className="text-center">
+                  <AlertCircle className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm text-slate-500">No insights available yet</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </motion.div>
     )
   }

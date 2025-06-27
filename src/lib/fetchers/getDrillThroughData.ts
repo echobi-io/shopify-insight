@@ -66,7 +66,9 @@ export async function getDrillThroughData(
 async function getRevenueTodayDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
   const today = new Date().toISOString().split('T')[0]
   
-  // Get today's orders
+  console.log('🔍 Fetching revenue today drill-through for date:', today)
+  
+  // Get today's orders with left join to profiles
   const { data: orders, error } = await supabase
     .from('orders')
     .select(`
@@ -76,27 +78,21 @@ async function getRevenueTodayDrillThrough(filters: FilterState, baseData: any):
       created_at,
       status,
       customer_id,
-      profiles(first_name, last_name, email)
+      profiles!left(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
-    .gte('created_at', `${today}T00:00:00`)
-    .lte('created_at', `${today}T23:59:59`)
+    .gte('created_at', `${today}T00:00:00.000Z`)
+    .lte('created_at', `${today}T23:59:59.999Z`)
     .order('created_at', { ascending: false })
     .limit(100)
 
   if (error) {
-    console.error('Error fetching today revenue orders:', error)
-    return createEmptyDrillThrough('revenue', 'Revenue Today', 'No orders found for today')
+    console.error('❌ Error fetching today revenue orders:', error)
+    return createEmptyDrillThrough('revenue', 'Revenue Today', 'Error loading data')
   }
 
-  console.log('Revenue today orders fetched:', orders?.length || 0, 'orders')
-
-  // Get hourly breakdown for time series
-  const { data: hourlyData, error: hourlyError } = await supabase
-    .from('daily_revenue_summary')
-    .select('*')
-    .eq('merchant_id', MERCHANT_ID)
-    .eq('date', today)
+  console.log('✅ Revenue today orders fetched:', orders?.length || 0, 'orders')
+  console.log('📊 Sample order data:', orders?.[0])
 
   const totalRevenue = orders?.reduce((sum, order) => sum + (order.total_price || 0), 0) || 0
 
@@ -117,7 +113,7 @@ async function getRevenueTodayDrillThrough(filters: FilterState, baseData: any):
     type: 'revenue',
     title: 'Revenue Today - Detailed Breakdown',
     subtitle: `All revenue transactions for ${today}`,
-    value: `£${totalRevenue.toLocaleString()}`,
+    value: `$${totalRevenue.toLocaleString()}`,
     change: calculateDayOverDayChange(totalRevenue, 'revenue'),
     changeType: 'positive',
     filters: baseData.filters,
@@ -126,7 +122,7 @@ async function getRevenueTodayDrillThrough(filters: FilterState, baseData: any):
       date: new Date(order.created_at).toLocaleDateString(),
       time: new Date(order.created_at).toLocaleTimeString(),
       order_id: order.order_number || order.id,
-      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown',
+      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown Customer',
       value: order.total_price || 0,
       status: order.status || 'unknown'
     })) || []
@@ -135,6 +131,8 @@ async function getRevenueTodayDrillThrough(filters: FilterState, baseData: any):
 
 async function getOrdersTodayDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
   const today = new Date().toISOString().split('T')[0]
+  
+  console.log('🔍 Fetching orders today drill-through for date:', today)
   
   const { data: orders, error } = await supabase
     .from('orders')
@@ -145,20 +143,20 @@ async function getOrdersTodayDrillThrough(filters: FilterState, baseData: any): 
       created_at,
       status,
       customer_id,
-      profiles(first_name, last_name, email)
+      profiles!left(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
-    .gte('created_at', `${today}T00:00:00`)
-    .lte('created_at', `${today}T23:59:59`)
+    .gte('created_at', `${today}T00:00:00.000Z`)
+    .lte('created_at', `${today}T23:59:59.999Z`)
     .order('created_at', { ascending: false })
     .limit(100)
 
   if (error) {
-    console.error('Error fetching today orders:', error)
-    return createEmptyDrillThrough('orders', 'Orders Today', 'No orders found for today')
+    console.error('❌ Error fetching today orders:', error)
+    return createEmptyDrillThrough('orders', 'Orders Today', 'Error loading data')
   }
 
-  console.log('Orders today fetched:', orders?.length || 0, 'orders')
+  console.log('✅ Orders today fetched:', orders?.length || 0, 'orders')
 
   // Create hourly time series data
   const timeSeriesData = Array.from({ length: 24 }, (_, hour) => {
@@ -186,7 +184,7 @@ async function getOrdersTodayDrillThrough(filters: FilterState, baseData: any): 
       date: new Date(order.created_at).toLocaleDateString(),
       time: new Date(order.created_at).toLocaleTimeString(),
       order_id: order.order_number || order.id,
-      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown',
+      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown Customer',
       items: 1, // Default to 1 item per order since we don't have line items data
       value: order.total_price || 0,
       status: order.status || 'unknown'
@@ -197,6 +195,8 @@ async function getOrdersTodayDrillThrough(filters: FilterState, baseData: any): 
 async function getNewCustomersDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
   const today = new Date().toISOString().split('T')[0]
   
+  console.log('🔍 Fetching new customers drill-through for date:', today)
+  
   const { data: customers, error } = await supabase
     .from('profiles')
     .select(`
@@ -205,19 +205,19 @@ async function getNewCustomersDrillThrough(filters: FilterState, baseData: any):
       last_name,
       email,
       created_at,
-      orders(id, total_price, created_at)
+      orders!left(id, total_price, created_at)
     `)
-    .gte('created_at', `${today}T00:00:00`)
-    .lte('created_at', `${today}T23:59:59`)
+    .gte('created_at', `${today}T00:00:00.000Z`)
+    .lte('created_at', `${today}T23:59:59.999Z`)
     .order('created_at', { ascending: false })
     .limit(100)
 
   if (error) {
-    console.error('Error fetching new customers:', error)
-    return createEmptyDrillThrough('customers', 'New Customers Today', 'No new customers found for today')
+    console.error('❌ Error fetching new customers:', error)
+    return createEmptyDrillThrough('customers', 'New Customers Today', 'Error loading data')
   }
 
-  console.log('New customers today fetched:', customers?.length || 0, 'customers')
+  console.log('✅ New customers today fetched:', customers?.length || 0, 'customers')
 
   // Create hourly time series data
   const timeSeriesData = Array.from({ length: 24 }, (_, hour) => {
@@ -324,6 +324,8 @@ async function getAOVDrillThrough(filters: FilterState, baseData: any): Promise<
 }
 
 async function getFilteredRevenueDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+  console.log('🔍 Fetching filtered revenue drill-through for period:', filters.startDate, 'to', filters.endDate)
+  
   const { data: orders, error } = await supabase
     .from('orders')
     .select(`
@@ -333,7 +335,7 @@ async function getFilteredRevenueDrillThrough(filters: FilterState, baseData: an
       created_at,
       status,
       customer_id,
-      profiles(first_name, last_name, email)
+      profiles!left(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', filters.startDate)
@@ -342,20 +344,26 @@ async function getFilteredRevenueDrillThrough(filters: FilterState, baseData: an
     .limit(200)
 
   if (error) {
-    console.error('Error fetching filtered revenue orders:', error)
-    return createEmptyDrillThrough('revenue', 'Total Revenue', 'No orders found for selected period')
+    console.error('❌ Error fetching filtered revenue orders:', error)
+    return createEmptyDrillThrough('revenue', 'Total Revenue', 'Error loading data')
   }
 
-  console.log('Filtered revenue orders fetched:', orders?.length || 0, 'orders')
+  console.log('✅ Filtered revenue orders fetched:', orders?.length || 0, 'orders')
 
-  // Get daily revenue summary for time series
-  const { data: dailyData, error: dailyError } = await supabase
-    .from('daily_revenue_summary')
-    .select('date, total_revenue, total_orders')
-    .eq('merchant_id', MERCHANT_ID)
-    .gte('date', filters.startDate.split('T')[0])
-    .lte('date', filters.endDate.split('T')[0])
-    .order('date')
+  // Create daily time series from orders data
+  const dailyRevenue = orders?.reduce((acc, order) => {
+    const date = order.created_at.split('T')[0]
+    if (!acc[date]) {
+      acc[date] = { date, revenue: 0, orders: 0 }
+    }
+    acc[date].revenue += order.total_price || 0
+    acc[date].orders++
+    return acc
+  }, {} as Record<string, any>) || {}
+
+  const timeSeriesData = Object.values(dailyRevenue).sort((a: any, b: any) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
 
   const totalRevenue = orders?.reduce((sum, order) => sum + (order.total_price || 0), 0) || 0
 
@@ -363,19 +371,16 @@ async function getFilteredRevenueDrillThrough(filters: FilterState, baseData: an
     type: 'revenue',
     title: 'Total Revenue - Detailed Breakdown',
     subtitle: `Revenue analysis for ${baseData.filters.dateRange}`,
-    value: `£${totalRevenue.toLocaleString()}`,
+    value: `$${totalRevenue.toLocaleString()}`,
     change: calculatePercentageChange(totalRevenue, totalRevenue * 0.85), // Mock comparison
     changeType: 'positive',
     filters: baseData.filters,
-    timeSeriesData: dailyData?.map(day => ({
-      date: day.date,
-      revenue: day.total_revenue || 0,
-      orders: day.total_orders || 0
-    })) || [],
+    timeSeriesData,
     data: orders?.map(order => ({
       date: new Date(order.created_at).toLocaleDateString(),
+      time: new Date(order.created_at).toLocaleTimeString(),
       order_id: order.order_number || order.id,
-      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown',
+      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown Customer',
       value: order.total_price || 0,
       status: order.status || 'unknown'
     })) || []
@@ -383,6 +388,8 @@ async function getFilteredRevenueDrillThrough(filters: FilterState, baseData: an
 }
 
 async function getFilteredOrdersDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+  console.log('🔍 Fetching filtered orders drill-through for period:', filters.startDate, 'to', filters.endDate)
+  
   const { data: orders, error } = await supabase
     .from('orders')
     .select(`
@@ -392,7 +399,7 @@ async function getFilteredOrdersDrillThrough(filters: FilterState, baseData: any
       created_at,
       status,
       customer_id,
-      profiles(first_name, last_name, email)
+      profiles!left(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', filters.startDate)
@@ -401,20 +408,26 @@ async function getFilteredOrdersDrillThrough(filters: FilterState, baseData: any
     .limit(200)
 
   if (error) {
-    console.error('Error fetching filtered orders:', error)
-    return createEmptyDrillThrough('orders', 'Total Orders', 'No orders found for selected period')
+    console.error('❌ Error fetching filtered orders:', error)
+    return createEmptyDrillThrough('orders', 'Total Orders', 'Error loading data')
   }
 
-  console.log('Filtered orders fetched:', orders?.length || 0, 'orders')
+  console.log('✅ Filtered orders fetched:', orders?.length || 0, 'orders')
 
-  // Get daily orders summary for time series
-  const { data: dailyData, error: dailyError } = await supabase
-    .from('daily_revenue_summary')
-    .select('date, total_orders, total_revenue')
-    .eq('merchant_id', MERCHANT_ID)
-    .gte('date', filters.startDate.split('T')[0])
-    .lte('date', filters.endDate.split('T')[0])
-    .order('date')
+  // Create daily time series from orders data
+  const dailyOrders = orders?.reduce((acc, order) => {
+    const date = order.created_at.split('T')[0]
+    if (!acc[date]) {
+      acc[date] = { date, orders: 0, revenue: 0 }
+    }
+    acc[date].orders++
+    acc[date].revenue += order.total_price || 0
+    return acc
+  }, {} as Record<string, any>) || {}
+
+  const timeSeriesData = Object.values(dailyOrders).sort((a: any, b: any) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
 
   return {
     type: 'orders',
@@ -424,15 +437,12 @@ async function getFilteredOrdersDrillThrough(filters: FilterState, baseData: any
     change: calculatePercentageChange(orders?.length || 0, (orders?.length || 0) * 0.8), // Mock comparison
     changeType: 'positive',
     filters: baseData.filters,
-    timeSeriesData: dailyData?.map(day => ({
-      date: day.date,
-      orders: day.total_orders || 0,
-      revenue: day.total_revenue || 0
-    })) || [],
+    timeSeriesData,
     data: orders?.map(order => ({
       date: new Date(order.created_at).toLocaleDateString(),
+      time: new Date(order.created_at).toLocaleTimeString(),
       order_id: order.order_number || order.id,
-      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown',
+      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown Customer',
       items: 1, // Default to 1 item per order since we don't have line items data
       value: order.total_price || 0,
       status: order.status || 'unknown'
@@ -441,6 +451,8 @@ async function getFilteredOrdersDrillThrough(filters: FilterState, baseData: any
 }
 
 async function getFilteredCustomersDrillThrough(filters: FilterState, baseData: any): Promise<DrillThroughData> {
+  console.log('🔍 Fetching filtered customers drill-through for period:', filters.startDate, 'to', filters.endDate)
+  
   const { data: customers, error } = await supabase
     .from('profiles')
     .select(`
@@ -449,7 +461,7 @@ async function getFilteredCustomersDrillThrough(filters: FilterState, baseData: 
       last_name,
       email,
       created_at,
-      orders(id, total_price, created_at)
+      orders!left(id, total_price, created_at)
     `)
     .gte('created_at', filters.startDate)
     .lte('created_at', filters.endDate)
@@ -457,11 +469,11 @@ async function getFilteredCustomersDrillThrough(filters: FilterState, baseData: 
     .limit(200)
 
   if (error) {
-    console.error('Error fetching filtered customers:', error)
-    return createEmptyDrillThrough('customers', 'New Customers', 'No new customers found for selected period')
+    console.error('❌ Error fetching filtered customers:', error)
+    return createEmptyDrillThrough('customers', 'New Customers', 'Error loading data')
   }
 
-  console.log('Filtered customers fetched:', customers?.length || 0, 'customers')
+  console.log('✅ Filtered customers fetched:', customers?.length || 0, 'customers')
 
   // Create daily time series data
   const dailyCustomers = customers?.reduce((acc, customer) => {
@@ -491,6 +503,7 @@ async function getFilteredCustomersDrillThrough(filters: FilterState, baseData: 
       name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown',
       email: customer.email,
       signup_date: new Date(customer.created_at).toLocaleDateString(),
+      signup_time: new Date(customer.created_at).toLocaleTimeString(),
       orders: customer.orders?.length || 0,
       ltv: customer.orders?.reduce((sum, order) => sum + (order.total_price || 0), 0) || 0,
       segment: customer.orders?.length === 1 ? 'new' : customer.orders?.length > 5 ? 'vip' : 'returning'
