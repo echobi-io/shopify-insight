@@ -68,7 +68,7 @@ async function getRevenueTodayDrillThrough(filters: FilterState, baseData: any):
   
   console.log('🔍 Fetching revenue today drill-through for date:', today)
   
-  // Get today's orders with left join to profiles
+  // Get today's orders with left join to customers
   const { data: orders, error } = await supabase
     .from('orders')
     .select(`
@@ -78,7 +78,7 @@ async function getRevenueTodayDrillThrough(filters: FilterState, baseData: any):
       created_at,
       status,
       customer_id,
-      profiles!left(first_name, last_name, email)
+      customers!left(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', `${today}T00:00:00.000Z`)
@@ -122,7 +122,7 @@ async function getRevenueTodayDrillThrough(filters: FilterState, baseData: any):
       date: new Date(order.created_at).toLocaleDateString(),
       time: new Date(order.created_at).toLocaleTimeString(),
       order_id: order.order_number || order.id,
-      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown Customer',
+      customer: `${order.customers?.first_name || ''} ${order.customers?.last_name || ''}`.trim() || order.customers?.email || 'Unknown Customer',
       value: order.total_price || 0,
       status: order.status || 'unknown'
     })) || []
@@ -143,7 +143,7 @@ async function getOrdersTodayDrillThrough(filters: FilterState, baseData: any): 
       created_at,
       status,
       customer_id,
-      profiles!left(first_name, last_name, email)
+      customers!left(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', `${today}T00:00:00.000Z`)
@@ -184,7 +184,7 @@ async function getOrdersTodayDrillThrough(filters: FilterState, baseData: any): 
       date: new Date(order.created_at).toLocaleDateString(),
       time: new Date(order.created_at).toLocaleTimeString(),
       order_id: order.order_number || order.id,
-      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown Customer',
+      customer: `${order.customers?.first_name || ''} ${order.customers?.last_name || ''}`.trim() || order.customers?.email || 'Unknown Customer',
       items: 1, // Default to 1 item per order since we don't have line items data
       value: order.total_price || 0,
       status: order.status || 'unknown'
@@ -198,7 +198,7 @@ async function getNewCustomersDrillThrough(filters: FilterState, baseData: any):
   console.log('🔍 Fetching new customers drill-through for date:', today)
   
   const { data: customers, error } = await supabase
-    .from('profiles')
+    .from('customers')
     .select(`
       id,
       first_name,
@@ -207,6 +207,7 @@ async function getNewCustomersDrillThrough(filters: FilterState, baseData: any):
       created_at,
       orders!left(id, total_price, created_at)
     `)
+    .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', `${today}T00:00:00.000Z`)
     .lte('created_at', `${today}T23:59:59.999Z`)
     .order('created_at', { ascending: false })
@@ -335,7 +336,7 @@ async function getFilteredRevenueDrillThrough(filters: FilterState, baseData: an
       created_at,
       status,
       customer_id,
-      profiles!left(first_name, last_name, email)
+      customers!left(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', filters.startDate)
@@ -380,7 +381,7 @@ async function getFilteredRevenueDrillThrough(filters: FilterState, baseData: an
       date: new Date(order.created_at).toLocaleDateString(),
       time: new Date(order.created_at).toLocaleTimeString(),
       order_id: order.order_number || order.id,
-      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown Customer',
+      customer: `${order.customers?.first_name || ''} ${order.customers?.last_name || ''}`.trim() || order.customers?.email || 'Unknown Customer',
       value: order.total_price || 0,
       status: order.status || 'unknown'
     })) || []
@@ -399,7 +400,7 @@ async function getFilteredOrdersDrillThrough(filters: FilterState, baseData: any
       created_at,
       status,
       customer_id,
-      profiles!left(first_name, last_name, email)
+      customers!left(first_name, last_name, email)
     `)
     .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', filters.startDate)
@@ -442,7 +443,7 @@ async function getFilteredOrdersDrillThrough(filters: FilterState, baseData: any
       date: new Date(order.created_at).toLocaleDateString(),
       time: new Date(order.created_at).toLocaleTimeString(),
       order_id: order.order_number || order.id,
-      customer: `${order.profiles?.first_name || ''} ${order.profiles?.last_name || ''}`.trim() || order.profiles?.email || 'Unknown Customer',
+      customer: `${order.customers?.first_name || ''} ${order.customers?.last_name || ''}`.trim() || order.customers?.email || 'Unknown Customer',
       items: 1, // Default to 1 item per order since we don't have line items data
       value: order.total_price || 0,
       status: order.status || 'unknown'
@@ -454,7 +455,7 @@ async function getFilteredCustomersDrillThrough(filters: FilterState, baseData: 
   console.log('🔍 Fetching filtered customers drill-through for period:', filters.startDate, 'to', filters.endDate)
   
   const { data: customers, error } = await supabase
-    .from('profiles')
+    .from('customers')
     .select(`
       id,
       first_name,
@@ -463,6 +464,7 @@ async function getFilteredCustomersDrillThrough(filters: FilterState, baseData: 
       created_at,
       orders!left(id, total_price, created_at)
     `)
+    .eq('merchant_id', MERCHANT_ID)
     .gte('created_at', filters.startDate)
     .lte('created_at', filters.endDate)
     .order('created_at', { ascending: false })
