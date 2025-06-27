@@ -467,10 +467,10 @@ export default function Dashboard() {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Conversion Rate</span>
+                  <span className="text-sm text-gray-600">Order-to-Customer Ratio</span>
                   <span className="text-sm font-semibold">
-                    {kpiData && kpiData.totalOrders > 0 ? 
-                      `${((kpiData.totalOrders / (kpiData.totalOrders * 10)) * 100).toFixed(1)}%` : 
+                    {kpiData && kpiData.newCustomers > 0 ? 
+                      `${(kpiData.totalOrders / kpiData.newCustomers).toFixed(1)}:1` : 
                       'N/A'
                     }
                   </span>
