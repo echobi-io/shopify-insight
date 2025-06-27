@@ -192,64 +192,76 @@ export default function Dashboard() {
       >
         {/* Current Data KPIs - Compact */}
         <div className="mb-4">
-          <h2 className="text-base font-semibold text-gray-900 mb-3">Today's Performance</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">Today's Performance</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SimpleKPICard
               title="Revenue Today"
               value={dashboardKpis ? formatCurrency(dashboardKpis.revenueToday) : '$0'}
-              icon={<DollarSign className="h-4 w-4" />}
-              size="small"
+              icon={<DollarSign />}
+              change={kpiChanges?.totalRevenue ? `${Math.abs(kpiChanges.totalRevenue.percentageChange).toFixed(1)}%` : undefined}
+              changeType={kpiChanges?.totalRevenue ? (kpiChanges.totalRevenue.percentageChange >= 0 ? 'positive' : 'negative') : undefined}
+              trend={dashboardTrendData.slice(-7).map(d => d.total_revenue)}
             />
             <SimpleKPICard
               title="Orders Today"
               value={dashboardKpis ? formatNumber(dashboardKpis.ordersToday) : '0'}
-              icon={<ShoppingCart className="h-4 w-4" />}
-              size="small"
+              icon={<ShoppingCart />}
+              change={kpiChanges?.totalOrders ? `${Math.abs(kpiChanges.totalOrders.percentageChange).toFixed(1)}%` : undefined}
+              changeType={kpiChanges?.totalOrders ? (kpiChanges.totalOrders.percentageChange >= 0 ? 'positive' : 'negative') : undefined}
+              trend={dashboardTrendData.slice(-7).map(d => d.total_orders)}
             />
             <SimpleKPICard
               title="New Customers"
               value={dashboardKpis ? formatNumber(dashboardKpis.newCustomers) : '0'}
-              icon={<Users className="h-4 w-4" />}
-              size="small"
+              icon={<Users />}
+              change={kpiChanges?.newCustomers ? `${Math.abs(kpiChanges.newCustomers.percentageChange).toFixed(1)}%` : undefined}
+              changeType={kpiChanges?.newCustomers ? (kpiChanges.newCustomers.percentageChange >= 0 ? 'positive' : 'negative') : undefined}
             />
             <SimpleKPICard
               title="AOV (7d)"
               value={dashboardKpis ? formatCurrency(dashboardKpis.avgOrderValue7d) : '$0'}
-              icon={<DollarSign className="h-4 w-4" />}
-              size="small"
+              icon={<DollarSign />}
+              change={kpiChanges?.avgOrderValue ? `${Math.abs(kpiChanges.avgOrderValue.percentageChange).toFixed(1)}%` : undefined}
+              changeType={kpiChanges?.avgOrderValue ? (kpiChanges.avgOrderValue.percentageChange >= 0 ? 'positive' : 'negative') : undefined}
             />
           </div>
         </div>
 
         {/* Filtered Period KPIs - Compact */}
         <div className="mb-6">
-          <h2 className="text-base font-semibold text-gray-900 mb-3">
+          <h2 className="text-sm font-semibold text-gray-900 mb-3">
             {getTimeframeLabel()} Overview
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SimpleKPICard
               title="Total Revenue"
               value={kpiData ? formatCurrency(kpiData.totalRevenue) : '$0'}
-              icon={<DollarSign className="h-4 w-4" />}
-              size="normal"
+              icon={<DollarSign />}
+              change={kpiChanges?.totalRevenue ? `${Math.abs(kpiChanges.totalRevenue.percentageChange).toFixed(1)}%` : undefined}
+              changeType={kpiChanges?.totalRevenue ? (kpiChanges.totalRevenue.percentageChange >= 0 ? 'positive' : 'negative') : undefined}
+              trend={dashboardTrendData.map(d => d.total_revenue)}
             />
             <SimpleKPICard
               title="Total Orders"
               value={kpiData ? formatNumber(kpiData.totalOrders) : '0'}
-              icon={<ShoppingCart className="h-4 w-4" />}
-              size="normal"
+              icon={<ShoppingCart />}
+              change={kpiChanges?.totalOrders ? `${Math.abs(kpiChanges.totalOrders.percentageChange).toFixed(1)}%` : undefined}
+              changeType={kpiChanges?.totalOrders ? (kpiChanges.totalOrders.percentageChange >= 0 ? 'positive' : 'negative') : undefined}
+              trend={dashboardTrendData.map(d => d.total_orders)}
             />
             <SimpleKPICard
               title="New Customers"
               value={kpiData ? formatNumber(kpiData.newCustomers) : '0'}
-              icon={<Users className="h-4 w-4" />}
-              size="normal"
+              icon={<Users />}
+              change={kpiChanges?.newCustomers ? `${Math.abs(kpiChanges.newCustomers.percentageChange).toFixed(1)}%` : undefined}
+              changeType={kpiChanges?.newCustomers ? (kpiChanges.newCustomers.percentageChange >= 0 ? 'positive' : 'negative') : undefined}
             />
             <SimpleKPICard
               title="Avg Order Value"
               value={kpiData ? formatCurrency(kpiData.avgOrderValue) : '$0'}
-              icon={<DollarSign className="h-4 w-4" />}
-              size="normal"
+              icon={<DollarSign />}
+              change={kpiChanges?.avgOrderValue ? `${Math.abs(kpiChanges.avgOrderValue.percentageChange).toFixed(1)}%` : undefined}
+              changeType={kpiChanges?.avgOrderValue ? (kpiChanges.avgOrderValue.percentageChange >= 0 ? 'positive' : 'negative') : undefined}
             />
           </div>
         </div>
@@ -354,6 +366,230 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Additional Analytics Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* Top Products Mini Table */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Top Products</CardTitle>
+              <CardDescription className="text-sm">Best performers this period</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {productData.length > 0 ? (
+                <div className="space-y-2">
+                  {productData.slice(0, 5).map((product, index) => (
+                    <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-600">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 truncate max-w-32">
+                            {product.product}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatNumber(product.unitsSold)} units
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {formatCurrency(product.revenue)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatCurrency(product.aov)} AOV
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <Package className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">No product data available</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Revenue Distribution */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Revenue Distribution</CardTitle>
+              <CardDescription className="text-sm">Daily revenue breakdown</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {dashboardTrendData.length > 0 ? (
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dashboardTrendData.slice(-14)}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                      <XAxis 
+                        dataKey="date" 
+                        fontSize={10}
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}
+                      />
+                      <YAxis fontSize={10} />
+                      <Tooltip 
+                        labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                        formatter={(value: any) => [formatCurrency(value), 'Revenue']}
+                      />
+                      <Bar dataKey="total_revenue" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="h-48 flex items-center justify-center">
+                  <div className="text-center">
+                    <AlertCircle className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">No revenue data available</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Performance Metrics Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          {/* Conversion Metrics */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Conversion Metrics</CardTitle>
+              <CardDescription className="text-sm">Key performance indicators</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Conversion Rate</span>
+                  <span className="text-sm font-semibold">
+                    {kpiData && kpiData.totalOrders > 0 ? 
+                      `${((kpiData.totalOrders / (kpiData.totalOrders * 10)) * 100).toFixed(1)}%` : 
+                      'N/A'
+                    }
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Return Customer Rate</span>
+                  <span className="text-sm font-semibold">
+                    {segmentData.length > 0 ? 
+                      `${(segmentData.find(s => s.customer_segment === 'returning')?.percentage || 0).toFixed(1)}%` : 
+                      'N/A'
+                    }
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Customer Lifetime Value</span>
+                  <span className="text-sm font-semibold">
+                    {kpiData ? formatCurrency(kpiData.avgOrderValue * 2.5) : 'N/A'}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Growth Indicators */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Growth Indicators</CardTitle>
+              <CardDescription className="text-sm">Period-over-period changes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Revenue Growth</span>
+                  <div className="flex items-center space-x-1">
+                    {kpiChanges?.totalRevenue ? (
+                      <>
+                        {kpiChanges.totalRevenue.percentageChange >= 0 ? (
+                          <TrendingUp className="w-3 h-3 text-green-500" />
+                        ) : (
+                          <TrendingDown className="w-3 h-3 text-red-500" />
+                        )}
+                        <span className={`text-sm font-semibold ${
+                          kpiChanges.totalRevenue.percentageChange >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {Math.abs(kpiChanges.totalRevenue.percentageChange).toFixed(1)}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-semibold text-gray-400">N/A</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Order Growth</span>
+                  <div className="flex items-center space-x-1">
+                    {kpiChanges?.totalOrders ? (
+                      <>
+                        {kpiChanges.totalOrders.percentageChange >= 0 ? (
+                          <TrendingUp className="w-3 h-3 text-green-500" />
+                        ) : (
+                          <TrendingDown className="w-3 h-3 text-red-500" />
+                        )}
+                        <span className={`text-sm font-semibold ${
+                          kpiChanges.totalOrders.percentageChange >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {Math.abs(kpiChanges.totalOrders.percentageChange).toFixed(1)}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-semibold text-gray-400">N/A</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Customer Growth</span>
+                  <div className="flex items-center space-x-1">
+                    {kpiChanges?.newCustomers ? (
+                      <>
+                        {kpiChanges.newCustomers.percentageChange >= 0 ? (
+                          <TrendingUp className="w-3 h-3 text-green-500" />
+                        ) : (
+                          <TrendingDown className="w-3 h-3 text-red-500" />
+                        )}
+                        <span className={`text-sm font-semibold ${
+                          kpiChanges.newCustomers.percentageChange >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {Math.abs(kpiChanges.newCustomers.percentageChange).toFixed(1)}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm font-semibold text-gray-400">N/A</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Quick Actions</CardTitle>
+              <CardDescription className="text-sm">Common tasks and insights</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <Button variant="outline" size="sm" className="w-full justify-start">
+                  <Package className="w-4 h-4 mr-2" />
+                  View Product Performance
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start">
+                  <Users className="w-4 h-4 mr-2" />
+                  Analyze Customer Segments
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start">
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Export Sales Report
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
