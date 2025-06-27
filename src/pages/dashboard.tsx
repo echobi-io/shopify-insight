@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -37,6 +38,7 @@ const SEGMENT_COLORS = {
 }
 
 export default function Dashboard() {
+  const router = useRouter()
   const [activeSection, setActiveSection] = useState('dashboard')
   const [timeframe, setTimeframe] = useState('all_2024')
   const [loading, setLoading] = useState(true)
@@ -141,6 +143,15 @@ export default function Dashboard() {
       loadDashboardData()
     }
   }, [activeSection, timeframe])
+
+  // Handle section changes and routing
+  const handleSectionChange = (section: string) => {
+    if (section === 'churn-ltv') {
+      router.push('/churn-ltv')
+    } else {
+      setActiveSection(section)
+    }
+  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -942,7 +953,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar */}
-      <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
+      <Sidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
 
       {/* Main Content */}
       <div className="flex-1 ml-[220px]">
