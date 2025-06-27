@@ -486,8 +486,8 @@ export default function Dashboard() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Customer Lifetime Value</span>
-                  <span className="text-sm font-semibold">
-                    {kpiData ? formatCurrency(kpiData.avgOrderValue * 2.5) : 'N/A'}
+                  <span className="text-sm font-semibold text-gray-400">
+                    No data
                   </span>
                 </div>
               </div>
