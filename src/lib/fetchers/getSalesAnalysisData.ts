@@ -62,9 +62,155 @@ function getPreviousPeriodDates(startDate: string, endDate: string): { prevStart
   }
 }
 
+// Fallback function to get KPIs directly from orders table
+async function getSalesAnalysisKPIsFromOrders(filters: FilterState, merchant_id: string): Promise<SalesAnalysisKPIs> {
+  try {
+    console.log('🔄 Falling back to orders table for KPIs')
+
+    // Get current period data from orders table
+    let currentQuery = supabase
+      .from('orders')
+      .select('*')
+      .gte('created_at', filters.startDate)
+      .lte('created_at', filters.endDate)
+      .eq('merchant_id', merchant_id)
+
+    if (filters.channel && filters.channel !== 'all') {
+      currentQuery = currentQuery.eq('channel', filters.channel)
+    }
+
+    const { data: currentOrders, error: currentError } = await currentQuery
+
+    if (currentError) {
+      console.error('❌ Error fetching orders:', currentError)
+      throw new Error(`Failed to fetch orders: ${currentError.message}`)
+    }
+
+    if (!currentOrders || currentOrders.length === 0) {
+      console.log('📭 No orders found for the specified period')
+      return {
+        totalRevenue: null,
+        totalOrders: null,
+        avgOrderValue: null,
+        topChannel: null,
+        growthDriver: null,
+        revenueGrowth: null,
+        ordersGrowth: null,
+        aovGrowth: null
+      }
+    }
+
+    // Calculate current period metrics
+    const currentRevenue = currentOrders.reduce((sum, order) => sum + (order.total_price || 0), 0)
+    const currentOrderCount = currentOrders.length
+    const currentAOV = currentOrderCount > 0 ? currentRevenue / currentOrderCount : 0
+
+    // Get channel breakdown
+    const channelBreakdown = currentOrders.reduce((acc, order) => {
+      const channel = order.channel || 'unknown'
+      if (!acc[channel]) {
+        acc[channel] = { revenue: 0, orders: 0 }
+      }
+      acc[channel].revenue += order.total_price || 0
+      acc[channel].orders += 1
+      return acc
+    }, {} as Record<string, { revenue: number; orders: number }>)
+
+    const topChannel = Object.entries(channelBreakdown)
+      .sort(([,a], [,b]) => b.revenue - a.revenue)[0]?.[0] || null
+
+    // Get previous period for comparison
+    const { prevStartDate, prevEndDate } = getPreviousPeriodDates(filters.startDate, filters.endDate)
+    
+    let prevQuery = supabase
+      .from('orders')
+      .select('*')
+      .gte('created_at', prevStartDate)
+      .lte('created_at', prevEndDate)
+      .eq('merchant_id', merchant_id)
+
+    if (filters.channel && filters.channel !== 'all') {
+      prevQuery = prevQuery.eq('channel', filters.channel)
+    }
+
+    const { data: prevOrders } = await prevQuery
+
+    let revenueGrowth = null
+    let ordersGrowth = null
+    let aovGrowth = null
+    let growthDriver: 'volume' | 'aov' | 'mixed' | null = null
+
+    if (prevOrders && prevOrders.length > 0) {
+      const prevRevenue = prevOrders.reduce((sum, order) => sum + (order.total_price || 0), 0)
+      const prevOrderCount = prevOrders.length
+      const prevAOV = prevOrderCount > 0 ? prevRevenue / prevOrderCount : 0
+
+      if (prevRevenue > 0) {
+        revenueGrowth = ((currentRevenue - prevRevenue) / prevRevenue) * 100
+      }
+      if (prevOrderCount > 0) {
+        ordersGrowth = ((currentOrderCount - prevOrderCount) / prevOrderCount) * 100
+      }
+      if (prevAOV > 0) {
+        aovGrowth = ((currentAOV - prevAOV) / prevAOV) * 100
+      }
+
+      // Determine growth driver
+      if (ordersGrowth !== null && aovGrowth !== null) {
+        const orderContribution = Math.abs(ordersGrowth || 0)
+        const aovContribution = Math.abs(aovGrowth || 0)
+        
+        if (orderContribution > aovContribution * 1.5) {
+          growthDriver = 'volume'
+        } else if (aovContribution > orderContribution * 1.5) {
+          growthDriver = 'aov'
+        } else {
+          growthDriver = 'mixed'
+        }
+      }
+    }
+
+    return {
+      totalRevenue: currentRevenue,
+      totalOrders: currentOrderCount,
+      avgOrderValue: parseFloat(currentAOV.toFixed(2)),
+      topChannel,
+      growthDriver,
+      revenueGrowth: revenueGrowth ? parseFloat(revenueGrowth.toFixed(1)) : null,
+      ordersGrowth: ordersGrowth ? parseFloat(ordersGrowth.toFixed(1)) : null,
+      aovGrowth: aovGrowth ? parseFloat(aovGrowth.toFixed(1)) : null
+    }
+
+  } catch (error) {
+    console.error('❌ Error in getSalesAnalysisKPIsFromOrders:', error)
+    throw error
+  }
+}
+
 export async function getSalesAnalysisKPIs(filters: FilterState, merchant_id: string = HARDCODED_MERCHANT_ID): Promise<SalesAnalysisKPIs> {
   try {
     console.log('📊 Fetching Sales Analysis KPIs with filters:', filters, 'merchant_id:', merchant_id)
+
+    // First, check if the materialized view exists and has any data at all
+    const { data: testData, error: testError } = await supabase
+      .from('daily_revenue_summary')
+      .select('*')
+      .eq('merchant_id', merchant_id)
+      .limit(1)
+
+    console.log('🔍 Test query result:', { testData, testError })
+
+    if (testError) {
+      console.error('❌ Materialized view does not exist or is not accessible:', testError)
+      // Fall back to querying orders table directly
+      return await getSalesAnalysisKPIsFromOrders(filters, merchant_id)
+    }
+
+    if (!testData || testData.length === 0) {
+      console.log('📭 Materialized view exists but has no data for merchant:', merchant_id)
+      // Fall back to querying orders table directly
+      return await getSalesAnalysisKPIsFromOrders(filters, merchant_id)
+    }
 
     // Get current period data
     let currentQuery = supabase
@@ -85,21 +231,14 @@ export async function getSalesAnalysisKPIs(filters: FilterState, merchant_id: st
 
     if (currentError) {
       console.error('❌ Error fetching current period sales data:', currentError)
-      throw new Error(`Failed to fetch current period data: ${currentError.message}`)
+      // Fall back to querying orders table directly
+      return await getSalesAnalysisKPIsFromOrders(filters, merchant_id)
     }
 
     if (!currentData || currentData.length === 0) {
-      console.log('📭 No current period data found for sales analysis')
-      return {
-        totalRevenue: null,
-        totalOrders: null,
-        avgOrderValue: null,
-        topChannel: null,
-        growthDriver: null,
-        revenueGrowth: null,
-        ordersGrowth: null,
-        aovGrowth: null
-      }
+      console.log('📭 No current period data found for sales analysis, trying orders table')
+      // Fall back to querying orders table directly
+      return await getSalesAnalysisKPIsFromOrders(filters, merchant_id)
     }
 
     // Calculate current period metrics
@@ -190,6 +329,7 @@ export async function getRevenueTimeSeries(
   try {
     console.log('📈 Fetching revenue time series with granularity:', granularity)
 
+    // Try materialized view first
     let query = supabase
       .from('daily_revenue_summary')
       .select('*')
@@ -207,14 +347,9 @@ export async function getRevenueTimeSeries(
 
     const { data, error } = await query
 
-    if (error) {
-      console.error('❌ Error fetching revenue time series:', error)
-      throw error
-    }
-
-    if (!data || data.length === 0) {
-      console.log('📭 No time series data found')
-      return []
+    if (error || !data || data.length === 0) {
+      console.log('📭 No time series data found in materialized view, falling back to orders table')
+      return await getRevenueTimeSeriesFromOrders(filters, granularity, merchant_id)
     }
 
     // Group data based on granularity
@@ -258,7 +393,81 @@ export async function getRevenueTimeSeries(
 
   } catch (error) {
     console.error('❌ Error in getRevenueTimeSeries:', error)
-    throw error
+    // Fall back to orders table
+    return await getRevenueTimeSeriesFromOrders(filters, granularity, merchant_id)
+  }
+}
+
+// Fallback function to get time series from orders table
+async function getRevenueTimeSeriesFromOrders(
+  filters: FilterState,
+  granularity: 'daily' | 'weekly' | 'monthly',
+  merchant_id: string
+): Promise<RevenueTimeSeriesData[]> {
+  try {
+    console.log('🔄 Falling back to orders table for time series')
+
+    let query = supabase
+      .from('orders')
+      .select('created_at, total_price, channel')
+      .gte('created_at', filters.startDate)
+      .lte('created_at', filters.endDate)
+      .eq('merchant_id', merchant_id)
+      .order('created_at')
+
+    if (filters.channel && filters.channel !== 'all') {
+      query = query.eq('channel', filters.channel)
+    }
+
+    const { data: orders, error } = await query
+
+    if (error || !orders || orders.length === 0) {
+      console.log('📭 No orders found for time series')
+      return []
+    }
+
+    // Group orders by date based on granularity
+    const grouped = orders.reduce((acc, order) => {
+      const date = new Date(order.created_at)
+      let key: string
+      
+      switch (granularity) {
+        case 'weekly':
+          const weekStart = new Date(date)
+          weekStart.setDate(date.getDate() - date.getDay())
+          key = weekStart.toISOString().split('T')[0]
+          break
+        case 'monthly':
+          key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
+          break
+        default:
+          key = date.toISOString().split('T')[0]
+      }
+
+      if (!acc[key]) {
+        acc[key] = {
+          date: key,
+          revenue: 0,
+          orders: 0
+        }
+      }
+
+      acc[key].revenue += order.total_price || 0
+      acc[key].orders += 1
+
+      return acc
+    }, {} as Record<string, any>)
+
+    return Object.values(grouped).map((item: any) => ({
+      date: item.date,
+      revenue: parseFloat(item.revenue.toFixed(2)),
+      orders: item.orders,
+      avgOrderValue: item.orders > 0 ? parseFloat((item.revenue / item.orders).toFixed(2)) : 0
+    })).sort((a, b) => a.date.localeCompare(b.date))
+
+  } catch (error) {
+    console.error('❌ Error in getRevenueTimeSeriesFromOrders:', error)
+    return []
   }
 }
 
@@ -269,6 +478,7 @@ export async function getChannelRevenueBreakdown(
   try {
     console.log('🏪 Fetching channel revenue breakdown')
 
+    // Try materialized view first
     let query = supabase
       .from('channel_performance_summary')
       .select('*')
@@ -282,14 +492,9 @@ export async function getChannelRevenueBreakdown(
 
     const { data, error } = await query
 
-    if (error) {
-      console.error('❌ Error fetching channel breakdown:', error)
-      throw error
-    }
-
-    if (!data || data.length === 0) {
-      console.log('📭 No channel data found')
-      return []
+    if (error || !data || data.length === 0) {
+      console.log('📭 No channel data found in materialized view, falling back to orders table')
+      return await getChannelRevenueBreakdownFromOrders(filters, merchant_id)
     }
 
     // Group by channel
@@ -324,7 +529,66 @@ export async function getChannelRevenueBreakdown(
 
   } catch (error) {
     console.error('❌ Error in getChannelRevenueBreakdown:', error)
-    throw error
+    // Fall back to orders table
+    return await getChannelRevenueBreakdownFromOrders(filters, merchant_id)
+  }
+}
+
+// Fallback function to get channel breakdown from orders table
+async function getChannelRevenueBreakdownFromOrders(
+  filters: FilterState,
+  merchant_id: string
+): Promise<ChannelRevenueData[]> {
+  try {
+    console.log('🔄 Falling back to orders table for channel breakdown')
+
+    let query = supabase
+      .from('orders')
+      .select('channel, total_price')
+      .gte('created_at', filters.startDate)
+      .lte('created_at', filters.endDate)
+      .eq('merchant_id', merchant_id)
+
+    const { data: orders, error } = await query
+
+    if (error || !orders || orders.length === 0) {
+      console.log('📭 No orders found for channel breakdown')
+      return []
+    }
+
+    // Group by channel
+    const channelGroups = orders.reduce((acc, order) => {
+      const channel = order.channel || 'Unknown'
+      
+      if (!acc[channel]) {
+        acc[channel] = {
+          channel,
+          revenue: 0,
+          orders: 0
+        }
+      }
+      
+      acc[channel].revenue += order.total_price || 0
+      acc[channel].orders += 1
+      
+      return acc
+    }, {} as Record<string, { channel: string; revenue: number; orders: number }>)
+
+    const totalRevenue = Object.values(channelGroups).reduce((sum, ch) => sum + ch.revenue, 0)
+
+    return Object.values(channelGroups)
+      .map((ch) => ({
+        channel: ch.channel,
+        revenue: parseFloat(ch.revenue.toFixed(2)),
+        orders: ch.orders,
+        percentage: totalRevenue > 0 ? parseFloat(((ch.revenue / totalRevenue) * 100).toFixed(1)) : 0,
+        growth: null // Would need previous period data for growth calculation
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+
+  } catch (error) {
+    console.error('❌ Error in getChannelRevenueBreakdownFromOrders:', error)
+    return []
   }
 }
 
