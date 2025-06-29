@@ -265,27 +265,28 @@ async function generateCohortAnalysis(dateFilters?: { startDate: string; endDate
 
     // Group customers by their first order month (cohort)
     const customerCohorts: { [customerId: string]: string } = {}
-    const cohortData: { [cohortMonth: string]: { [period: number]: { customers: Set<string>, revenue: number } } } = {}
-
-    // First pass: identify each customer's cohort (first order month)
     orders.forEach(order => {
-      const orderDate = new Date(order.created_at)
-      const cohortMonth = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`
-      
-      if (!customerCohorts[order.customer_id]) {
+      if (order.customer_id && !customerCohorts[order.customer_id]) {
+        const orderDate = new Date(order.created_at)
+        const cohortMonth = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`
         customerCohorts[order.customer_id] = cohortMonth
       }
     })
 
+    const cohortData: { [cohortMonth: string]: { [period: number]: { customers: Set<string>, revenue: number } } } = {}
+
     // Second pass: calculate metrics for each cohort period
     orders.forEach(order => {
+      if (!order.customer_id) return;
       const customerId = order.customer_id
       const cohortMonth = customerCohorts[customerId]
+      if (!cohortMonth) return;
+
       const orderDate = new Date(order.created_at)
       const cohortDate = new Date(cohortMonth + '-01')
       
       // Calculate period (months since cohort start)
-      const period = Math.floor((orderDate.getTime() - cohortDate.getTime()) / (30 * 24 * 60 * 60 * 1000))
+      const period = (orderDate.getFullYear() - cohortDate.getFullYear()) * 12 + (orderDate.getMonth() - cohortDate.getMonth())
       
       if (!cohortData[cohortMonth]) {
         cohortData[cohortMonth] = {}
@@ -307,22 +308,31 @@ async function generateCohortAnalysis(dateFilters?: { startDate: string; endDate
     
     Object.entries(cohortData).forEach(([cohortMonth, periods]) => {
       const cohortSize = periods[0]?.customers.size || 0
-      
-      Object.entries(periods).forEach(([periodStr, data]) => {
-        const period = parseInt(periodStr)
-        const customersRemaining = data.customers.size
-        const retentionRate = cohortSize > 0 ? (customersRemaining / cohortSize) * 100 : 0
-        const avgRevenuePerCustomer = cohortSize > 0 ? data.revenue / cohortSize : 0
+      if (cohortSize === 0) return; // Skip cohorts with no customers in period 0
+
+      let cumulativeRevenue = 0
+
+      const maxPeriod = Math.max(...Object.keys(periods).map(p => parseInt(p, 10)));
+
+      for (let p = 0; p <= maxPeriod; p++) {
+        const periodData = periods[p];
+        
+        const customersRemaining = periodData?.customers.size || 0;
+        const retentionRate = cohortSize > 0 ? (customersRemaining / cohortSize) * 100 : 0;
+        const periodRevenue = periodData?.revenue || 0;
+        cumulativeRevenue += periodRevenue;
+        
+        const avgRevenuePerCustomer = cohortSize > 0 ? cumulativeRevenue / cohortSize : 0;
         
         result.push({
           cohort_month: cohortMonth,
-          period_month: period,
+          period_month: p,
           customers_remaining: customersRemaining,
           retention_rate: retentionRate,
-          cumulative_revenue: data.revenue,
+          cumulative_revenue: cumulativeRevenue,
           avg_revenue_per_customer: avgRevenuePerCustomer
         })
-      })
+      }
     })
 
     return result.sort((a, b) => {
@@ -330,7 +340,7 @@ async function generateCohortAnalysis(dateFilters?: { startDate: string; endDate
         return a.cohort_month.localeCompare(b.cohort_month)
       }
       return a.period_month - b.period_month
-    }).slice(0, 50) // Limit results
+    })
   } catch (error) {
     console.error('Error generating cohort analysis:', error)
     return []
