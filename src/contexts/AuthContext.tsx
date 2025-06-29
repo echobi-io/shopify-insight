@@ -40,6 +40,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Helper to fetch merchant_id from profiles table
   const fetchMerchantId = async (userId: string) => {
+    // Special handling for dev admin user
+    if (userId === 'admin-dev-user') {
+      setMerchantId('11111111-1111-1111-1111-111111111111');
+      return;
+    }
+
     // Try profiles table first, fallback to User table if needed
     let { data, error } = await supabase
       .from('profiles')

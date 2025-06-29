@@ -19,6 +19,45 @@ export default function LoginPage() {
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [loginMethod, setLoginMethod] = useState<'password' | 'magic'>('password')
 
+  const handleAdminLogin = async () => {
+    setLoading(true)
+    try {
+      // Create a mock admin user session
+      const mockUser = {
+        id: 'admin-dev-user',
+        email: 'admin@dev.local',
+        aud: 'authenticated',
+        role: 'authenticated',
+        email_confirmed_at: new Date().toISOString(),
+        phone: '',
+        confirmed_at: new Date().toISOString(),
+        last_sign_in_at: new Date().toISOString(),
+        app_metadata: {},
+        user_metadata: {},
+        identities: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      
+      // Manually set the user in localStorage to simulate authentication
+      localStorage.setItem('sb-' + process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0] + '-auth-token', JSON.stringify({
+        access_token: 'dev-admin-token',
+        refresh_token: 'dev-admin-refresh',
+        expires_in: 3600,
+        expires_at: Date.now() + 3600000,
+        token_type: 'bearer',
+        user: mockUser
+      }))
+      
+      // Force a page reload to trigger auth state change
+      window.location.href = '/dashboard'
+    } catch (error) {
+      console.error('Admin login error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email || !password) return
@@ -197,6 +236,24 @@ export default function LoginPage() {
                       {loading ? 'Sending...' : 'Send Magic Link'}
                     </Button>
                   </form>
+                )}
+
+                {/* Development Admin Login */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="border-t pt-4">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleAdminLogin}
+                      className="w-full bg-orange-100 hover:bg-orange-200 text-orange-800 border-orange-300"
+                      disabled={loading}
+                    >
+                      🔧 Dev Admin Login (Bypass Auth)
+                    </Button>
+                    <p className="text-xs text-orange-600 text-center mt-1">
+                      Development only - bypasses authentication
+                    </p>
+                  </div>
                 )}
 
                 {/* Additional Links */}
