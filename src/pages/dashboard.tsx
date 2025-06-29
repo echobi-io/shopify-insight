@@ -161,6 +161,8 @@ export default function Dashboard() {
   const handleSectionChange = (section: string) => {
     if (section === 'churn-ltv') {
       router.push('/churn-ltv')
+    } else if (section === 'sales-analysis') {
+      router.push('/sales-analysis')
     } else {
       setActiveSection(section)
     }
