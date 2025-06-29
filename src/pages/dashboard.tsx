@@ -15,6 +15,7 @@ import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type 
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import Sidebar from '@/components/Sidebar'
 import DataDebugPanel from '@/components/DataDebugPanel'
+import MerchantIdFinder from '@/components/MerchantIdFinder'
 import SimpleKPICard from '@/components/SimpleKPICard'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111' // Hardcoded merchant ID matching sample data
@@ -908,7 +909,12 @@ export default function Dashboard() {
       case 'settings':
         return <PlaceholderSection title="Settings" icon={<Settings className="h-8 w-8 text-purple-600" />} />
       case 'debug':
-        return <DataDebugPanel />
+        return (
+          <div className="space-y-6">
+            <MerchantIdFinder />
+            <DataDebugPanel />
+          </div>
+        )
       default:
         return <DashboardSection />
     }
