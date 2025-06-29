@@ -15,10 +15,14 @@ import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useRouter } from 'next/router'
+import { useAuth } from '@/contexts/AuthContext'
 import { Calendar, HelpCircle } from 'lucide-react'
 import GraphExplanationModal from '@/components/GraphExplanationModal'
 
+const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
+
 const CustomerInsightsPage: React.FC = () => {
+  const { user } = useAuth()
   const router = useRouter()
   const [data, setData] = useState<CustomerInsightsData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -85,7 +89,7 @@ const CustomerInsightsPage: React.FC = () => {
       const dateFilters = getDateRangeFromTimeframe(dateRange, customStartDate, customEndDate)
       console.log('🔄 Loading customer insights data with date filters:', dateFilters)
       
-      const result = await getCustomerInsightsData(dateFilters)
+      const result = await getCustomerInsightsData(HARDCODED_MERCHANT_ID, dateFilters)
       setData(result)
     } catch (err) {
       console.error('Error loading customer insights data:', err)
