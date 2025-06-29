@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { BarChart3, Mail, Lock, ArrowLeft } from 'lucide-react'
-import { GoogleButton } from '@/components/GoogleButton'
+import GoogleButton from '@/components/GoogleButton'
 import Link from 'next/link'
 
 export default function LoginPage() {
