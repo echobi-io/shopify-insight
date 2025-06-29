@@ -323,7 +323,7 @@ export async function getSalesAnalysisKPIs(filters: FilterState, merchant_id: st
 
 export async function getRevenueTimeSeries(
   filters: FilterState, 
-  granularity: 'daily' | 'weekly' | 'monthly' = 'daily',
+  granularity: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' = 'daily',
   merchant_id: string = HARDCODED_MERCHANT_ID
 ): Promise<RevenueTimeSeriesData[]> {
   try {
@@ -366,6 +366,14 @@ export async function getRevenueTimeSeries(
         case 'monthly':
           key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
           break
+        case 'quarterly':
+          const quarter = Math.floor(date.getMonth() / 3) + 1
+          const quarterStartMonth = (quarter - 1) * 3 + 1
+          key = `${date.getFullYear()}-${String(quarterStartMonth).padStart(2, '0')}-01`
+          break
+        case 'yearly':
+          key = `${date.getFullYear()}-01-01`
+          break
         default:
           key = row.date
       }
@@ -401,7 +409,7 @@ export async function getRevenueTimeSeries(
 // Fallback function to get time series from orders table
 async function getRevenueTimeSeriesFromOrders(
   filters: FilterState,
-  granularity: 'daily' | 'weekly' | 'monthly',
+  granularity: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly',
   merchant_id: string
 ): Promise<RevenueTimeSeriesData[]> {
   try {
@@ -439,6 +447,14 @@ async function getRevenueTimeSeriesFromOrders(
           break
         case 'monthly':
           key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
+          break
+        case 'quarterly':
+          const quarter = Math.floor(date.getMonth() / 3) + 1
+          const quarterStartMonth = (quarter - 1) * 3 + 1
+          key = `${date.getFullYear()}-${String(quarterStartMonth).padStart(2, '0')}-01`
+          break
+        case 'yearly':
+          key = `${date.getFullYear()}-01-01`
           break
         default:
           key = date.toISOString().split('T')[0]

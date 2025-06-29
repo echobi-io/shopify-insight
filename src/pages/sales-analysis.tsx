@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -213,6 +214,7 @@ const InsightCard: React.FC<InsightCardProps> = ({ insight }) => {
 
 const SalesAnalysisPage: React.FC = () => {
   const { user } = useAuth()
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState('sales-analysis')
@@ -225,7 +227,7 @@ const SalesAnalysisPage: React.FC = () => {
   
   // Filter states
   const [dateRange, setDateRange] = useState('2023')
-  const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly'>('daily')
+  const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>('daily')
   const [channel, setChannel] = useState('all')
   const [segment, setSegment] = useState('all')
 
@@ -268,6 +270,21 @@ const SalesAnalysisPage: React.FC = () => {
     loadData()
   }, [dateRange, granularity, channel, segment])
 
+  // Handle section changes and routing
+  const handleSectionChange = (section: string) => {
+    if (section === 'sales-analysis') {
+      // Already on sales analysis page, just update state
+      setActiveSection(section)
+    } else if (section === 'churn-ltv') {
+      router.push('/churn-ltv')
+    } else if (section === 'dashboard') {
+      router.push('/dashboard')
+    } else {
+      // For other sections, go back to dashboard with that section
+      router.push(`/dashboard?section=${section}`)
+    }
+  }
+
   // Custom tooltip for charts
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -288,7 +305,7 @@ const SalesAnalysisPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-50">
-        <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
+        <Sidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
         <div className="flex-1 ml-[220px]">
           <Header />
           <div className="flex items-center justify-center h-full">
@@ -304,7 +321,7 @@ const SalesAnalysisPage: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
+      <Sidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
       
       <div className="flex-1 ml-[220px] overflow-auto">
         <Header />
@@ -334,7 +351,7 @@ const SalesAnalysisPage: React.FC = () => {
                   </SelectContent>
                 </Select>
                 
-                <Select value={granularity} onValueChange={(value: 'daily' | 'weekly' | 'monthly') => setGranularity(value)}>
+                <Select value={granularity} onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly') => setGranularity(value)}>
                   <SelectTrigger className="w-32">
                     <SelectValue />
                   </SelectTrigger>
@@ -342,6 +359,8 @@ const SalesAnalysisPage: React.FC = () => {
                     <SelectItem value="daily">Daily</SelectItem>
                     <SelectItem value="weekly">Weekly</SelectItem>
                     <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
