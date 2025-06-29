@@ -75,7 +75,9 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.0.0",
     "yup": "^1.4.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@prisma/client": "^5.7.1",
+    "prisma": "^5.7.1"
   },
   "devDependencies": {
     "@types/lodash.throttle": "^4.1.9",

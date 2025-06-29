@@ -1,19 +1,12 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { AuthContext } from '@/contexts/AuthContext';
 
 const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/auth/callback'];
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, initializing } = useContext(AuthContext);
+  const { user, initializing, isDevAdmin } = useContext(AuthContext);
   const router = useRouter();
-  const [isDevAdmin, setIsDevAdmin] = useState(false);
-
-  useEffect(() => {
-    // Check for dev admin mode
-    const devAdminMode = localStorage.getItem('dev-admin-mode') === 'true';
-    setIsDevAdmin(devAdminMode);
-  }, []);
 
   useEffect(() => {
     if (!initializing && !user && !isDevAdmin && !publicRoutes.includes(router.pathname)) {
@@ -23,8 +16,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   if (initializing) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
       </div>
     );
   }

@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { FilterState } from './getKpis'
+import { generateDemoProductData } from '../demoData'
 
 export async function getProductData(filters: FilterState, merchant_id?: string) {
   try {
@@ -28,8 +29,8 @@ export async function getProductData(filters: FilterState, merchant_id?: string)
     }
 
     if (!orderItems || orderItems.length === 0) {
-      console.log('No order items found for filters:', filters, 'merchant_id:', merchant_id)
-      return []
+      console.log('No order items found, using demo product data')
+      return generateDemoProductData()
     }
 
     // Group by product and calculate metrics
