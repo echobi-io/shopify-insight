@@ -56,10 +56,12 @@ const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 // Date range presets
 const DATE_RANGES = [
+  { label: 'All Time', value: 'all' },
   { label: 'Last 30 Days', value: '30d' },
   { label: 'Last 3 Months', value: '3m' },
   { label: 'Last 12 Months', value: '12m' },
   { label: 'Year to Date', value: 'ytd' },
+  { label: '2023 Data', value: '2023' },
   { label: 'Custom', value: 'custom' }
 ]
 
@@ -70,6 +72,13 @@ function getDateRange(range: string): { startDate: string; endDate: string } {
   let startDate: string
 
   switch (range) {
+    case 'all':
+      // Go back to 2020 to capture all historical data
+      startDate = new Date('2020-01-01').toISOString()
+      break
+    case '2023':
+      startDate = new Date('2023-01-01').toISOString()
+      return { startDate, endDate: new Date('2023-12-31T23:59:59.999Z').toISOString() }
     case '30d':
       startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
       break
@@ -215,7 +224,7 @@ const SalesAnalysisPage: React.FC = () => {
   const [insights, setInsights] = useState<SalesInsight[]>([])
   
   // Filter states
-  const [dateRange, setDateRange] = useState('30d')
+  const [dateRange, setDateRange] = useState('2023')
   const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly'>('daily')
   const [channel, setChannel] = useState('all')
   const [segment, setSegment] = useState('all')

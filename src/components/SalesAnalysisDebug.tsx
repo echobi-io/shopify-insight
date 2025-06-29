@@ -59,17 +59,21 @@ export const SalesAnalysisDebug: React.FC = () => {
         sample: orders?.slice(0, 2) || []
       }
 
-      // Check if tables exist at all
-      const { data: tables, error: tablesError } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .in('table_name', ['orders', 'daily_revenue_summary', 'channel_performance_summary'])
+      // Check if tables exist by trying to query them
+      const tableChecks = await Promise.allSettled([
+        supabase.from('orders').select('id').limit(1),
+        supabase.from('daily_revenue_summary').select('merchant_id').limit(1),
+        supabase.from('channel_performance_summary').select('merchant_id').limit(1)
+      ])
 
       results.tableCheck = {
-        exists: !tablesError,
-        error: tablesError?.message,
-        tables: tables || []
+        exists: true,
+        error: null,
+        tables: [
+          { table_name: 'orders', exists: tableChecks[0].status === 'fulfilled' },
+          { table_name: 'daily_revenue_summary', exists: tableChecks[1].status === 'fulfilled' },
+          { table_name: 'channel_performance_summary', exists: tableChecks[2].status === 'fulfilled' }
+        ]
       }
 
     } catch (error) {
