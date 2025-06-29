@@ -12,6 +12,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { getCustomerInsightsData, getCustomerDetails, CustomerInsightsData, ChurnPrediction, LtvPrediction, CohortData, CustomerCluster } from '@/lib/fetchers/getCustomerInsightsData'
 import { exportToCSV } from '@/lib/utils/exportUtils'
 import Sidebar from '@/components/Sidebar'
+import Header from '@/components/Header'
+import ProtectedRoute from '@/components/ProtectedRoute'
 import { useRouter } from 'next/router'
 
 const CustomerInsightsPage: React.FC = () => {
@@ -124,9 +126,10 @@ const CustomerInsightsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen">
+      <div className="flex h-screen bg-gray-50">
         <Sidebar activeSection="customer-insights" onSectionChange={handleSectionChange} />
-        <div className="flex-1 ml-[220px] p-8">
+        <div className="flex-1 ml-[220px]">
+          <Header />
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
@@ -140,9 +143,10 @@ const CustomerInsightsPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="flex h-screen">
+      <div className="flex h-screen bg-gray-50">
         <Sidebar activeSection="customer-insights" onSectionChange={handleSectionChange} />
-        <div className="flex-1 ml-[220px] p-8">
+        <div className="flex-1 ml-[220px]">
+          <Header />
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <p className="text-red-600 mb-4">{error}</p>
@@ -156,9 +160,10 @@ const CustomerInsightsPage: React.FC = () => {
 
   if (!data) {
     return (
-      <div className="flex h-screen">
+      <div className="flex h-screen bg-gray-50">
         <Sidebar activeSection="customer-insights" onSectionChange={handleSectionChange} />
-        <div className="flex-1 ml-[220px] p-8">
+        <div className="flex-1 ml-[220px]">
+          <Header />
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-600">Insufficient data to generate customer insights yet. We need at least 60 days of transaction data.</p>
           </div>
@@ -172,6 +177,7 @@ const CustomerInsightsPage: React.FC = () => {
       <Sidebar activeSection="customer-insights" onSectionChange={handleSectionChange} />
       
       <div className="flex-1 ml-[220px] overflow-auto">
+        <Header />
         <div className="p-8">
           {/* Header */}
           <div className="mb-8">
@@ -851,4 +857,10 @@ const CustomerInsightsPage: React.FC = () => {
   )
 }
 
-export default CustomerInsightsPage
+export default function CustomerInsights() {
+  return (
+    <ProtectedRoute>
+      <CustomerInsightsPage />
+    </ProtectedRoute>
+  )
+}
