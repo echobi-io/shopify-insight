@@ -41,6 +41,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
+import { SalesAnalysisDebug } from '@/components/SalesAnalysisDebug'
 import { FilterState } from '@/lib/fetchers/getKpis'
 import { 
   getSalesAnalysisData,
@@ -337,6 +338,9 @@ const SalesAnalysisPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Debug Component - Temporary */}
+          <SalesAnalysisDebug />
 
           {/* Error Alert */}
           {error && (
