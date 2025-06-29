@@ -89,9 +89,9 @@ export interface CustomerInsightsData {
   }>
 }
 
-export async function getCustomerInsightsData(): Promise<CustomerInsightsData> {
+export async function getCustomerInsightsData(dateFilters?: { startDate: string; endDate: string }): Promise<CustomerInsightsData> {
   try {
-    console.log('Fetching customer insights data...')
+    console.log('Fetching customer insights data with filters:', dateFilters)
 
     // Get customer retention summary (base metrics)
     const { data: customerSegments, error: segmentError } = await supabase
@@ -104,7 +104,7 @@ export async function getCustomerInsightsData(): Promise<CustomerInsightsData> {
     }
 
     // Get churn predictions with customer details
-    const { data: churnData, error: churnError } = await supabase
+    let churnQuery = supabase
       .from('churn_predictions')
       .select(`
         *,
@@ -117,14 +117,21 @@ export async function getCustomerInsightsData(): Promise<CustomerInsightsData> {
         )
       `)
       .eq('merchant_id', MERCHANT_ID)
-      .order('churn_probability', { ascending: false })
+
+    if (dateFilters) {
+      churnQuery = churnQuery
+        .gte('predicted_at', dateFilters.startDate)
+        .lte('predicted_at', dateFilters.endDate)
+    }
+
+    const { data: churnData, error: churnError } = await churnQuery.order('churn_probability', { ascending: false })
 
     if (churnError) {
       console.error('Error fetching churn predictions:', churnError)
     }
 
     // Get LTV predictions with customer details
-    const { data: ltvData, error: ltvError } = await supabase
+    let ltvQuery = supabase
       .from('ltv_predictions')
       .select(`
         *,
@@ -136,7 +143,14 @@ export async function getCustomerInsightsData(): Promise<CustomerInsightsData> {
         )
       `)
       .eq('merchant_id', MERCHANT_ID)
-      .order('predicted_ltv', { ascending: false })
+
+    if (dateFilters) {
+      ltvQuery = ltvQuery
+        .gte('predicted_at', dateFilters.startDate)
+        .lte('predicted_at', dateFilters.endDate)
+    }
+
+    const { data: ltvData, error: ltvError } = await ltvQuery.order('predicted_ltv', { ascending: false })
 
     if (ltvError) {
       console.error('Error fetching LTV predictions:', ltvError)
@@ -149,13 +163,13 @@ export async function getCustomerInsightsData(): Promise<CustomerInsightsData> {
     }))
 
     // Get customer clusters
-    const customerClusters = await getCustomerClusters()
+    const customerClusters = await getCustomerClusters(dateFilters)
 
     // Generate cohort analysis
-    const cohortAnalysis = await generateCohortAnalysis()
+    const cohortAnalysis = await generateCohortAnalysis(dateFilters)
 
     // Calculate KPIs
-    const totalActiveCustomers = await getTotalActiveCustomers()
+    const totalActiveCustomers = await getTotalActiveCustomers(dateFilters)
     const customersAtHighRisk = churnData?.filter(c => c.churn_band === 'High').length || 0
     const revenueAtRisk = churnData?.reduce((sum, c) => {
       return sum + (c.churn_band === 'High' || c.churn_band === 'Medium' ? c.revenue_at_risk : 0)
@@ -164,7 +178,7 @@ export async function getCustomerInsightsData(): Promise<CustomerInsightsData> {
     const lifetimeValuePotential = enhancedLtvData?.reduce((sum, l) => sum + l.predicted_ltv, 0) || 0
 
     // Generate trend and distribution data
-    const churnTrendData = await generateChurnTrendData()
+    const churnTrendData = await generateChurnTrendData(dateFilters)
     const ltvDistribution = generateLtvDistribution(enhancedLtvData || [])
 
     return {
@@ -189,13 +203,24 @@ export async function getCustomerInsightsData(): Promise<CustomerInsightsData> {
   }
 }
 
-async function getTotalActiveCustomers(): Promise<number> {
+async function getTotalActiveCustomers(dateFilters?: { startDate: string; endDate: string }): Promise<number> {
   try {
-    const { count, error } = await supabase
+    let query = supabase
       .from('customers')
       .select('*', { count: 'exact', head: true })
       .eq('merchant_id', MERCHANT_ID)
-      .gte('last_order_date', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString())
+
+    if (dateFilters) {
+      // Filter customers who had orders in the date range
+      query = query
+        .gte('last_order_date', dateFilters.startDate)
+        .lte('last_order_date', dateFilters.endDate)
+    } else {
+      // Default: active in last 60 days
+      query = query.gte('last_order_date', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString())
+    }
+
+    const { count, error } = await query
 
     if (error) {
       console.error('Error counting active customers:', error)
@@ -209,16 +234,25 @@ async function getTotalActiveCustomers(): Promise<number> {
   }
 }
 
-async function generateCohortAnalysis(): Promise<CohortData[]> {
+async function generateCohortAnalysis(dateFilters?: { startDate: string; endDate: string }): Promise<CohortData[]> {
   try {
     // Generate cohort analysis from orders data
-    const { data: orders, error } = await supabase
+    let query = supabase
       .from('orders')
       .select('customer_id, created_at, total_price')
       .eq('merchant_id', MERCHANT_ID)
       .not('customer_id', 'is', null)
-      .gte('created_at', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString())
-      .order('created_at', { ascending: true })
+
+    if (dateFilters) {
+      query = query
+        .gte('created_at', dateFilters.startDate)
+        .lte('created_at', dateFilters.endDate)
+    } else {
+      // Default: last year
+      query = query.gte('created_at', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString())
+    }
+
+    const { data: orders, error } = await query.order('created_at', { ascending: true })
 
     if (error) {
       console.error('Error fetching orders for cohort analysis:', error)
@@ -303,7 +337,7 @@ async function generateCohortAnalysis(): Promise<CohortData[]> {
   }
 }
 
-async function getCustomerClusters(): Promise<CustomerCluster[]> {
+async function getCustomerClusters(dateFilters?: { startDate: string; endDate: string }): Promise<CustomerCluster[]> {
   try {
     // Check if customer_clusters table exists and has data
     const { data: clusters, error } = await supabase
@@ -377,15 +411,24 @@ async function getCustomerClusters(): Promise<CustomerCluster[]> {
   }
 }
 
-async function generateChurnTrendData() {
+async function generateChurnTrendData(dateFilters?: { startDate: string; endDate: string }) {
   try {
     // Get historical churn data by aggregating by date
-    const { data, error } = await supabase
+    let query = supabase
       .from('churn_predictions')
       .select('churn_band, revenue_at_risk, predicted_at')
       .eq('merchant_id', MERCHANT_ID)
-      .gte('predicted_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-      .order('predicted_at', { ascending: true })
+
+    if (dateFilters) {
+      query = query
+        .gte('predicted_at', dateFilters.startDate)
+        .lte('predicted_at', dateFilters.endDate)
+    } else {
+      // Default: last 30 days
+      query = query.gte('predicted_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    }
+
+    const { data, error } = await query.order('predicted_at', { ascending: true })
 
     if (error) {
       console.error('Error fetching churn trend data:', error)

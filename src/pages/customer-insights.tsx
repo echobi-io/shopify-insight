@@ -15,6 +15,7 @@ import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useRouter } from 'next/router'
+import { Calendar } from 'lucide-react'
 
 const CustomerInsightsPage: React.FC = () => {
   const router = useRouter()
@@ -27,22 +28,101 @@ const CustomerInsightsPage: React.FC = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
   const [customerDetailsOpen, setCustomerDetailsOpen] = useState(false)
   const [cohortPeriod, setCohortPeriod] = useState<'monthly' | 'quarterly'>('monthly')
+  
+  // Date filter states
+  const [dateRange, setDateRange] = useState('all_2024')
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
+
+  // Date range options
+  const timeframeOptions = [
+    { value: 'last_7_days', label: 'Last 7 Days' },
+    { value: 'last_30_days', label: 'Last 30 Days' },
+    { value: 'last_90_days', label: 'Last 90 Days' },
+    { value: 'last_6_months', label: 'Last 6 Months' },
+    { value: 'last_year', label: 'Last Year' },
+    { value: 'this_month', label: 'This Month' },
+    { value: 'this_year', label: 'This Year' },
+    { value: 'all_2024', label: 'All of 2024' },
+    { value: 'all_2023', label: 'All of 2023' },
+    { value: 'custom', label: 'Custom Range' }
+  ]
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [dateRange, customStartDate, customEndDate])
 
   const loadData = async () => {
     try {
       setLoading(true)
       setError(null)
-      const result = await getCustomerInsightsData()
+      
+      // Get date range based on selection
+      const dateFilters = getDateRangeFromTimeframe(dateRange, customStartDate, customEndDate)
+      console.log('🔄 Loading customer insights data with date filters:', dateFilters)
+      
+      const result = await getCustomerInsightsData(dateFilters)
       setData(result)
     } catch (err) {
       console.error('Error loading customer insights data:', err)
       setError('Failed to load customer insights data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Helper function to get date range
+  const getDateRangeFromTimeframe = (timeframe: string, startDate?: string, endDate?: string) => {
+    const now = new Date()
+    let start: Date
+    let end: Date = now
+
+    switch (timeframe) {
+      case 'last_7_days':
+        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        break
+      case 'last_30_days':
+        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        break
+      case 'last_90_days':
+        start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        break
+      case 'last_6_months':
+        start = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000)
+        break
+      case 'last_year':
+        start = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+        break
+      case 'this_month':
+        start = new Date(now.getFullYear(), now.getMonth(), 1)
+        break
+      case 'this_year':
+        start = new Date(now.getFullYear(), 0, 1)
+        break
+      case 'all_2024':
+        start = new Date('2024-01-01')
+        end = new Date('2024-12-31T23:59:59.999Z')
+        break
+      case 'all_2023':
+        start = new Date('2023-01-01')
+        end = new Date('2023-12-31T23:59:59.999Z')
+        break
+      case 'custom':
+        if (startDate && endDate) {
+          start = new Date(startDate)
+          end = new Date(endDate)
+        } else {
+          start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        }
+        break
+      default:
+        start = new Date('2024-01-01')
+        end = new Date('2024-12-31T23:59:59.999Z')
+    }
+
+    return {
+      startDate: start.toISOString(),
+      endDate: end.toISOString()
     }
   }
 
@@ -181,8 +261,62 @@ const CustomerInsightsPage: React.FC = () => {
         <div className="p-8">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Customer Insights</h1>
-            <p className="text-gray-600">AI-powered customer analytics, churn prediction, and lifetime value modeling</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Customer Insights</h1>
+                <p className="text-gray-600">AI-powered customer analytics, churn prediction, and lifetime value modeling</p>
+              </div>
+              
+              {/* Date Filter */}
+              <div className="flex items-center space-x-4">
+                <Select value={dateRange} onValueChange={setDateRange}>
+                  <SelectTrigger className="w-48">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeframeOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {dateRange === 'custom' && (
+                  <>
+                    <Input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="w-40"
+                      placeholder="Start Date"
+                    />
+                    <Input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="w-40"
+                      placeholder="End Date"
+                    />
+                  </>
+                )}
+                
+                <Button 
+                  onClick={loadData} 
+                  variant="outline" 
+                  size="sm"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-2"></div>
+                  ) : (
+                    <Calendar className="h-4 w-4 mr-2" />
+                  )}
+                  Refresh
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* KPI Cards */}
