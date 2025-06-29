@@ -275,8 +275,8 @@ const SalesAnalysisPage: React.FC = () => {
     if (section === 'sales-analysis') {
       // Already on sales analysis page, just update state
       setActiveSection(section)
-    } else if (section === 'churn-ltv') {
-      router.push('/churn-ltv')
+    } else if (section === 'customer-insights') {
+      router.push('/customer-insights')
     } else if (section === 'dashboard') {
       router.push('/dashboard')
     } else {
