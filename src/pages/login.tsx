@@ -239,7 +239,7 @@ export default function LoginPage() {
                 )}
 
                 {/* Development Admin Login */}
-                {process.env.NODE_ENV === 'development' && (
+                {(process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_CO_DEV_ENV) && (
                   <div className="border-t pt-4">
                     <Button
                       type="button"
