@@ -30,7 +30,13 @@ export interface AICommentaryData {
 
 export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKPIs> {
   try {
-    console.log('📊 Fetching dashboard KPIs for merchant:', merchant_id);
+    // Check for dev admin mode
+    const isDevAdmin = typeof window !== 'undefined' && localStorage.getItem('dev-admin-mode') === 'true';
+    const devMerchantId = typeof window !== 'undefined' ? localStorage.getItem('dev-admin-merchant-id') : null;
+    
+    const effectiveMerchantId = isDevAdmin && devMerchantId ? devMerchantId : merchant_id;
+    
+    console.log('📊 Fetching dashboard KPIs for merchant:', effectiveMerchantId, isDevAdmin ? '(dev admin mode)' : '');
 
     const today = new Date().toISOString().split('T')[0];
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -39,7 +45,7 @@ export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKP
     const { data: todayData, error: todayError } = await supabase
       .from('daily_revenue_summary')
       .select('total_orders, total_revenue')
-      .eq('merchant_id', merchant_id)
+      .eq('merchant_id', effectiveMerchantId)
       .eq('date', today)
       .single();
 
@@ -51,7 +57,7 @@ export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKP
     const { data: aovData, error: aovError } = await supabase
       .from('daily_revenue_summary')
       .select('total_orders, total_revenue')
-      .eq('merchant_id', merchant_id)
+      .eq('merchant_id', effectiveMerchantId)
       .gte('date', sevenDaysAgo)
       .lte('date', today);
 
@@ -71,7 +77,7 @@ export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKP
     const { data: newCustomersData, error: newCustomersError } = await supabase
       .from('customer_retention_summary')
       .select('customers_count')
-      .eq('merchant_id', merchant_id)
+      .eq('merchant_id', effectiveMerchantId)
       .eq('calculated_segment', 'new')
       .single();
 
@@ -95,8 +101,8 @@ export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKP
                    (result.avgOrderValue7d !== null && result.avgOrderValue7d > 0);
     
     if (!hasData) {
-      console.log('⚠️ No real data found in database for merchant:', merchant_id);
-      throw new Error(`No data found for merchant ${merchant_id}. Please check if data exists in your Supabase database.`);
+      console.log('⚠️ No real data found in database for merchant:', effectiveMerchantId);
+      throw new Error(`No data found for merchant ${effectiveMerchantId}. Please check if data exists in your Supabase database.`);
     }
     
     return result;

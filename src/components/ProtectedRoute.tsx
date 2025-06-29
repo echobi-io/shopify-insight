@@ -1,4 +1,4 @@
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { AuthContext } from '@/contexts/AuthContext';
 
@@ -7,12 +7,19 @@ const publicRoutes = ['/', '/login', '/signup', '/forgot-password', '/auth/callb
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, initializing } = useContext(AuthContext);
   const router = useRouter();
+  const [isDevAdmin, setIsDevAdmin] = useState(false);
 
   useEffect(() => {
-    if (!initializing && !user && !publicRoutes.includes(router.pathname)) {
+    // Check for dev admin mode
+    const devAdminMode = localStorage.getItem('dev-admin-mode') === 'true';
+    setIsDevAdmin(devAdminMode);
+  }, []);
+
+  useEffect(() => {
+    if (!initializing && !user && !isDevAdmin && !publicRoutes.includes(router.pathname)) {
       router.push('/login');
     }
-  }, [user, initializing, router]);
+  }, [user, initializing, isDevAdmin, router]);
 
   if (initializing) {
     return (
@@ -22,7 +29,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
 
-  if (!user && !publicRoutes.includes(router.pathname)) {
+  if (!user && !isDevAdmin && !publicRoutes.includes(router.pathname)) {
     return null;
   }
 

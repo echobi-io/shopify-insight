@@ -22,35 +22,12 @@ export default function LoginPage() {
   const handleAdminLogin = async () => {
     setLoading(true)
     try {
-      // Create a mock admin user session
-      const mockUser = {
-        id: 'admin-dev-user',
-        email: 'admin@dev.local',
-        aud: 'authenticated',
-        role: 'authenticated',
-        email_confirmed_at: new Date().toISOString(),
-        phone: '',
-        confirmed_at: new Date().toISOString(),
-        last_sign_in_at: new Date().toISOString(),
-        app_metadata: {},
-        user_metadata: {},
-        identities: [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
+      // Set a simple flag for dev admin mode
+      localStorage.setItem('dev-admin-mode', 'true')
+      localStorage.setItem('dev-admin-merchant-id', '11111111-1111-1111-1111-111111111111')
       
-      // Manually set the user in localStorage to simulate authentication
-      localStorage.setItem('sb-' + process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0] + '-auth-token', JSON.stringify({
-        access_token: 'dev-admin-token',
-        refresh_token: 'dev-admin-refresh',
-        expires_in: 3600,
-        expires_at: Date.now() + 3600000,
-        token_type: 'bearer',
-        user: mockUser
-      }))
-      
-      // Force a page reload to trigger auth state change
-      window.location.href = '/dashboard'
+      // Redirect to dashboard
+      router.push('/dashboard')
     } catch (error) {
       console.error('Admin login error:', error)
     } finally {

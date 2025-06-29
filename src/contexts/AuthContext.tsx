@@ -72,6 +72,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   React.useEffect(() => {
     const fetchSession = async () => {
+      // Check for dev admin mode first
+      const isDevAdmin = localStorage.getItem('dev-admin-mode') === 'true';
+      const devMerchantId = localStorage.getItem('dev-admin-merchant-id');
+      
+      if (isDevAdmin && devMerchantId) {
+        // Create a mock user for dev admin
+        const mockUser = {
+          id: 'admin-dev-user',
+          email: 'admin@dev.local',
+          aud: 'authenticated',
+          role: 'authenticated',
+          email_confirmed_at: new Date().toISOString(),
+          phone: '',
+          confirmed_at: new Date().toISOString(),
+          last_sign_in_at: new Date().toISOString(),
+          app_metadata: {},
+          user_metadata: {},
+          identities: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        } as any;
+        
+        setUser(mockUser);
+        setMerchantId(devMerchantId);
+        setInitializing(false);
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       if (user?.id) {
@@ -86,6 +114,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       setTimeout(async () => {
+        // Check for dev admin mode first
+        const isDevAdmin = localStorage.getItem('dev-admin-mode') === 'true';
+        const devMerchantId = localStorage.getItem('dev-admin-merchant-id');
+        
+        if (isDevAdmin && devMerchantId) {
+          // Don't override dev admin session
+          return;
+        }
+
         setUser(session?.user ?? null);
         if (session?.user?.id) {
           await fetchMerchantId(session.user.id);
@@ -222,6 +259,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const signOut = async () => {
+    // Clear dev admin mode
+    localStorage.removeItem('dev-admin-mode');
+    localStorage.removeItem('dev-admin-merchant-id');
+    
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast({
