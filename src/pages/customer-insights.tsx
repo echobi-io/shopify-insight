@@ -15,7 +15,8 @@ import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useRouter } from 'next/router'
-import { Calendar } from 'lucide-react'
+import { Calendar, HelpCircle } from 'lucide-react'
+import GraphExplanationModal from '@/components/GraphExplanationModal'
 
 const CustomerInsightsPage: React.FC = () => {
   const router = useRouter()
@@ -28,6 +29,7 @@ const CustomerInsightsPage: React.FC = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
   const [customerDetailsOpen, setCustomerDetailsOpen] = useState(false)
   const [cohortPeriod, setCohortPeriod] = useState<'monthly' | 'quarterly'>('monthly')
+  const [graphExplanationOpen, setGraphExplanationOpen] = useState(false)
   
   // Date filter states
   const [dateRange, setDateRange] = useState('all_2024')
@@ -262,9 +264,20 @@ const CustomerInsightsPage: React.FC = () => {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Customer Insights</h1>
-                <p className="text-gray-600">AI-powered customer analytics, churn prediction, and lifetime value modeling</p>
+              <div className="flex items-center gap-4">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Customer Insights</h1>
+                  <p className="text-gray-600">AI-powered customer analytics, churn prediction, and lifetime value modeling</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setGraphExplanationOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  Explain Graphs
+                </Button>
               </div>
               
               {/* Date Filter */}
@@ -987,6 +1000,12 @@ const CustomerInsightsPage: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Graph Explanation Modal */}
+      <GraphExplanationModal 
+        open={graphExplanationOpen} 
+        onOpenChange={setGraphExplanationOpen} 
+      />
     </div>
   )
 }
