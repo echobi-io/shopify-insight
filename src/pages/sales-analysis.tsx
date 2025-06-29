@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/router'
-import { motion } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   LineChart, 
   Line, 
@@ -22,8 +18,7 @@ import {
   ResponsiveContainer, 
   PieChart, 
   Pie, 
-  Cell,
-  Legend
+  Cell
 } from 'recharts'
 import { 
   TrendingUp, 
@@ -32,17 +27,12 @@ import {
   ShoppingCart, 
   Users, 
   Target,
-  Calendar,
-  Filter,
   AlertTriangle,
-  Info,
-  CheckCircle
+  RefreshCw
 } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
-import { SalesAnalysisDebug } from '@/components/SalesAnalysisDebug'
 import { FilterState } from '@/lib/fetchers/getKpis'
 import { 
   getSalesAnalysisData,
@@ -74,7 +64,6 @@ function getDateRange(range: string): { startDate: string; endDate: string } {
 
   switch (range) {
     case 'all':
-      // Go back to 2020 to capture all historical data
       startDate = new Date('2020-01-01').toISOString()
       break
     case '2023':
@@ -134,77 +123,23 @@ const KPICard: React.FC<KPICardProps> = ({ title, value, growth, icon, format = 
   }
 
   return (
-    <Card>
+    <Card className="card-minimal">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="p-2 bg-purple-100 rounded-lg">
+          <div>
+            <p className="text-sm font-light text-gray-600 mb-1">{title}</p>
+            <p className="text-2xl font-light text-black">{formatValue(value)}</p>
+          </div>
+          <div className="flex flex-col items-end">
+            <div className="text-gray-400 mb-2">
               {icon}
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">{title}</p>
-              <p className="text-2xl font-bold text-gray-900">{formatValue(value)}</p>
-            </div>
-          </div>
-          {growth !== null && (
-            <div className={`flex items-center space-x-1 ${getGrowthColor(growth)}`}>
-              {getGrowthIcon(growth)}
-              <span className="text-sm font-medium">{Math.abs(growth).toFixed(1)}%</span>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-// Insight Card Component
-interface InsightCardProps {
-  insight: SalesInsight
-}
-
-const InsightCard: React.FC<InsightCardProps> = ({ insight }) => {
-  const getInsightIcon = (type: string) => {
-    switch (type) {
-      case 'growth':
-        return <TrendingUp className="w-5 h-5 text-green-600" />
-      case 'decline':
-        return <TrendingDown className="w-5 h-5 text-red-600" />
-      case 'anomaly':
-        return <AlertTriangle className="w-5 h-5 text-yellow-600" />
-      case 'channel':
-        return <Target className="w-5 h-5 text-blue-600" />
-      default:
-        return <Info className="w-5 h-5 text-gray-600" />
-    }
-  }
-
-  const getImpactColor = (impact: string) => {
-    switch (impact) {
-      case 'high':
-        return 'bg-red-100 text-red-800'
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'low':
-        return 'bg-green-100 text-green-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-start space-x-3">
-          {getInsightIcon(insight.type)}
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-semibold text-gray-900">{insight.title}</h4>
-              <Badge className={getImpactColor(insight.impact)}>
-                {insight.impact}
-              </Badge>
-            </div>
-            <p className="text-sm text-gray-600">{insight.description}</p>
+            {growth !== null && (
+              <div className={`flex items-center text-sm font-light ${getGrowthColor(growth)}`}>
+                {getGrowthIcon(growth)}
+                <span className="ml-1">{Math.abs(growth).toFixed(1)}%</span>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
@@ -213,11 +148,8 @@ const InsightCard: React.FC<InsightCardProps> = ({ insight }) => {
 }
 
 const SalesAnalysisPage: React.FC = () => {
-  const { user } = useAuth()
-  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeSection, setActiveSection] = useState('sales-analysis')
   
   // Data states
   const [kpis, setKpis] = useState<SalesAnalysisKPIs | null>(null)
@@ -228,8 +160,6 @@ const SalesAnalysisPage: React.FC = () => {
   // Filter states
   const [dateRange, setDateRange] = useState('2023')
   const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>('daily')
-  const [channel, setChannel] = useState('all')
-  const [segment, setSegment] = useState('all')
 
   // Load data
   const loadData = async () => {
@@ -240,9 +170,7 @@ const SalesAnalysisPage: React.FC = () => {
       const { startDate, endDate } = getDateRange(dateRange)
       const filters: FilterState = {
         startDate,
-        endDate,
-        channel: channel === 'all' ? undefined : channel,
-        segment: segment === 'all' ? undefined : segment
+        endDate
       }
 
       console.log('🔄 Loading sales analysis data with filters:', filters)
@@ -268,31 +196,16 @@ const SalesAnalysisPage: React.FC = () => {
 
   useEffect(() => {
     loadData()
-  }, [dateRange, granularity, channel, segment])
-
-  // Handle section changes and routing
-  const handleSectionChange = (section: string) => {
-    if (section === 'sales-analysis') {
-      // Already on sales analysis page, just update state
-      setActiveSection(section)
-    } else if (section === 'customer-insights') {
-      router.push('/customer-insights')
-    } else if (section === 'dashboard') {
-      router.push('/dashboard')
-    } else {
-      // For other sections, go back to dashboard with that section
-      router.push(`/dashboard?section=${section}`)
-    }
-  }
+  }, [dateRange, granularity])
 
   // Custom tooltip for charts
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{label}</p>
+        <div className="bg-white p-3 border border-gray-200 shadow-sm">
+          <p className="font-medium text-black">{label}</p>
           {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
+            <p key={index} className="text-sm font-light" style={{ color: entry.color }}>
               {entry.name}: {entry.name.includes('Revenue') ? `$${entry.value.toLocaleString()}` : entry.value.toLocaleString()}
             </p>
           ))}
@@ -305,13 +218,13 @@ const SalesAnalysisPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-50">
-        <Sidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
-        <div className="flex-1 ml-[220px]">
+        <Sidebar />
+        <div className="flex-1 ml-[240px]">
           <Header />
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading sales analysis...</p>
+              <RefreshCw className="h-8 w-8 animate-spin text-black mx-auto mb-4" />
+              <p className="text-gray-600 font-light">Loading sales analysis...</p>
             </div>
           </div>
         </div>
@@ -321,25 +234,24 @@ const SalesAnalysisPage: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
+      <Sidebar />
       
-      <div className="flex-1 ml-[220px] overflow-auto">
+      <div className="flex-1 ml-[240px] overflow-auto">
         <Header />
         
-        <div className="p-6">
+        <div className="p-8">
           {/* Page Header */}
-          <div className="mb-6">
+          <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Sales Analysis</h1>
-                <p className="text-gray-600 mt-1">AI-powered insights into your sales performance and revenue trends</p>
+                <h1 className="text-3xl font-light text-black mb-2">Sales Analysis</h1>
+                <p className="text-gray-600 font-light">Revenue trends and performance insights</p>
               </div>
               
               {/* Filters */}
               <div className="flex items-center space-x-4">
                 <Select value={dateRange} onValueChange={setDateRange}>
                   <SelectTrigger className="w-40">
-                    <Calendar className="w-4 h-4 mr-2" />
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -363,136 +275,101 @@ const SalesAnalysisPage: React.FC = () => {
                     <SelectItem value="yearly">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
+
+                <Button 
+                  onClick={loadData} 
+                  variant="outline" 
+                  size="sm"
+                  disabled={loading}
+                  className="font-light"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
               </div>
             </div>
           </div>
-
-          {/* Debug Component - Temporary */}
-          <SalesAnalysisDebug />
 
           {/* Error Alert */}
           {error && (
             <Alert className="mb-6 border-red-200 bg-red-50">
               <AlertTriangle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">
+              <AlertDescription className="text-red-800 font-light">
                 {error}
               </AlertDescription>
             </Alert>
           )}
 
           {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <KPICard
               title="Total Revenue"
               value={kpis?.totalRevenue || null}
               growth={kpis?.revenueGrowth || null}
-              icon={<DollarSign className="w-5 h-5 text-purple-600" />}
+              icon={<DollarSign className="w-5 h-5" />}
               format="currency"
             />
             <KPICard
               title="Total Orders"
               value={kpis?.totalOrders || null}
               growth={kpis?.ordersGrowth || null}
-              icon={<ShoppingCart className="w-5 h-5 text-purple-600" />}
+              icon={<ShoppingCart className="w-5 h-5" />}
             />
             <KPICard
               title="Average Order Value"
               value={kpis?.avgOrderValue || null}
               growth={kpis?.aovGrowth || null}
-              icon={<Target className="w-5 h-5 text-purple-600" />}
+              icon={<Target className="w-5 h-5" />}
               format="currency"
             />
             <KPICard
-              title="Top Channel"
-              value={null}
-              growth={null}
-              icon={<Users className="w-5 h-5 text-purple-600" />}
-            />
-            <KPICard
-              title="Growth Driver"
-              value={null}
-              growth={null}
-              icon={<TrendingUp className="w-5 h-5 text-purple-600" />}
+              title="New Customers"
+              value={kpis?.newCustomers || null}
+              growth={kpis?.customerGrowth || null}
+              icon={<Users className="w-5 h-5" />}
             />
           </div>
 
-          {/* Top Channel and Growth Driver Info */}
-          {(kpis?.topChannel || kpis?.growthDriver) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {kpis.topChannel && (
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <Users className="w-5 h-5 text-purple-600" />
-                      <div>
-                        <p className="text-sm text-gray-600">Top Performing Channel</p>
-                        <p className="text-lg font-semibold text-gray-900">{kpis.topChannel}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {kpis.growthDriver && (
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <TrendingUp className="w-5 h-5 text-purple-600" />
-                      <div>
-                        <p className="text-sm text-gray-600">Primary Growth Driver</p>
-                        <p className="text-lg font-semibold text-gray-900 capitalize">
-                          {kpis.growthDriver === 'aov' ? 'Average Order Value' : 
-                           kpis.growthDriver === 'volume' ? 'Order Volume' : 'Mixed Factors'}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
           {/* Main Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Revenue Over Time */}
-            <Card>
+            <Card className="card-minimal">
               <CardHeader>
-                <CardTitle>Revenue Over Time</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg font-medium text-black">Revenue Over Time</CardTitle>
+                <CardDescription className="font-light text-gray-600">
                   {granularity.charAt(0).toUpperCase() + granularity.slice(1)} revenue trend
-                  {kpis?.revenueGrowth && (
-                    <Badge className={`ml-2 ${kpis.revenueGrowth >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {kpis.revenueGrowth >= 0 ? '+' : ''}{kpis.revenueGrowth.toFixed(1)}% vs previous period
-                    </Badge>
-                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {timeSeriesData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={timeSeriesData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="date" 
-                        tickFormatter={(value) => new Date(value).toLocaleDateString()}
-                      />
-                      <YAxis tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area 
-                        type="monotone" 
-                        dataKey="revenue" 
-                        stroke="#8b5cf6" 
-                        fill="#8b5cf6" 
-                        fillOpacity={0.3}
-                        name="Revenue"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={timeSeriesData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="date" 
+                          fontSize={12}
+                          stroke="#666"
+                          tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                        />
+                        <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toLocaleString()}`} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Area 
+                          type="monotone" 
+                          dataKey="revenue" 
+                          stroke="#3b82f6" 
+                          fill="#3b82f6" 
+                          fillOpacity={0.1}
+                          name="Revenue"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
                 ) : (
-                  <div className="flex items-center justify-center h-[300px] text-gray-500">
+                  <div className="flex items-center justify-center h-64 text-gray-500">
                     <div className="text-center">
                       <TrendingUp className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p>No revenue data available for the selected period</p>
+                      <p className="font-light">No revenue data available for the selected period</p>
                     </div>
                   </div>
                 )}
@@ -500,32 +377,36 @@ const SalesAnalysisPage: React.FC = () => {
             </Card>
 
             {/* Order Volume vs Revenue */}
-            <Card>
+            <Card className="card-minimal">
               <CardHeader>
-                <CardTitle>Order Volume vs Revenue</CardTitle>
-                <CardDescription>Dual-axis view of orders and revenue correlation</CardDescription>
+                <CardTitle className="text-lg font-medium text-black">Order Volume vs Revenue</CardTitle>
+                <CardDescription className="font-light text-gray-600">Dual-axis view of orders and revenue correlation</CardDescription>
               </CardHeader>
               <CardContent>
                 {timeSeriesData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <ComposedChart data={timeSeriesData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="date" 
-                        tickFormatter={(value) => new Date(value).toLocaleDateString()}
-                      />
-                      <YAxis yAxisId="left" tickFormatter={(value) => value.toLocaleString()} />
-                      <YAxis yAxisId="right" orientation="right" tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar yAxisId="left" dataKey="orders" fill="#3b82f6" name="Orders" />
-                      <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#8b5cf6" strokeWidth={2} name="Revenue" />
-                    </ComposedChart>
-                  </ResponsiveContainer>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={timeSeriesData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="date" 
+                          fontSize={12}
+                          stroke="#666"
+                          tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                        />
+                        <YAxis yAxisId="left" fontSize={12} stroke="#666" tickFormatter={(value) => value.toLocaleString()} />
+                        <YAxis yAxisId="right" orientation="right" fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toLocaleString()}`} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar yAxisId="left" dataKey="orders" fill="#10b981" name="Orders" />
+                        <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} name="Revenue" />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
                 ) : (
-                  <div className="flex items-center justify-center h-[300px] text-gray-500">
+                  <div className="flex items-center justify-center h-64 text-gray-500">
                     <div className="text-center">
                       <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p>No order data available for the selected period</p>
+                      <p className="font-light">No order data available for the selected period</p>
                     </div>
                   </div>
                 )}
@@ -534,38 +415,42 @@ const SalesAnalysisPage: React.FC = () => {
           </div>
 
           {/* Secondary Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Average Order Value Trend */}
-            <Card>
+            <Card className="card-minimal">
               <CardHeader>
-                <CardTitle>Average Order Value Trend</CardTitle>
-                <CardDescription>Track pricing and bundling effectiveness</CardDescription>
+                <CardTitle className="text-lg font-medium text-black">Average Order Value Trend</CardTitle>
+                <CardDescription className="font-light text-gray-600">Track pricing and bundling effectiveness</CardDescription>
               </CardHeader>
               <CardContent>
                 {timeSeriesData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={timeSeriesData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="date" 
-                        tickFormatter={(value) => new Date(value).toLocaleDateString()}
-                      />
-                      <YAxis tickFormatter={(value) => `$${value.toFixed(0)}`} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Line 
-                        type="monotone" 
-                        dataKey="avgOrderValue" 
-                        stroke="#10b981" 
-                        strokeWidth={2}
-                        name="AOV"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={timeSeriesData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="date" 
+                          fontSize={12}
+                          stroke="#666"
+                          tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                        />
+                        <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toFixed(0)}`} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Line 
+                          type="monotone" 
+                          dataKey="avgOrderValue" 
+                          stroke="#10b981" 
+                          strokeWidth={2}
+                          name="AOV"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 ) : (
-                  <div className="flex items-center justify-center h-[300px] text-gray-500">
+                  <div className="flex items-center justify-center h-64 text-gray-500">
                     <div className="text-center">
                       <Target className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p>No AOV data available for the selected period</p>
+                      <p className="font-light">No AOV data available for the selected period</p>
                     </div>
                   </div>
                 )}
@@ -573,37 +458,39 @@ const SalesAnalysisPage: React.FC = () => {
             </Card>
 
             {/* Revenue by Channel */}
-            <Card>
+            <Card className="card-minimal">
               <CardHeader>
-                <CardTitle>Revenue by Channel</CardTitle>
-                <CardDescription>Channel performance breakdown</CardDescription>
+                <CardTitle className="text-lg font-medium text-black">Revenue by Channel</CardTitle>
+                <CardDescription className="font-light text-gray-600">Channel performance breakdown</CardDescription>
               </CardHeader>
               <CardContent>
                 {channelData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={channelData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ channel, percentage }) => `${channel}: ${percentage}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="revenue"
-                      >
-                        {channelData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={`hsl(${index * 45}, 70%, 60%)`} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: any) => [`$${value.toLocaleString()}`, 'Revenue']} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={channelData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ channel, percentage }) => `${channel}: ${percentage}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="revenue"
+                        >
+                          {channelData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={`hsl(${index * 45}, 70%, 60%)`} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: any) => [`$${value.toLocaleString()}`, 'Revenue']} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
                 ) : (
-                  <div className="flex items-center justify-center h-[300px] text-gray-500">
+                  <div className="flex items-center justify-center h-64 text-gray-500">
                     <div className="text-center">
                       <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p>No channel data available for the selected period</p>
+                      <p className="font-light">No channel data available for the selected period</p>
                     </div>
                   </div>
                 )}
@@ -611,38 +498,16 @@ const SalesAnalysisPage: React.FC = () => {
             </Card>
           </div>
 
-          {/* AI Insights */}
-          {insights.length > 0 && (
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <CheckCircle className="w-5 h-5 text-purple-600" />
-                  <span>AI-Powered Insights</span>
-                </CardTitle>
-                <CardDescription>
-                  Intelligent analysis of your sales performance and trends
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {insights.map((insight, index) => (
-                    <InsightCard key={index} insight={insight} />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* No Data State */}
           {!loading && (!kpis || (kpis.totalRevenue === null && kpis.totalOrders === null)) && (
-            <Card>
+            <Card className="card-minimal">
               <CardContent className="p-12 text-center">
                 <TrendingUp className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No Sales Data Available</h3>
-                <p className="text-gray-600 mb-4">
+                <h3 className="text-xl font-medium text-black mb-2">No Sales Data Available</h3>
+                <p className="text-gray-600 font-light mb-4">
                   We couldn't find any sales data for the selected time period and filters.
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm font-light text-gray-500">
                   Try adjusting your date range or removing filters to see more data.
                 </p>
               </CardContent>
