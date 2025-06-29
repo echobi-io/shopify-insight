@@ -2,10 +2,10 @@ import { supabase } from '../supabaseClient'
 import { FilterState } from './getKpis'
 
 export interface DashboardKPIs {
-  revenueToday: number
-  ordersToday: number
-  newCustomers: number
-  avgOrderValue7d: number
+  revenueToday: number | null
+  ordersToday: number | null
+  newCustomers: number | null
+  avgOrderValue7d: number | null
 }
 
 export interface DashboardTrendData {
@@ -80,31 +80,30 @@ export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKP
     }
 
     const result = {
-      revenueToday: todayData?.total_revenue || 0,
-      ordersToday: todayData?.total_orders || 0,
-      newCustomers: newCustomersData?.customers_count || 0,
-      avgOrderValue7d: parseFloat(avgOrderValue7d.toFixed(2))
+      revenueToday: todayData?.total_revenue || null,
+      ordersToday: todayData?.total_orders || null,
+      newCustomers: newCustomersData?.customers_count || null,
+      avgOrderValue7d: avgOrderValue7d > 0 ? parseFloat(avgOrderValue7d.toFixed(2)) : null
     };
 
     console.log('✅ Dashboard KPIs result:', result);
     
     // Check if we have any meaningful data
-    const hasData = result.revenueToday > 0 || result.ordersToday > 0 || result.newCustomers > 0 || result.avgOrderValue7d > 0;
+    const hasData = (result.revenueToday !== null && result.revenueToday > 0) || 
+                   (result.ordersToday !== null && result.ordersToday > 0) || 
+                   (result.newCustomers !== null && result.newCustomers > 0) || 
+                   (result.avgOrderValue7d !== null && result.avgOrderValue7d > 0);
     
     if (!hasData) {
-      console.log('⚠️ No real data found, but returning zeros for "Not enough data yet" display');
+      console.log('⚠️ No real data found in database for merchant:', merchant_id);
+      throw new Error(`No data found for merchant ${merchant_id}. Please check if data exists in your Supabase database.`);
     }
     
     return result;
 
   } catch (error) {
     console.error('❌ Error fetching dashboard KPIs:', error);
-    return {
-      revenueToday: 0,
-      ordersToday: 0,
-      newCustomers: 0,
-      avgOrderValue7d: 0
-    };
+    throw error; // Don't return fallback data, let the error bubble up
   }
 }
 

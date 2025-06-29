@@ -83,8 +83,14 @@ export default function Dashboard() {
 
       // Load all data in parallel
       const [currentKpis, previousKpis, revenue, products] = await Promise.all([
-        getKPIs(filters, MERCHANT_ID),
-        getPreviousKPIs(filters, MERCHANT_ID),
+        getKPIs(filters, MERCHANT_ID).catch(err => {
+          console.error('❌ Error loading current KPIs:', err)
+          throw new Error(`Failed to load KPI data: ${err.message}`)
+        }),
+        getPreviousKPIs(filters, MERCHANT_ID).catch(err => {
+          console.error('❌ Error loading previous KPIs:', err)
+          return null // Allow previous KPIs to fail without breaking the whole load
+        }),
         getRevenueByDate(filters, MERCHANT_ID),
         getProductData(filters, MERCHANT_ID)
       ])
@@ -96,12 +102,17 @@ export default function Dashboard() {
       })
 
       setKpiData(currentKpis)
-      setKpiChanges(calculateKPIChanges(currentKpis, previousKpis))
+      if (previousKpis) {
+        setKpiChanges(calculateKPIChanges(currentKpis, previousKpis))
+      } else {
+        setKpiChanges(null)
+      }
       setRevenueData(revenue)
       setProductData(products)
       setLastUpdated(new Date())
     } catch (error) {
       console.error('❌ Error loading dashboard data:', error)
+      alert(`Error loading data: ${error instanceof Error ? error.message : 'Unknown error'}. Please check the console for details and verify your data exists in Supabase.`)
     } finally {
       setLoading(false)
     }
@@ -129,6 +140,7 @@ export default function Dashboard() {
       setLastUpdated(new Date())
     } catch (error) {
       console.error('❌ Error loading dashboard data:', error)
+      alert(`Error loading dashboard data: ${error instanceof Error ? error.message : 'Unknown error'}. Please check the console for details and verify your data exists in Supabase.`)
     } finally {
       setDashboardLoading(false)
     }
@@ -208,7 +220,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SimpleKPICard
               title="Revenue Today"
-              value={dashboardKpis ? formatCurrency(dashboardKpis.revenueToday) : '$0'}
+              value={dashboardKpis?.revenueToday !== null ? formatCurrency(dashboardKpis.revenueToday) : 'No data'}
               icon={<DollarSign />}
               change={kpiChanges?.totalRevenue ? `${Math.abs(kpiChanges.totalRevenue.percentageChange).toFixed(1)}%` : undefined}
               changeType={kpiChanges?.totalRevenue ? (kpiChanges.totalRevenue.percentageChange >= 0 ? 'positive' : 'negative') : undefined}
@@ -216,7 +228,7 @@ export default function Dashboard() {
             />
             <SimpleKPICard
               title="Orders Today"
-              value={dashboardKpis ? formatNumber(dashboardKpis.ordersToday) : '0'}
+              value={dashboardKpis?.ordersToday !== null ? formatNumber(dashboardKpis.ordersToday) : 'No data'}
               icon={<ShoppingCart />}
               change={kpiChanges?.totalOrders ? `${Math.abs(kpiChanges.totalOrders.percentageChange).toFixed(1)}%` : undefined}
               changeType={kpiChanges?.totalOrders ? (kpiChanges.totalOrders.percentageChange >= 0 ? 'positive' : 'negative') : undefined}
@@ -224,14 +236,14 @@ export default function Dashboard() {
             />
             <SimpleKPICard
               title="New Customers"
-              value={dashboardKpis ? formatNumber(dashboardKpis.newCustomers) : '0'}
+              value={dashboardKpis?.newCustomers !== null ? formatNumber(dashboardKpis.newCustomers) : 'No data'}
               icon={<Users />}
               change={kpiChanges?.newCustomers ? `${Math.abs(kpiChanges.newCustomers.percentageChange).toFixed(1)}%` : undefined}
               changeType={kpiChanges?.newCustomers ? (kpiChanges.newCustomers.percentageChange >= 0 ? 'positive' : 'negative') : undefined}
             />
             <SimpleKPICard
               title="AOV (7d)"
-              value={dashboardKpis ? formatCurrency(dashboardKpis.avgOrderValue7d) : '$0'}
+              value={dashboardKpis?.avgOrderValue7d !== null ? formatCurrency(dashboardKpis.avgOrderValue7d) : 'No data'}
               icon={<DollarSign />}
               change={kpiChanges?.avgOrderValue ? `${Math.abs(kpiChanges.avgOrderValue.percentageChange).toFixed(1)}%` : undefined}
               changeType={kpiChanges?.avgOrderValue ? (kpiChanges.avgOrderValue.percentageChange >= 0 ? 'positive' : 'negative') : undefined}

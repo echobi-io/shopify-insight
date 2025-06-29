@@ -79,14 +79,7 @@ export async function getKPIs(filters: FilterState, merchant_id?: string): Promi
 
       if (!orders || orders.length === 0) {
         console.log('📭 No orders found for the given filters');
-        return {
-          totalRevenue: 0,
-          totalOrders: 0,
-          avgOrderValue: 0,
-          percentOrdering: 0,
-          newCustomers: 0,
-          churnRisk: 0
-        };
+        throw new Error(`No orders found for merchant ${merchant_id} with the given filters. Please check if data exists in your Supabase database.`);
       }
 
       // Calculate metrics from orders
@@ -251,15 +244,7 @@ export async function getKPIs(filters: FilterState, merchant_id?: string): Promi
 
   } catch (error) {
     console.error('❌ Error fetching KPIs:', error);
-    // Return default values on error to prevent crashes
-    return {
-      totalRevenue: 0,
-      totalOrders: 0,
-      avgOrderValue: 0,
-      percentOrdering: 0,
-      newCustomers: 0,
-      churnRisk: 0
-    };
+    throw error; // Don't return fallback data, let the error bubble up
   }
 }
 
@@ -283,14 +268,7 @@ export async function getPreviousKPIs(filters: FilterState, merchant_id?: string
     return await getKPIs(previousFilters, merchant_id)
   } catch (error) {
     console.error('Error fetching previous KPIs:', error)
-    return {
-      totalRevenue: 0,
-      totalOrders: 0,
-      avgOrderValue: 0,
-      percentOrdering: 0,
-      newCustomers: 0,
-      churnRisk: 0
-    }
+    throw error; // Don't return fallback data, let the error bubble up
   }
 }
 
