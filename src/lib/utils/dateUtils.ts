@@ -1,9 +1,11 @@
+import { getSettings, getFinancialYearDates } from './settingsUtils'
+
 export interface DateRange {
   startDate: Date;
   endDate: Date;
 }
 
-export function getDateRangeFromTimeframe(timeframe: string): DateRange {
+export function getDateRangeFromTimeframe(timeframe: string, customStartDate?: string, customEndDate?: string): DateRange {
   const endDate = new Date();
   const startDate = new Date();
 
@@ -19,6 +21,17 @@ export function getDateRangeFromTimeframe(timeframe: string): DateRange {
       
       return { startDate: customStartDate, endDate: customEndDate };
     }
+  }
+
+  // Handle custom range with provided dates
+  if (timeframe === 'custom' && customStartDate && customEndDate) {
+    const start = new Date(customStartDate);
+    const end = new Date(customEndDate);
+    
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    
+    return { startDate: start, endDate: end };
   }
 
   switch (timeframe) {
@@ -53,18 +66,36 @@ export function getDateRangeFromTimeframe(timeframe: string): DateRange {
       startDate.setMonth(0, 1);
       startDate.setHours(0, 0, 0, 0);
       break;
+    case 'calendar_2024':
     case 'all_2024':
       startDate.setFullYear(2024, 0, 1); // January 1, 2024
       endDate.setFullYear(2024, 11, 31); // December 31, 2024
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(23, 59, 59, 999);
       return { startDate, endDate };
+    case 'calendar_2023':
     case 'all_2023':
       startDate.setFullYear(2023, 0, 1); // January 1, 2023
       endDate.setFullYear(2023, 11, 31); // December 31, 2023
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(23, 59, 59, 999);
       return { startDate, endDate };
+    case 'financial_current': {
+      const currentYear = new Date().getFullYear();
+      const financialYear = getFinancialYearDates(currentYear);
+      return { 
+        startDate: new Date(financialYear.startDate), 
+        endDate: new Date(financialYear.endDate) 
+      };
+    }
+    case 'financial_previous': {
+      const currentYear = new Date().getFullYear();
+      const financialYear = getFinancialYearDates(currentYear - 1);
+      return { 
+        startDate: new Date(financialYear.startDate), 
+        endDate: new Date(financialYear.endDate) 
+      };
+    }
     case 'daily':
       startDate.setDate(endDate.getDate() - 14); // Last 14 days for daily view
       break;
@@ -75,12 +106,13 @@ export function getDateRangeFromTimeframe(timeframe: string): DateRange {
       startDate.setMonth(endDate.getMonth() - 6); // Last 6 months for monthly view
       break;
     default:
-      // Default to all of 2024 since user has 2024 data
-      startDate.setFullYear(2024, 0, 1);
-      endDate.setFullYear(2024, 11, 31);
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
-      return { startDate, endDate };
+      // Default to current financial year
+      const currentYear = new Date().getFullYear();
+      const financialYear = getFinancialYearDates(currentYear);
+      return { 
+        startDate: new Date(financialYear.startDate), 
+        endDate: new Date(financialYear.endDate) 
+      };
   }
 
   // Ensure start date is at beginning of day and end date is at end of day

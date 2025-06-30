@@ -3,16 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts'
 import { getCustomerInsightsData, getCustomerDetails, CustomerInsightsData, ChurnPrediction, LtvPrediction, CohortData, CustomerCluster } from '@/lib/fetchers/getCustomerInsightsData'
 import { exportToCSV } from '@/lib/utils/exportUtils'
+import { getDateRangeFromTimeframe } from '@/lib/utils/dateUtils'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import DateRangeSelector from '@/components/DateRangeSelector'
+import HelpSection, { getCustomerInsightsHelpItems } from '@/components/HelpSection'
 import { RefreshCw, AlertCircle } from 'lucide-react'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
@@ -51,23 +53,9 @@ const CustomerInsightsPage: React.FC = () => {
   };
   
   // Date filter states
-  const [dateRange, setDateRange] = useState('last_90_days')
+  const [dateRange, setDateRange] = useState('financial_current')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
-
-  // Date range options
-  const timeframeOptions = [
-    { value: 'last_7_days', label: 'Last 7 Days' },
-    { value: 'last_30_days', label: 'Last 30 Days' },
-    { value: 'last_90_days', label: 'Last 90 Days' },
-    { value: 'last_6_months', label: 'Last 6 Months' },
-    { value: 'last_year', label: 'Last Year' },
-    { value: 'this_month', label: 'This Month' },
-    { value: 'this_year', label: 'This Year' },
-    { value: 'all_2024', label: 'All of 2024' },
-    { value: 'all_2023', label: 'All of 2023' },
-    { value: 'custom', label: 'Custom Range' }
-  ]
 
   useEffect(() => {
     loadData()
@@ -82,68 +70,16 @@ const CustomerInsightsPage: React.FC = () => {
       const dateFilters = getDateRangeFromTimeframe(dateRange, customStartDate, customEndDate)
       console.log('🔄 Loading customer insights data with date filters:', dateFilters)
       
-      const result = await getCustomerInsightsData(HARDCODED_MERCHANT_ID, dateFilters)
+      const result = await getCustomerInsightsData(HARDCODED_MERCHANT_ID, {
+        startDate: dateFilters.startDate.toISOString(),
+        endDate: dateFilters.endDate.toISOString()
+      })
       setData(result)
     } catch (err) {
       console.error('Error loading customer insights data:', err)
       setError('Failed to load customer insights data')
     } finally {
       setLoading(false)
-    }
-  }
-
-  // Helper function to get date range
-  const getDateRangeFromTimeframe = (timeframe: string, startDate?: string, endDate?: string) => {
-    const now = new Date()
-    let start: Date
-    let end: Date = now
-
-    switch (timeframe) {
-      case 'last_7_days':
-        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        break
-      case 'last_30_days':
-        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        break
-      case 'last_90_days':
-        start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
-        break
-      case 'last_6_months':
-        start = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000)
-        break
-      case 'last_year':
-        start = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
-        break
-      case 'this_month':
-        start = new Date(now.getFullYear(), now.getMonth(), 1)
-        break
-      case 'this_year':
-        start = new Date(now.getFullYear(), 0, 1)
-        break
-      case 'all_2024':
-        start = new Date('2024-01-01')
-        end = new Date('2024-12-31T23:59:59.999Z')
-        break
-      case 'all_2023':
-        start = new Date('2023-01-01')
-        end = new Date('2023-12-31T23:59:59.999Z')
-        break
-      case 'custom':
-        if (startDate && endDate) {
-          start = new Date(startDate)
-          end = new Date(endDate)
-        } else {
-          start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        }
-        break
-      default:
-        start = new Date('2024-01-01')
-        end = new Date('2024-12-31T23:59:59.999Z')
-    }
-
-    return {
-      startDate: start.toISOString(),
-      endDate: end.toISOString()
     }
   }
 
@@ -548,37 +484,15 @@ const CustomerInsightsPage: React.FC = () => {
               
               {/* Date Filter */}
               <div className="flex items-center space-x-4">
-                <Select value={dateRange} onValueChange={setDateRange}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeframeOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {dateRange === 'custom' && (
-                  <>
-                    <Input
-                      type="date"
-                      value={customStartDate}
-                      onChange={(e) => setCustomStartDate(e.target.value)}
-                      className="w-40"
-                      placeholder="Start Date"
-                    />
-                    <Input
-                      type="date"
-                      value={customEndDate}
-                      onChange={(e) => setCustomEndDate(e.target.value)}
-                      className="w-40"
-                      placeholder="End Date"
-                    />
-                  </>
-                )}
+                <DateRangeSelector
+                  value={dateRange}
+                  onChange={setDateRange}
+                  showCustomInputs={true}
+                  customStartDate={customStartDate}
+                  customEndDate={customEndDate}
+                  onCustomStartDateChange={setCustomStartDate}
+                  onCustomEndDateChange={setCustomEndDate}
+                />
                 
                 <Button 
                   onClick={loadData} 
@@ -599,6 +513,14 @@ const CustomerInsightsPage: React.FC = () => {
           </div>
 
           {pageContent}
+          
+          {/* Help Section */}
+          <HelpSection 
+            title="Customer Insights Help & Information"
+            items={getCustomerInsightsHelpItems()}
+            defaultOpen={false}
+            className="mt-8"
+          />
         </div>
       </div>
 

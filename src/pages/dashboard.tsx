@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Users, RefreshCw, AlertCircle } from 'lucide-react'
@@ -14,6 +13,8 @@ import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
+import DateRangeSelector from '@/components/DateRangeSelector'
+import HelpSection, { getDashboardHelpItems } from '@/components/HelpSection'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -30,7 +31,7 @@ interface ProductData {
 
 
 const DashboardPage: React.FC = () => {
-  const [timeframe, setTimeframe] = useState('all_2024')
+  const [timeframe, setTimeframe] = useState('financial_current')
   const [loading, setLoading] = useState(true)
   const [kpiData, setKpiData] = useState<KPIData | null>(null)
   const [previousYearKpiData, setPreviousYearKpiData] = useState<KPIData | null>(null)
@@ -43,25 +44,17 @@ const DashboardPage: React.FC = () => {
   const [dashboardTrendData, setDashboardTrendData] = useState<DashboardTrendData[]>([])
   const [segmentData, setSegmentData] = useState<CustomerSegmentData[]>([])
   const [aiCommentary, setAiCommentary] = useState<AICommentaryData | null>(null)
-
-  const timeframeOptions = [
-    { value: 'last_7_days', label: 'Last 7 Days' },
-    { value: 'last_30_days', label: 'Last 30 Days' },
-    { value: 'last_90_days', label: 'Last 90 Days' },
-    { value: 'last_6_months', label: 'Last 6 Months' },
-    { value: 'last_year', label: 'Last Year' },
-    { value: 'this_month', label: 'This Month' },
-    { value: 'this_year', label: 'This Year' },
-    { value: 'all_2024', label: 'All of 2024' },
-    { value: 'all_2023', label: 'All of 2023' }
-  ]
+  
+  // Custom date range state
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
 
   const loadData = async () => {
     try {
       setLoading(true)
       console.log('🔄 Loading dashboard data for timeframe:', timeframe)
 
-      const dateRange = getDateRangeFromTimeframe(timeframe)
+      const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
       const filters: FilterState = {
         startDate: formatDateForSQL(dateRange.startDate),
         endDate: formatDateForSQL(dateRange.endDate)
@@ -100,7 +93,7 @@ const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     loadData()
-  }, [timeframe])
+  }, [timeframe, customStartDate, customEndDate])
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-US').format(value)
@@ -140,18 +133,15 @@ const DashboardPage: React.FC = () => {
               </div>
               
               <div className="flex items-center space-x-4">
-                <Select value={timeframe} onValueChange={setTimeframe}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeframeOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <DateRangeSelector
+                  value={timeframe}
+                  onChange={setTimeframe}
+                  showCustomInputs={true}
+                  customStartDate={customStartDate}
+                  customEndDate={customEndDate}
+                  onCustomStartDateChange={setCustomStartDate}
+                  onCustomEndDateChange={setCustomEndDate}
+                />
                 <Button 
                   onClick={loadData} 
                   variant="outline" 
@@ -300,7 +290,7 @@ const DashboardPage: React.FC = () => {
           </div>
 
           {/* Top Products */}
-          <Card className="card-minimal">
+          <Card className="card-minimal mb-8">
             <CardHeader>
               <CardTitle className="text-lg font-medium text-black">Top Products</CardTitle>
               <CardDescription className="font-light text-gray-600">
@@ -344,6 +334,13 @@ const DashboardPage: React.FC = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Help Section */}
+          <HelpSection 
+            title="Dashboard Help & Information"
+            items={getDashboardHelpItems()}
+            defaultOpen={false}
+          />
         </div>
       </div>
     </div>
