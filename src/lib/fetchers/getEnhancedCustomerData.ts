@@ -49,6 +49,57 @@ function isCustomerChurned(daysSinceLastOrder: number | null): boolean {
   return daysSinceLastOrder !== null && daysSinceLastOrder > 180
 }
 
+// Helper function to calculate intelligent customer segment
+function calculateIntelligentCustomerSegment(
+  originalSegment: string | null,
+  isChurned: boolean,
+  lifetimeOrders: number,
+  daysSinceLastOrder: number | null,
+  firstOrderDate: string | null
+): string {
+  // If customer is churned, override any "new" classification
+  if (isChurned) {
+    return 'churned'
+  }
+
+  // Calculate days since first order to determine if truly "new"
+  let daysSinceFirstOrder: number | null = null
+  if (firstOrderDate) {
+    daysSinceFirstOrder = Math.floor((new Date().getTime() - new Date(firstOrderDate).getTime()) / (1000 * 60 * 60 * 24))
+  }
+
+  // Override "new customer" if they've been around for more than 90 days or have multiple orders
+  if (originalSegment === 'new_customer' || originalSegment === 'new') {
+    if (daysSinceFirstOrder && daysSinceFirstOrder > 90) {
+      // Customer has been around for more than 90 days, reclassify based on behavior
+      if (lifetimeOrders >= 5) {
+        return 'loyal'
+      } else if (lifetimeOrders >= 2) {
+        return 'returning'
+      } else {
+        return 'inactive'
+      }
+    }
+    
+    // If they have multiple orders but are still within 90 days, they're returning
+    if (lifetimeOrders >= 2) {
+      return 'returning'
+    }
+  }
+
+  // For other segments, apply intelligent logic
+  if (originalSegment === 'loyal' && daysSinceLastOrder && daysSinceLastOrder > 120) {
+    return 'at_risk'
+  }
+
+  if (originalSegment === 'returning' && daysSinceLastOrder && daysSinceLastOrder > 90) {
+    return 'at_risk'
+  }
+
+  // Return original segment if no overrides apply, or default to 'unknown'
+  return originalSegment || 'unknown'
+}
+
 export async function getEnhancedCustomerData(
   customerId: string,
   filters: FilterState,
@@ -139,6 +190,15 @@ export async function getEnhancedCustomerData(
     const churned = isCustomerChurned(daysSinceLastOrder)
     const churnRisk = calculateChurnRisk(daysSinceLastOrder, avgOrderFrequency)
 
+    // Calculate intelligent customer segment based on behavior and churn status
+    const intelligentCustomerSegment = calculateIntelligentCustomerSegment(
+      customer.customer_segment,
+      churned,
+      lifetimeOrders,
+      daysSinceLastOrder,
+      firstOrderDate
+    )
+
     // Get favorite channel
     let favoriteChannel: string | null = null
     if (allOrders && allOrders.length > 0) {
@@ -197,7 +257,7 @@ export async function getEnhancedCustomerData(
       customerLifetimeValue: parseFloat(customerLifetimeValue.toFixed(2)),
       isChurned: churned,
       churnRisk,
-      customerSegment: customer.customer_segment || 'unknown',
+      customerSegment: intelligentCustomerSegment,
       totalSpent: parseFloat(lifetimeRevenue.toFixed(2)),
       ordersCount: lifetimeOrders,
       favoriteChannel,

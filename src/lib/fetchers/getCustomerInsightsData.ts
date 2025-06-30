@@ -231,11 +231,10 @@ export async function getCustomerInsightsData(merchantId: string, dateFilters?: 
 
 async function getTotalActiveCustomers(merchantId: string, dateFilters?: { startDate: string; endDate: string }): Promise<number> {
   try {
-    // Count customers who have made orders in the specified period
-    // This is more reliable than relying on last_order_date field
+    // Count unique customers who have made orders in the specified period
     let query = supabase
       .from('orders')
-      .select('customer_id', { count: 'exact', head: true })
+      .select('customer_id')
       .eq('merchant_id', merchantId)
       .not('customer_id', 'is', null)
 
@@ -248,40 +247,23 @@ async function getTotalActiveCustomers(merchantId: string, dateFilters?: { start
       query = query.gte('created_at', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString())
     }
 
-    const { count, error } = await query
+    const { data: orders, error } = await query
 
     if (error) {
-      console.error('❌ Error counting active customers from orders:', error)
-      
-      // Fallback: count all customers for this merchant
-      const { count: totalCount, error: totalError } = await supabase
-        .from('customers')
-        .select('*', { count: 'exact', head: true })
-        .eq('merchant_id', merchantId)
-
-      if (totalError) {
-        console.error('❌ Error counting total customers:', totalError)
-        return 0
-      }
-
-      console.log('✅ Total customers (fallback):', totalCount || 0)
-      return totalCount || 0
+      console.error('❌ Error fetching orders for active customer count:', error)
+      return 0
     }
 
-    // Get unique customer count from orders
-    const { data: uniqueCustomers, error: uniqueError } = await supabase
-      .from('orders')
-      .select('customer_id')
-      .eq('merchant_id', merchantId)
-      .not('customer_id', 'is', null)
-
-    if (uniqueError) {
-      console.error('❌ Error getting unique customers:', uniqueError)
-      return count || 0
+    if (!orders || orders.length === 0) {
+      console.log('⚠️ No orders found for the specified period')
+      return 0
     }
 
-    const uniqueCount = new Set(uniqueCustomers?.map(o => o.customer_id)).size
-    console.log('✅ Total active customers (unique from orders):', uniqueCount)
+    // Get unique customer count from orders in the specified period
+    const uniqueCustomerIds = new Set(orders.map(order => order.customer_id))
+    const uniqueCount = uniqueCustomerIds.size
+    
+    console.log('✅ Total active customers (unique from orders in period):', uniqueCount)
     return uniqueCount
   } catch (error) {
     console.error('❌ Error in getTotalActiveCustomers:', error)
