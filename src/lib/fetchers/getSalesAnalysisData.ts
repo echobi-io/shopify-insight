@@ -773,7 +773,7 @@ export async function getTopProducts(
       .select(`
         product_id,
         quantity,
-        total,
+        price,
         order_id,
         products!inner(id, name),
         orders!inner(id, created_at, merchant_id)
@@ -824,7 +824,7 @@ export async function getTopProducts(
         }
       }
       
-      acc[productId].revenue += item.total || 0
+      acc[productId].revenue += (item.quantity || 0) * (item.price || 0)
       acc[productId].quantity += item.quantity || 0
       if (orderId) {
         acc[productId].orders.add(orderId)
@@ -962,7 +962,7 @@ export async function getProductDrillDown(
       .from('order_items')
       .select(`
         quantity,
-        total,
+        price,
         orders!inner(created_at, customer_id, channel)
       `)
       .eq('product_id', productId)
@@ -985,7 +985,7 @@ export async function getProductDrillDown(
           acc[date] = { revenue: 0, orders: new Set(), quantity: 0 }
         }
         
-        acc[date].revenue += item.total || 0
+        acc[date].revenue += (item.quantity || 0) * (item.price || 0)
         acc[date].orders.add((item.orders as any).id)
         acc[date].quantity += item.quantity || 0
         
@@ -1011,7 +1011,7 @@ export async function getProductDrillDown(
         acc[customerId] = { revenue: 0, orders: 0, quantity: 0 }
       }
       
-      acc[customerId].revenue += item.total || 0
+      acc[customerId].revenue += (item.quantity || 0) * (item.price || 0)
       acc[customerId].orders += 1
       acc[customerId].quantity += item.quantity || 0
       
@@ -1056,7 +1056,7 @@ export async function getProductDrillDown(
         acc[channel] = { revenue: 0, orders: new Set() }
       }
       
-      acc[channel].revenue += item.total || 0
+      acc[channel].revenue += (item.quantity || 0) * (item.price || 0)
       acc[channel].orders.add((item.orders as any).id)
       
       return acc
@@ -1125,7 +1125,7 @@ export async function getCustomerDrillDown(
         status,
         channel,
         created_at,
-        order_items!inner(product_id, quantity, total, products!inner(name))
+        order_items!inner(product_id, quantity, price, products!inner(name))
       `)
       .eq('customer_id', customerId)
       .eq('merchant_id', merchant_id)
@@ -1180,7 +1180,7 @@ export async function getCustomerDrillDown(
           }
         }
         
-        acc[productId].revenue += item.total || 0
+        acc[productId].revenue += (item.quantity || 0) * (item.price || 0)
         acc[productId].quantity += item.quantity || 0
         acc[productId].orders.add(order.id)
       })
