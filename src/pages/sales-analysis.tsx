@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import DateRangeSelector from '@/components/DateRangeSelector'
+import HelpSection, { getSalesAnalysisHelpItems } from '@/components/HelpSection'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { 
@@ -63,51 +65,9 @@ import {
   getCustomerDrillDown
 } from '@/lib/fetchers/getSalesAnalysisData'
 import { getEnhancedCustomerData, EnhancedCustomerData } from '@/lib/fetchers/getEnhancedCustomerData'
+import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
-
-// Date range presets
-const DATE_RANGES = [
-  { label: 'All Time', value: 'all' },
-  { label: 'Last 30 Days', value: '30d' },
-  { label: 'Last 3 Months', value: '3m' },
-  { label: 'Last 12 Months', value: '12m' },
-  { label: 'Year to Date', value: 'ytd' },
-  { label: '2023 Data', value: '2023' },
-  { label: 'Custom', value: 'custom' }
-]
-
-// Helper function to get date range
-function getDateRange(range: string): { startDate: string; endDate: string } {
-  const now = new Date()
-  const endDate = now.toISOString()
-  let startDate: string
-
-  switch (range) {
-    case 'all':
-      startDate = new Date('2020-01-01').toISOString()
-      break
-    case '2023':
-      startDate = new Date('2023-01-01').toISOString()
-      return { startDate, endDate: new Date('2023-12-31T23:59:59.999Z').toISOString() }
-    case '30d':
-      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
-      break
-    case '3m':
-      startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()
-      break
-    case '12m':
-      startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString()
-      break
-    case 'ytd':
-      startDate = new Date(now.getFullYear(), 0, 1).toISOString()
-      break
-    default:
-      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  }
-
-  return { startDate, endDate }
-}
 
 // KPI Card Component
 interface KPICardProps {
@@ -190,8 +150,10 @@ const SalesAnalysisPage: React.FC = () => {
   const [selectedCustomerForEnhanced, setSelectedCustomerForEnhanced] = useState<TopCustomer | null>(null)
   
   // Filter states
-  const [dateRange, setDateRange] = useState('2023')
+  const [timeframe, setTimeframe] = useState('financial_current')
   const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>('daily')
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
   
   // Expandable list states
   const [showAllProducts, setShowAllProducts] = useState(false)
@@ -203,10 +165,10 @@ const SalesAnalysisPage: React.FC = () => {
       setLoading(true)
       setError(null)
 
-      const { startDate, endDate } = getDateRange(dateRange)
+      const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
       const filters: FilterState = {
-        startDate,
-        endDate
+        startDate: formatDateForSQL(dateRange.startDate),
+        endDate: formatDateForSQL(dateRange.endDate)
       }
 
       console.log('🔄 Loading sales analysis data with filters:', filters)
@@ -234,14 +196,17 @@ const SalesAnalysisPage: React.FC = () => {
 
   useEffect(() => {
     loadData()
-  }, [dateRange, granularity])
+  }, [timeframe, customStartDate, customEndDate, granularity])
 
   // Handle product drill-down
   const handleProductClick = async (product: TopProduct) => {
     try {
       setLoading(true)
-      const { startDate, endDate } = getDateRange(dateRange)
-      const filters: FilterState = { startDate, endDate }
+      const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
+      const filters: FilterState = { 
+        startDate: formatDateForSQL(dateRange.startDate), 
+        endDate: formatDateForSQL(dateRange.endDate) 
+      }
       
       const drillDownData = await getProductDrillDown(product.id, filters, HARDCODED_MERCHANT_ID)
       if (drillDownData) {
@@ -259,8 +224,11 @@ const SalesAnalysisPage: React.FC = () => {
   const handleCustomerClick = async (customer: TopCustomer) => {
     try {
       setLoading(true)
-      const { startDate, endDate } = getDateRange(dateRange)
-      const filters: FilterState = { startDate, endDate }
+      const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
+      const filters: FilterState = { 
+        startDate: formatDateForSQL(dateRange.startDate), 
+        endDate: formatDateForSQL(dateRange.endDate) 
+      }
       
       const drillDownData = await getCustomerDrillDown(customer.id, filters, HARDCODED_MERCHANT_ID)
       if (drillDownData) {
@@ -278,8 +246,11 @@ const SalesAnalysisPage: React.FC = () => {
   const handleEnhancedCustomerAnalysis = async (customer: TopCustomer) => {
     try {
       setLoading(true)
-      const { startDate, endDate } = getDateRange(dateRange)
-      const filters: FilterState = { startDate, endDate }
+      const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
+      const filters: FilterState = { 
+        startDate: formatDateForSQL(dateRange.startDate), 
+        endDate: formatDateForSQL(dateRange.endDate) 
+      }
       
       const enhancedData = await getEnhancedCustomerData(customer.id, filters, HARDCODED_MERCHANT_ID)
       if (enhancedData) {
@@ -380,18 +351,15 @@ const SalesAnalysisPage: React.FC = () => {
               
               {/* Filters */}
               <div className="flex items-center space-x-4">
-                <Select value={dateRange} onValueChange={setDateRange}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DATE_RANGES.map(range => (
-                      <SelectItem key={range.value} value={range.value}>
-                        {range.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <DateRangeSelector
+                  value={timeframe}
+                  onChange={setTimeframe}
+                  showCustomInputs={true}
+                  customStartDate={customStartDate}
+                  customEndDate={customEndDate}
+                  onCustomStartDateChange={setCustomStartDate}
+                  onCustomEndDateChange={setCustomEndDate}
+                />
                 
                 <Select value={granularity} onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly') => setGranularity(value)}>
                   <SelectTrigger className="w-32">
@@ -1344,6 +1312,13 @@ const SalesAnalysisPage: React.FC = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Help Section */}
+          <HelpSection 
+            title="Sales Analysis Help & Information"
+            items={getSalesAnalysisHelpItems()}
+            defaultOpen={false}
+          />
         </div>
       </div>
     </div>

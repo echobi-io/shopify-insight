@@ -34,6 +34,13 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
   const currentYear = new Date().getFullYear()
   const currentFinancialYear = getFinancialYearDates(currentYear)
   const previousFinancialYear = getFinancialYearDates(currentYear - 1)
+  
+  // Helper function to get FY label
+  const getFYLabel = (year: number) => {
+    const { endDate } = getFinancialYearDates(year)
+    const fyYear = endDate.getFullYear().toString().slice(-2) // Get last 2 digits of ending year
+    return `FY${fyYear}`
+  }
 
   const timeframeOptions = [
     { 
@@ -83,12 +90,12 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
     },
     { 
       value: 'financial_current', 
-      label: `Current Financial Year (${currentFinancialYear.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${currentFinancialYear.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`,
+      label: `Current Financial Year (${getFYLabel(currentYear)})`,
       type: 'financial'
     },
     { 
       value: 'financial_previous', 
-      label: `Previous Financial Year (${previousFinancialYear.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${previousFinancialYear.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`,
+      label: `Previous Financial Year (${getFYLabel(currentYear - 1)})`,
       type: 'financial'
     },
     { 
