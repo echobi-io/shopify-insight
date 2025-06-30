@@ -1,6 +1,5 @@
 import { supabase } from '../supabaseClient'
 import { FilterState } from './getKpis'
-import { generateDemoTrendData } from '../demoData'
 
 export interface RevenueByDateData {
   date: string
@@ -82,17 +81,8 @@ export async function getRevenueByDate(filters: FilterState, merchant_id?: strin
       }
 
       if (!orders || orders.length === 0) {
-        console.log('📭 No orders found for revenue calculation, using demo data');
-        const demoData = generateDemoTrendData(30);
-        return demoData.map(item => ({
-          date: item.date,
-          revenue: item.total_revenue,
-          orders: item.total_orders,
-          customers: Math.floor(item.total_orders * 0.8), // Estimate customers
-          orderingRate: 80, // Demo ordering rate
-          month: new Date(item.date).toLocaleDateString('en-US', { month: 'short' }),
-          week: `Week ${Math.ceil(new Date(item.date).getDate() / 7)}`
-        }));
+        console.log('📭 No orders found for revenue calculation');
+        return [];
       }
 
       // Group orders by date
