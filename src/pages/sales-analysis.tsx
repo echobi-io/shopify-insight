@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { 
   LineChart, 
   Line, 
@@ -34,7 +35,9 @@ import {
   ArrowRight,
   Calendar,
   Mail,
-  Hash
+  Hash,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Sidebar from '@/components/Sidebar'
@@ -180,6 +183,10 @@ const SalesAnalysisPage: React.FC = () => {
   // Filter states
   const [dateRange, setDateRange] = useState('2023')
   const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>('daily')
+  
+  // Expandable list states
+  const [showAllProducts, setShowAllProducts] = useState(false)
+  const [showAllCustomers, setShowAllCustomers] = useState(false)
 
   // Load data
   const loadData = async () => {
@@ -258,12 +265,46 @@ const SalesAnalysisPage: React.FC = () => {
     }
   }
 
+  // Format date based on granularity
+  const formatDateForGranularity = (dateString: string, granularity: string) => {
+    const date = new Date(dateString)
+    
+    switch (granularity) {
+      case 'daily':
+        return date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric' 
+        })
+      case 'weekly':
+        const weekStart = new Date(date)
+        weekStart.setDate(date.getDate() - date.getDay())
+        return `w/c ${weekStart.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric' 
+        })}`
+      case 'monthly':
+        return date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          year: 'numeric' 
+        })
+      case 'quarterly':
+        const quarter = Math.floor(date.getMonth() / 3) + 1
+        return `Q${quarter} ${date.getFullYear()}`
+      case 'yearly':
+        return date.getFullYear().toString()
+      default:
+        return date.toLocaleDateString()
+    }
+  }
+
   // Custom tooltip for charts
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-200 shadow-sm">
-          <p className="font-medium text-black">{label}</p>
+          <p className="font-medium text-black">{formatDateForGranularity(label, granularity)}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm font-light" style={{ color: entry.color }}>
               {entry.name}: {entry.name.includes('Revenue') ? `$${entry.value.toLocaleString()}` : entry.value.toLocaleString()}
@@ -410,7 +451,7 @@ const SalesAnalysisPage: React.FC = () => {
                           dataKey="date" 
                           fontSize={12}
                           stroke="#666"
-                          tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                          tickFormatter={(value) => formatDateForGranularity(value, granularity)}
                         />
                         <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toLocaleString()}`} />
                         <Tooltip content={<CustomTooltip />} />
@@ -452,7 +493,7 @@ const SalesAnalysisPage: React.FC = () => {
                           dataKey="date" 
                           fontSize={12}
                           stroke="#666"
-                          tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                          tickFormatter={(value) => formatDateForGranularity(value, granularity)}
                         />
                         <YAxis yAxisId="left" fontSize={12} stroke="#666" tickFormatter={(value) => value.toLocaleString()} />
                         <YAxis yAxisId="right" orientation="right" fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toLocaleString()}`} />
@@ -492,7 +533,7 @@ const SalesAnalysisPage: React.FC = () => {
                           dataKey="date" 
                           fontSize={12}
                           stroke="#666"
-                          tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                          tickFormatter={(value) => formatDateForGranularity(value, granularity)}
                         />
                         <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toFixed(0)}`} />
                         <Tooltip content={<CustomTooltip />} />
@@ -569,7 +610,7 @@ const SalesAnalysisPage: React.FC = () => {
               <CardContent>
                 {topProducts.length > 0 ? (
                   <div className="space-y-3">
-                    {topProducts.map((product, index) => (
+                    {topProducts.slice(0, showAllProducts ? 10 : 5).map((product, index) => (
                       <div 
                         key={product.id} 
                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
@@ -595,6 +636,27 @@ const SalesAnalysisPage: React.FC = () => {
                         </div>
                       </div>
                     ))}
+                    
+                    {topProducts.length > 5 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAllProducts(!showAllProducts)}
+                        className="w-full mt-3 font-light text-gray-600 hover:text-black"
+                      >
+                        {showAllProducts ? (
+                          <>
+                            <ChevronUp className="w-4 h-4 mr-2" />
+                            Show Less
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="w-4 h-4 mr-2" />
+                            Show {Math.min(5, topProducts.length - 5)} More
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-64 text-gray-500">
@@ -616,32 +678,92 @@ const SalesAnalysisPage: React.FC = () => {
               <CardContent>
                 {topCustomers.length > 0 ? (
                   <div className="space-y-3">
-                    {topCustomers.map((customer, index) => (
-                      <div 
-                        key={customer.id} 
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                        onClick={() => handleCustomerClick(customer)}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-600 rounded-full text-sm font-medium">
-                            {index + 1}
+                    {topCustomers.slice(0, showAllCustomers ? 10 : 5).map((customer, index) => (
+                      <Popover key={customer.id}>
+                        <PopoverTrigger asChild>
+                          <div 
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-600 rounded-full text-sm font-medium">
+                                {index + 1}
+                              </div>
+                              <div>
+                                <p className="font-medium text-black text-sm">{customer.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {customer.email} • {customer.orders} orders
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <div className="text-right">
+                                <p className="font-medium text-black text-sm">${customer.revenue.toLocaleString()}</p>
+                                <p className="text-xs text-gray-500">${customer.avgOrderValue.toFixed(0)} AOV</p>
+                              </div>
+                              <ArrowRight className="w-4 h-4 text-gray-400" />
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-black text-sm">{customer.name}</p>
-                            <p className="text-xs text-gray-500">
-                              {customer.email} • {customer.orders} orders
-                            </p>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" side="right">
+                          <div className="space-y-4">
+                            <div className="border-b pb-3">
+                              <h4 className="font-medium text-black">{customer.name}</h4>
+                              <p className="text-sm text-gray-600">{customer.email}</p>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-xs text-gray-500 mb-1">Total Revenue</p>
+                                <p className="font-medium text-black">${customer.revenue.toLocaleString()}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 mb-1">Total Orders</p>
+                                <p className="font-medium text-black">{customer.orders}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 mb-1">Avg Order Value</p>
+                                <p className="font-medium text-black">${customer.avgOrderValue.toFixed(0)}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 mb-1">Last Order</p>
+                                <p className="font-medium text-black">
+                                  {new Date(customer.lastOrderDate).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <Button
+                              onClick={() => handleCustomerClick(customer)}
+                              className="w-full font-light"
+                              size="sm"
+                            >
+                              View Full Analysis
+                            </Button>
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="text-right">
-                            <p className="font-medium text-black text-sm">${customer.revenue.toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">${customer.avgOrderValue.toFixed(0)} AOV</p>
-                          </div>
-                          <ArrowRight className="w-4 h-4 text-gray-400" />
-                        </div>
-                      </div>
+                        </PopoverContent>
+                      </Popover>
                     ))}
+                    
+                    {topCustomers.length > 5 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAllCustomers(!showAllCustomers)}
+                        className="w-full mt-3 font-light text-gray-600 hover:text-black"
+                      >
+                        {showAllCustomers ? (
+                          <>
+                            <ChevronUp className="w-4 h-4 mr-2" />
+                            Show Less
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="w-4 h-4 mr-2" />
+                            Show {Math.min(5, topCustomers.length - 5)} More
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-64 text-gray-500">
