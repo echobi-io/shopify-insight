@@ -510,27 +510,8 @@ async function generateChurnTrendData(merchantId: string, dateFilters?: { startD
     }
 
     if (!data || data.length === 0) {
-      console.log('⚠️ No churn trend data found - generating sample trend')
-      
-      // Generate sample trend data based on date range
-      const startDate = dateFilters?.startDate ? new Date(dateFilters.startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      const endDate = dateFilters?.endDate ? new Date(dateFilters.endDate) : new Date()
-      
-      const sampleData = []
-      const currentDate = new Date(startDate)
-      
-      while (currentDate <= endDate) {
-        sampleData.push({
-          date: currentDate.toISOString().split('T')[0],
-          high_risk_count: Math.floor(Math.random() * 5) + 1,
-          medium_risk_count: Math.floor(Math.random() * 10) + 5,
-          low_risk_count: Math.floor(Math.random() * 15) + 10,
-          total_revenue_at_risk: Math.floor(Math.random() * 5000) + 1000
-        })
-        currentDate.setDate(currentDate.getDate() + 1)
-      }
-      
-      return sampleData.slice(-7) // Return last 7 days
+      console.log('⚠️ No churn trend data found')
+      return []
     }
 
     console.log('✅ Churn trend data found:', data.length)

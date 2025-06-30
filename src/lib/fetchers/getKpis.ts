@@ -1,5 +1,4 @@
 import { supabase } from '../supabaseClient'
-import { generateDemoKPIs } from '../demoData'
 
 export interface FilterState {
   startDate: string
@@ -79,15 +78,14 @@ export async function getKPIs(filters: FilterState, merchant_id?: string): Promi
       }
 
       if (!orders || orders.length === 0) {
-        console.log('📭 No orders found, using demo data');
-        const demoKpis = generateDemoKPIs();
+        console.log('📭 No orders found, returning zero values');
         return {
-          totalRevenue: demoKpis.revenueToday * 30, // Scale up for period
-          totalOrders: demoKpis.ordersToday * 30,
-          avgOrderValue: demoKpis.avgOrderValue7d,
-          percentOrdering: 25.5, // Demo percentage
-          newCustomers: demoKpis.newCustomers * 30,
-          churnRisk: 8.2 // Demo churn risk
+          totalRevenue: 0,
+          totalOrders: 0,
+          avgOrderValue: 0,
+          percentOrdering: 0,
+          newCustomers: 0,
+          churnRisk: 0
         };
       }
 

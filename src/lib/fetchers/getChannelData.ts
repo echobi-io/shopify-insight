@@ -138,9 +138,8 @@ export async function getChannelData(filters: FilterState, merchant_id?: string)
       percentage: totalRevenue > 0 ? parseFloat(((ch.revenue / totalRevenue) * 100).toFixed(1)) : 0,
       avgOrderValue: ch.orders > 0 ? parseFloat((ch.revenue / ch.orders).toFixed(2)) : 0,
       color: colors[index % colors.length],
-      // Mock conversion rate and sessions for demo
-      conversionRate: parseFloat((Math.random() * 5 + 1).toFixed(1)),
-      sessions: Math.floor(Math.random() * 5000 + 1000)
+      conversionRate: 0, // No mock data - return 0 if no real data
+      sessions: 0 // No mock data - return 0 if no real data
     })).sort((a, b) => b.revenue - a.revenue)
 
     return result

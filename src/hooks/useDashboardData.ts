@@ -19,20 +19,11 @@ export interface DashboardData {
   productPerformanceData: ProductPerformanceData | null
 }
 
-import {
-  fallbackKpiData,
-  fallbackSalesKpiData,
-  fallbackProductBreakdownData,
-  fallbackSegmentAnalysisData,
-  fallbackChannelBreakdownData,
-  fallbackProductPerformanceData,
-  getFallbackTrendData,
-} from '@/lib/fallbackData';
+
 
 export function useDashboardData(
   globalDateRange: string,
   selectedSegment: string,
-  useLiveData: boolean = true,
   merchantId: string = '11111111-1111-1111-1111-111111111111'
 ) {
   const [loading, setLoading] = useState(false)
@@ -71,27 +62,6 @@ export function useDashboardData(
 
   // Fetch all data
   const fetchData = useCallback(async () => {
-    if (!useLiveData) {
-      // Use fallback/demo data
-      setKpiData(fallbackKpiData);
-      setKpiChanges(null);
-      setSalesKpiData(fallbackSalesKpiData);
-      // Use globalDateRange to select fallback trend data
-      let trendType: 'daily' | 'weekly' | 'monthly' = 'monthly';
-      if (globalDateRange === 'last_7_days') trendType = 'daily';
-      else if (globalDateRange === 'last_30_days') trendType = 'daily';
-      else if (globalDateRange === 'last_90_days') trendType = 'weekly';
-      else if (globalDateRange === 'last_6_months' || globalDateRange === 'last_year') trendType = 'monthly';
-      setRevenueData(getFallbackTrendData(trendType, globalDateRange));
-      setProductData(fallbackProductBreakdownData);
-      setSegmentData(fallbackSegmentAnalysisData);
-      setChannelData(fallbackChannelBreakdownData);
-      setProductPerformanceData(fallbackProductPerformanceData);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
     setLoading(true)
     setError(null)
 
@@ -149,7 +119,7 @@ export function useDashboardData(
     } finally {
       setLoading(false)
     }
-  }, [getDateFilters, getTimeRangeType, useLiveData, globalDateRange, merchantId])
+  }, [getDateFilters, getTimeRangeType, merchantId])
 
   // Update filters function
   const updateFilters = useCallback((newTimeRange?: string, newSegment?: string) => {
@@ -166,12 +136,10 @@ export function useDashboardData(
   // Initial data fetch
   useEffect(() => {
     fetchData()
-  }, [fetchData, useLiveData, globalDateRange])
+  }, [fetchData, globalDateRange])
 
   // Check if we have any real data
   const hasRealData = useCallback(() => {
-    if (!useLiveData) return false; // If explicitly using demo data, no real data
-    
     return !!(
       (kpiData && (kpiData.totalRevenue > 0 || kpiData.totalOrders > 0)) ||
       (revenueData && revenueData.length > 0) ||
@@ -180,7 +148,7 @@ export function useDashboardData(
       (productData && productData.length > 0) ||
       (productPerformanceData && productPerformanceData.topProducts && productPerformanceData.topProducts.length > 0)
     );
-  }, [useLiveData, kpiData, revenueData, segmentData, channelData, productData, productPerformanceData])
+  }, [kpiData, revenueData, segmentData, channelData, productData, productPerformanceData])
 
   return {
     // Data

@@ -1,11 +1,5 @@
 import { supabase } from '../supabaseClient'
 import { FilterState } from './getKpis'
-import { 
-  generateDemoKPIs, 
-  generateDemoTrendData, 
-  generateDemoSegmentData, 
-  generateDemoAICommentary 
-} from '../demoData'
 
 export interface DashboardKPIs {
   revenueToday: number | null
@@ -346,30 +340,6 @@ export async function getAllDashboardData(merchant_id: string, filters?: FilterS
       generateAICommentary(merchant_id, filters)
     ]);
 
-    // Check if we have any real data
-    const hasRealData = (
-      (kpis.revenueToday && kpis.revenueToday > 0) ||
-      (kpis.ordersToday && kpis.ordersToday > 0) ||
-      trendData.length > 0 ||
-      segmentData.length > 0
-    );
-
-    if (!hasRealData) {
-      console.log('📊 No real data found, using demo data');
-      const demoKpis = generateDemoKPIs();
-      return {
-        kpis: {
-          revenueToday: demoKpis.revenueToday,
-          ordersToday: demoKpis.ordersToday,
-          newCustomers: demoKpis.newCustomers,
-          avgOrderValue7d: demoKpis.avgOrderValue7d
-        },
-        trendData: generateDemoTrendData(30),
-        segmentData: generateDemoSegmentData(),
-        aiCommentary: generateDemoAICommentary()
-      };
-    }
-
     return {
       kpis,
       trendData,
@@ -379,19 +349,23 @@ export async function getAllDashboardData(merchant_id: string, filters?: FilterS
 
   } catch (error) {
     console.error('❌ Error fetching all dashboard data:', error);
-    // Return demo data on error
-    console.log('📊 Error occurred, falling back to demo data');
-    const demoKpis = generateDemoKPIs();
+    // Return empty data structure on error
     return {
       kpis: {
-        revenueToday: demoKpis.revenueToday,
-        ordersToday: demoKpis.ordersToday,
-        newCustomers: demoKpis.newCustomers,
-        avgOrderValue7d: demoKpis.avgOrderValue7d
+        revenueToday: 0,
+        ordersToday: 0,
+        newCustomers: 0,
+        avgOrderValue7d: 0
       },
-      trendData: generateDemoTrendData(30),
-      segmentData: generateDemoSegmentData(),
-      aiCommentary: generateDemoAICommentary()
+      trendData: [],
+      segmentData: [],
+      aiCommentary: {
+        revenueChange: 0,
+        topProduct: 'Unknown Product',
+        topProductGrowth: 0,
+        customerChurnIndicator: 0,
+        commentary: 'Unable to generate insights due to data error.'
+      }
     };
   }
 }
