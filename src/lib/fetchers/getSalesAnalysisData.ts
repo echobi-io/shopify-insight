@@ -738,7 +738,7 @@ export async function getTopProducts(
   limit: number = 10
 ): Promise<TopProduct[]> {
   try {
-    console.log('🏆 Fetching top products')
+    console.log('🏆 Fetching top products with filters:', filters, 'merchant_id:', merchant_id)
 
     const { data: orderItems, error } = await supabase
       .from('order_items')
@@ -746,13 +746,16 @@ export async function getTopProducts(
         product_id,
         quantity,
         total,
+        order_id,
         products!inner(id, name),
-        orders!inner(created_at, merchant_id)
+        orders!inner(id, created_at, merchant_id)
       `)
       .gte('orders.created_at', filters.startDate)
       .lte('orders.created_at', filters.endDate)
       .eq('orders.merchant_id', merchant_id)
       .eq('merchant_id', merchant_id)
+
+    console.log('🔍 Order items query result:', { data: orderItems, error })
 
     if (error) {
       console.error('❌ Error fetching top products:', error)
@@ -764,10 +767,13 @@ export async function getTopProducts(
       return []
     }
 
+    console.log('📦 Found', orderItems.length, 'order items')
+
     // Group by product and calculate metrics
     const productGroups = orderItems.reduce((acc, item) => {
       const productId = item.product_id
       const productName = (item.products as any)?.name || 'Unknown Product'
+      const orderId = (item.orders as any)?.id
       
       if (!acc[productId]) {
         acc[productId] = {
@@ -781,12 +787,16 @@ export async function getTopProducts(
       
       acc[productId].revenue += item.total || 0
       acc[productId].quantity += item.quantity || 0
-      acc[productId].orders.add((item.orders as any)?.id)
+      if (orderId) {
+        acc[productId].orders.add(orderId)
+      }
       
       return acc
     }, {} as Record<string, any>)
 
-    return Object.values(productGroups)
+    console.log('📊 Product groups:', Object.keys(productGroups).length, 'unique products')
+
+    const topProducts = Object.values(productGroups)
       .map((product: any) => ({
         id: product.id,
         name: product.name,
@@ -797,6 +807,10 @@ export async function getTopProducts(
       }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, limit)
+
+    console.log('🏆 Top products result:', topProducts)
+
+    return topProducts
 
   } catch (error) {
     console.error('❌ Error in getTopProducts:', error)
