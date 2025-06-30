@@ -66,6 +66,7 @@ import {
 } from '@/lib/fetchers/getSalesAnalysisData'
 import { getEnhancedCustomerData, EnhancedCustomerData } from '@/lib/fetchers/getEnhancedCustomerData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
+import DataDebugPanel from '@/components/DataDebugPanel'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -1312,6 +1313,20 @@ const SalesAnalysisPage: React.FC = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Debug Panel */}
+          <div className="mb-8">
+            <DataDebugPanel
+              dateRange={{
+                startDate: formatDateForSQL(getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate).startDate),
+                endDate: formatDateForSQL(getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate).endDate)
+              }}
+              timeSeriesData={timeSeriesData}
+              selectedTimeframe={timeframe}
+              granularity={granularity}
+              kpis={kpis}
+            />
+          </div>
 
           {/* Help Section */}
           <HelpSection 

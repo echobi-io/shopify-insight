@@ -134,10 +134,10 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
       </div>
       
       <div>
-        <h4 className="font-medium text-black mb-2">Chart Data Limitation</h4>
+        <h4 className="font-medium text-black mb-2">Data Availability</h4>
         <p className="text-sm text-gray-600 font-light">
-          Some charts may show limited data (e.g., 6 months) for performance reasons, but all analytics 
-          respect your selected date range for calculations.
+          All charts and analytics respect your selected date range. If you see limited data, 
+          it may be because there's no data available for the selected period.
         </p>
       </div>
     </div>
