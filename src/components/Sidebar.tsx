@@ -25,6 +25,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
       id: 'customer-insights',
       label: 'Customer Insights',
       href: '/customer-insights'
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      href: '/settings'
     }
   ]
 
@@ -37,6 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
     if (path === '/dashboard') return 'dashboard'
     if (path === '/sales-analysis') return 'sales-analysis'
     if (path === '/customer-insights') return 'customer-insights'
+    if (path === '/settings') return 'settings'
     return 'dashboard'
   }
 

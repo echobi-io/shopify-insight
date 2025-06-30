@@ -37,7 +37,12 @@ import {
   Mail,
   Hash,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Phone,
+  Clock,
+  Star,
+  Shield,
+  X
 } from 'lucide-react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Sidebar from '@/components/Sidebar'
@@ -57,6 +62,7 @@ import {
   getProductDrillDown,
   getCustomerDrillDown
 } from '@/lib/fetchers/getSalesAnalysisData'
+import { getEnhancedCustomerData, EnhancedCustomerData } from '@/lib/fetchers/getEnhancedCustomerData'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -177,8 +183,11 @@ const SalesAnalysisPage: React.FC = () => {
   // Drill-down states
   const [selectedProduct, setSelectedProduct] = useState<ProductDrillDown | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDrillDown | null>(null)
+  const [enhancedCustomerData, setEnhancedCustomerData] = useState<EnhancedCustomerData | null>(null)
   const [showProductDrillDown, setShowProductDrillDown] = useState(false)
   const [showCustomerDrillDown, setShowCustomerDrillDown] = useState(false)
+  const [showEnhancedCustomerPopover, setShowEnhancedCustomerPopover] = useState(false)
+  const [selectedCustomerForEnhanced, setSelectedCustomerForEnhanced] = useState<TopCustomer | null>(null)
   
   // Filter states
   const [dateRange, setDateRange] = useState('2023')
@@ -260,6 +269,26 @@ const SalesAnalysisPage: React.FC = () => {
       }
     } catch (error) {
       console.error('❌ Error loading customer drill-down:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle enhanced customer analysis
+  const handleEnhancedCustomerAnalysis = async (customer: TopCustomer) => {
+    try {
+      setLoading(true)
+      const { startDate, endDate } = getDateRange(dateRange)
+      const filters: FilterState = { startDate, endDate }
+      
+      const enhancedData = await getEnhancedCustomerData(customer.id, filters, HARDCODED_MERCHANT_ID)
+      if (enhancedData) {
+        setEnhancedCustomerData(enhancedData)
+        setSelectedCustomerForEnhanced(customer)
+        setShowEnhancedCustomerPopover(true)
+      }
+    } catch (error) {
+      console.error('❌ Error loading enhanced customer data:', error)
     } finally {
       setLoading(false)
     }
@@ -733,7 +762,7 @@ const SalesAnalysisPage: React.FC = () => {
                             </div>
                             
                             <Button
-                              onClick={() => handleCustomerClick(customer)}
+                              onClick={() => handleEnhancedCustomerAnalysis(customer)}
                               className="w-full font-light"
                               size="sm"
                             >
@@ -1039,6 +1068,261 @@ const SalesAnalysisPage: React.FC = () => {
                         <p className="font-light">No order history available</p>
                       </div>
                     )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Enhanced Customer Analysis Modal */}
+          {showEnhancedCustomerPopover && enhancedCustomerData && selectedCustomerForEnhanced && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-auto">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-light text-black">{enhancedCustomerData.name}</h2>
+                      <p className="text-gray-600 font-light">Enhanced Customer Analysis</p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowEnhancedCustomerPopover(false)}
+                      className="font-light"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  {/* Customer Header Info */}
+                  <div className="bg-gradient-to-r from-blue-50 to-green-50 p-6 rounded-lg mb-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-green-500 rounded-full flex items-center justify-center">
+                          <User className="w-8 h-8 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-medium text-black">{enhancedCustomerData.name}</h3>
+                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
+                            <div className="flex items-center space-x-1">
+                              <Mail className="w-4 h-4" />
+                              <span>{enhancedCustomerData.email}</span>
+                            </div>
+                            {enhancedCustomerData.phone && (
+                              <div className="flex items-center space-x-1">
+                                <Phone className="w-4 h-4" />
+                                <span>{enhancedCustomerData.phone}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                          enhancedCustomerData.isChurned 
+                            ? 'bg-red-100 text-red-800' 
+                            : enhancedCustomerData.churnRisk === 'high'
+                            ? 'bg-orange-100 text-orange-800'
+                            : enhancedCustomerData.churnRisk === 'medium'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {enhancedCustomerData.isChurned ? 'Churned' : `${enhancedCustomerData.churnRisk.charAt(0).toUpperCase() + enhancedCustomerData.churnRisk.slice(1)} Risk`}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 capitalize">{enhancedCustomerData.customerSegment} Customer</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Enhanced KPIs */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+                    <div className="bg-gray-50 p-4 rounded-lg text-center">
+                      <DollarSign className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500 mb-1">Customer LTV</p>
+                      <p className="text-lg font-medium text-black">${enhancedCustomerData.customerLifetimeValue.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg text-center">
+                      <ShoppingCart className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500 mb-1">Total Orders</p>
+                      <p className="text-lg font-medium text-black">{enhancedCustomerData.ordersCount}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg text-center">
+                      <Target className="w-6 h-6 text-purple-600 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500 mb-1">Avg Order Value</p>
+                      <p className="text-lg font-medium text-black">${enhancedCustomerData.avgOrderValue.toFixed(0)}</p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg text-center">
+                      <Calendar className="w-6 h-6 text-orange-600 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500 mb-1">First Order</p>
+                      <p className="text-lg font-medium text-black">
+                        {enhancedCustomerData.firstOrderDate 
+                          ? new Date(enhancedCustomerData.firstOrderDate).toLocaleDateString()
+                          : 'N/A'
+                        }
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg text-center">
+                      <Clock className="w-6 h-6 text-red-600 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500 mb-1">Last Order</p>
+                      <p className="text-lg font-medium text-black">
+                        {enhancedCustomerData.lastOrderDate 
+                          ? new Date(enhancedCustomerData.lastOrderDate).toLocaleDateString()
+                          : 'N/A'
+                        }
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg text-center">
+                      <Clock className="w-6 h-6 text-gray-600 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500 mb-1">Days Since Last Order</p>
+                      <p className="text-lg font-medium text-black">
+                        {enhancedCustomerData.daysSinceLastOrder !== null 
+                          ? `${enhancedCustomerData.daysSinceLastOrder} days`
+                          : 'N/A'
+                        }
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Customer Insights */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    {/* Customer Behavior */}
+                    <Card className="card-minimal">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-medium text-black flex items-center">
+                          <Star className="w-5 h-5 mr-2" />
+                          Customer Behavior
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Favorite Channel</span>
+                          <span className="font-medium text-black capitalize">
+                            {enhancedCustomerData.favoriteChannel || 'Unknown'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Favorite Product</span>
+                          <span className="font-medium text-black">
+                            {enhancedCustomerData.favoriteProduct || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Customer Since</span>
+                          <span className="font-medium text-black">
+                            {new Date(enhancedCustomerData.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Customer Segment</span>
+                          <span className="font-medium text-black capitalize">
+                            {enhancedCustomerData.customerSegment}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Risk Assessment */}
+                    <Card className="card-minimal">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-medium text-black flex items-center">
+                          <Shield className="w-5 h-5 mr-2" />
+                          Risk Assessment
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Churn Status</span>
+                          <span className={`font-medium ${
+                            enhancedCustomerData.isChurned ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            {enhancedCustomerData.isChurned ? 'Churned' : 'Active'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Churn Risk Level</span>
+                          <span className={`font-medium capitalize ${
+                            enhancedCustomerData.churnRisk === 'high' ? 'text-red-600' :
+                            enhancedCustomerData.churnRisk === 'medium' ? 'text-yellow-600' :
+                            'text-green-600'
+                          }`}>
+                            {enhancedCustomerData.churnRisk}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Refund Count</span>
+                          <span className="font-medium text-black">
+                            {enhancedCustomerData.refundCount}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Refund Amount</span>
+                          <span className="font-medium text-black">
+                            ${enhancedCustomerData.refundAmount.toLocaleString()}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Financial Summary */}
+                  <Card className="card-minimal mb-6">
+                    <CardHeader>
+                      <CardTitle className="text-lg font-medium text-black">Financial Summary</CardTitle>
+                      <CardDescription className="font-light text-gray-600">
+                        Lifetime and period-specific financial metrics
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <div className="text-center">
+                          <p className="text-2xl font-light text-black mb-1">
+                            ${enhancedCustomerData.totalSpent.toLocaleString()}
+                          </p>
+                          <p className="text-sm text-gray-600">Lifetime Spent</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-light text-black mb-1">
+                            ${enhancedCustomerData.totalRevenue.toLocaleString()}
+                          </p>
+                          <p className="text-sm text-gray-600">Period Revenue</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-light text-black mb-1">
+                            {enhancedCustomerData.ordersCount}
+                          </p>
+                          <p className="text-sm text-gray-600">Lifetime Orders</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-light text-black mb-1">
+                            {enhancedCustomerData.totalOrders}
+                          </p>
+                          <p className="text-sm text-gray-600">Period Orders</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-between items-center">
+                    <div className="flex space-x-3">
+                      <Button
+                        onClick={() => handleCustomerClick(selectedCustomerForEnhanced)}
+                        variant="outline"
+                        size="sm"
+                        className="font-light"
+                      >
+                        View Detailed Analysis
+                      </Button>
+                    </div>
+                    <Button
+                      onClick={() => setShowEnhancedCustomerPopover(false)}
+                      className="font-light"
+                      size="sm"
+                    >
+                      Close
+                    </Button>
                   </div>
                 </div>
               </div>
