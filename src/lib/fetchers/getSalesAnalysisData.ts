@@ -45,6 +45,46 @@ export interface SalesInsight {
   value?: number
 }
 
+export interface TopProduct {
+  id: string
+  name: string
+  revenue: number
+  quantity: number
+  orders: number
+  avgOrderValue: number
+}
+
+export interface TopCustomer {
+  id: string
+  name: string
+  email: string
+  revenue: number
+  orders: number
+  avgOrderValue: number
+  lastOrderDate: string
+}
+
+export interface ProductDrillDown {
+  product: TopProduct
+  timeSeriesData: RevenueTimeSeriesData[]
+  topCustomers: TopCustomer[]
+  channelBreakdown: ChannelRevenueData[]
+}
+
+export interface CustomerDrillDown {
+  customer: TopCustomer
+  timeSeriesData: RevenueTimeSeriesData[]
+  topProducts: TopProduct[]
+  orderHistory: Array<{
+    id: string
+    orderNumber: string
+    date: string
+    total: number
+    status: string
+    channel: string
+  }>
+}
+
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 // Helper function to calculate date ranges for comparison
@@ -692,14 +732,462 @@ export async function generateSalesInsights(
   }
 }
 
+export async function getTopProducts(
+  filters: FilterState,
+  merchant_id: string = HARDCODED_MERCHANT_ID,
+  limit: number = 10
+): Promise<TopProduct[]> {
+  try {
+    console.log('🏆 Fetching top products')
+
+    const { data: orderItems, error } = await supabase
+      .from('order_items')
+      .select(`
+        product_id,
+        quantity,
+        total,
+        products!inner(id, name),
+        orders!inner(created_at, merchant_id)
+      `)
+      .gte('orders.created_at', filters.startDate)
+      .lte('orders.created_at', filters.endDate)
+      .eq('orders.merchant_id', merchant_id)
+      .eq('merchant_id', merchant_id)
+
+    if (error) {
+      console.error('❌ Error fetching top products:', error)
+      return []
+    }
+
+    if (!orderItems || orderItems.length === 0) {
+      console.log('📭 No order items found for top products')
+      return []
+    }
+
+    // Group by product and calculate metrics
+    const productGroups = orderItems.reduce((acc, item) => {
+      const productId = item.product_id
+      const productName = (item.products as any)?.name || 'Unknown Product'
+      
+      if (!acc[productId]) {
+        acc[productId] = {
+          id: productId,
+          name: productName,
+          revenue: 0,
+          quantity: 0,
+          orders: new Set()
+        }
+      }
+      
+      acc[productId].revenue += item.total || 0
+      acc[productId].quantity += item.quantity || 0
+      acc[productId].orders.add((item.orders as any)?.id)
+      
+      return acc
+    }, {} as Record<string, any>)
+
+    return Object.values(productGroups)
+      .map((product: any) => ({
+        id: product.id,
+        name: product.name,
+        revenue: parseFloat(product.revenue.toFixed(2)),
+        quantity: product.quantity,
+        orders: product.orders.size,
+        avgOrderValue: product.orders.size > 0 ? parseFloat((product.revenue / product.orders.size).toFixed(2)) : 0
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, limit)
+
+  } catch (error) {
+    console.error('❌ Error in getTopProducts:', error)
+    return []
+  }
+}
+
+export async function getTopCustomers(
+  filters: FilterState,
+  merchant_id: string = HARDCODED_MERCHANT_ID,
+  limit: number = 10
+): Promise<TopCustomer[]> {
+  try {
+    console.log('👥 Fetching top customers')
+
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select(`
+        customer_id,
+        total_price,
+        created_at,
+        customers!inner(id, first_name, last_name, email)
+      `)
+      .gte('created_at', filters.startDate)
+      .lte('created_at', filters.endDate)
+      .eq('merchant_id', merchant_id)
+      .not('customer_id', 'is', null)
+
+    if (error) {
+      console.error('❌ Error fetching top customers:', error)
+      return []
+    }
+
+    if (!orders || orders.length === 0) {
+      console.log('📭 No orders found for top customers')
+      return []
+    }
+
+    // Group by customer and calculate metrics
+    const customerGroups = orders.reduce((acc, order) => {
+      const customerId = order.customer_id
+      const customer = order.customers as any
+      
+      if (!customerId || !customer) return acc
+      
+      if (!acc[customerId]) {
+        acc[customerId] = {
+          id: customerId,
+          name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown Customer',
+          email: customer.email || '',
+          revenue: 0,
+          orders: 0,
+          lastOrderDate: order.created_at
+        }
+      }
+      
+      acc[customerId].revenue += order.total_price || 0
+      acc[customerId].orders += 1
+      
+      // Keep track of the most recent order date
+      if (new Date(order.created_at) > new Date(acc[customerId].lastOrderDate)) {
+        acc[customerId].lastOrderDate = order.created_at
+      }
+      
+      return acc
+    }, {} as Record<string, any>)
+
+    return Object.values(customerGroups)
+      .map((customer: any) => ({
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        revenue: parseFloat(customer.revenue.toFixed(2)),
+        orders: customer.orders,
+        avgOrderValue: customer.orders > 0 ? parseFloat((customer.revenue / customer.orders).toFixed(2)) : 0,
+        lastOrderDate: customer.lastOrderDate
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, limit)
+
+  } catch (error) {
+    console.error('❌ Error in getTopCustomers:', error)
+    return []
+  }
+}
+
+export async function getProductDrillDown(
+  productId: string,
+  filters: FilterState,
+  merchant_id: string = HARDCODED_MERCHANT_ID
+): Promise<ProductDrillDown | null> {
+  try {
+    console.log('🔍 Fetching product drill-down for:', productId)
+
+    // Get product details
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', productId)
+      .eq('merchant_id', merchant_id)
+      .single()
+
+    if (productError || !product) {
+      console.error('❌ Product not found:', productError)
+      return null
+    }
+
+    // Get product time series data
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('order_items')
+      .select(`
+        quantity,
+        total,
+        orders!inner(created_at, customer_id, channel)
+      `)
+      .eq('product_id', productId)
+      .eq('merchant_id', merchant_id)
+      .gte('orders.created_at', filters.startDate)
+      .lte('orders.created_at', filters.endDate)
+
+    if (itemsError) {
+      console.error('❌ Error fetching product order items:', itemsError)
+      return null
+    }
+
+    // Generate time series data
+    const timeSeriesData: RevenueTimeSeriesData[] = []
+    if (orderItems && orderItems.length > 0) {
+      const dailyData = orderItems.reduce((acc, item) => {
+        const date = new Date((item.orders as any).created_at).toISOString().split('T')[0]
+        
+        if (!acc[date]) {
+          acc[date] = { revenue: 0, orders: new Set(), quantity: 0 }
+        }
+        
+        acc[date].revenue += item.total || 0
+        acc[date].orders.add((item.orders as any).id)
+        acc[date].quantity += item.quantity || 0
+        
+        return acc
+      }, {} as Record<string, any>)
+
+      Object.entries(dailyData).forEach(([date, data]: [string, any]) => {
+        timeSeriesData.push({
+          date,
+          revenue: parseFloat(data.revenue.toFixed(2)),
+          orders: data.orders.size,
+          avgOrderValue: data.orders.size > 0 ? parseFloat((data.revenue / data.orders.size).toFixed(2)) : 0
+        })
+      })
+    }
+
+    // Get top customers for this product
+    const customerData = orderItems?.reduce((acc, item) => {
+      const customerId = (item.orders as any).customer_id
+      if (!customerId) return acc
+      
+      if (!acc[customerId]) {
+        acc[customerId] = { revenue: 0, orders: 0, quantity: 0 }
+      }
+      
+      acc[customerId].revenue += item.total || 0
+      acc[customerId].orders += 1
+      acc[customerId].quantity += item.quantity || 0
+      
+      return acc
+    }, {} as Record<string, any>) || {}
+
+    // Fetch customer details for top customers
+    const topCustomerIds = Object.entries(customerData)
+      .sort(([,a], [,b]) => (b as any).revenue - (a as any).revenue)
+      .slice(0, 5)
+      .map(([id]) => id)
+
+    let topCustomers: TopCustomer[] = []
+    if (topCustomerIds.length > 0) {
+      const { data: customers } = await supabase
+        .from('customers')
+        .select('*')
+        .in('id', topCustomerIds)
+        .eq('merchant_id', merchant_id)
+
+      if (customers) {
+        topCustomers = customers.map(customer => {
+          const data = customerData[customer.id]
+          return {
+            id: customer.id,
+            name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown Customer',
+            email: customer.email || '',
+            revenue: parseFloat(data.revenue.toFixed(2)),
+            orders: data.orders,
+            avgOrderValue: data.orders > 0 ? parseFloat((data.revenue / data.orders).toFixed(2)) : 0,
+            lastOrderDate: customer.last_order_date || ''
+          }
+        }).sort((a, b) => b.revenue - a.revenue)
+      }
+    }
+
+    // Get channel breakdown for this product
+    const channelData = orderItems?.reduce((acc, item) => {
+      const channel = (item.orders as any).channel || 'Unknown'
+      
+      if (!acc[channel]) {
+        acc[channel] = { revenue: 0, orders: new Set() }
+      }
+      
+      acc[channel].revenue += item.total || 0
+      acc[channel].orders.add((item.orders as any).id)
+      
+      return acc
+    }, {} as Record<string, any>) || {}
+
+    const totalRevenue = Object.values(channelData).reduce((sum: number, ch: any) => sum + ch.revenue, 0)
+    const channelBreakdown: ChannelRevenueData[] = Object.entries(channelData).map(([channel, data]: [string, any]) => ({
+      channel,
+      revenue: parseFloat(data.revenue.toFixed(2)),
+      orders: data.orders.size,
+      percentage: totalRevenue > 0 ? parseFloat(((data.revenue / totalRevenue) * 100).toFixed(1)) : 0,
+      growth: null
+    })).sort((a, b) => b.revenue - a.revenue)
+
+    const productSummary: TopProduct = {
+      id: product.id,
+      name: product.name,
+      revenue: parseFloat(Object.values(customerData).reduce((sum: number, data: any) => sum + data.revenue, 0).toFixed(2)),
+      quantity: Object.values(customerData).reduce((sum: number, data: any) => sum + data.quantity, 0),
+      orders: Object.values(customerData).reduce((sum: number, data: any) => sum + data.orders, 0),
+      avgOrderValue: 0
+    }
+    productSummary.avgOrderValue = productSummary.orders > 0 ? parseFloat((productSummary.revenue / productSummary.orders).toFixed(2)) : 0
+
+    return {
+      product: productSummary,
+      timeSeriesData: timeSeriesData.sort((a, b) => a.date.localeCompare(b.date)),
+      topCustomers,
+      channelBreakdown
+    }
+
+  } catch (error) {
+    console.error('❌ Error in getProductDrillDown:', error)
+    return null
+  }
+}
+
+export async function getCustomerDrillDown(
+  customerId: string,
+  filters: FilterState,
+  merchant_id: string = HARDCODED_MERCHANT_ID
+): Promise<CustomerDrillDown | null> {
+  try {
+    console.log('🔍 Fetching customer drill-down for:', customerId)
+
+    // Get customer details
+    const { data: customer, error: customerError } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', customerId)
+      .eq('merchant_id', merchant_id)
+      .single()
+
+    if (customerError || !customer) {
+      console.error('❌ Customer not found:', customerError)
+      return null
+    }
+
+    // Get customer orders
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select(`
+        id,
+        order_number,
+        total_price,
+        status,
+        channel,
+        created_at,
+        order_items!inner(product_id, quantity, total, products!inner(name))
+      `)
+      .eq('customer_id', customerId)
+      .eq('merchant_id', merchant_id)
+      .gte('created_at', filters.startDate)
+      .lte('created_at', filters.endDate)
+      .order('created_at', { ascending: false })
+
+    if (ordersError) {
+      console.error('❌ Error fetching customer orders:', ordersError)
+      return null
+    }
+
+    if (!orders || orders.length === 0) {
+      console.log('📭 No orders found for customer')
+      return null
+    }
+
+    // Generate time series data
+    const dailyData = orders.reduce((acc, order) => {
+      const date = new Date(order.created_at).toISOString().split('T')[0]
+      
+      if (!acc[date]) {
+        acc[date] = { revenue: 0, orders: 0 }
+      }
+      
+      acc[date].revenue += order.total_price || 0
+      acc[date].orders += 1
+      
+      return acc
+    }, {} as Record<string, any>)
+
+    const timeSeriesData: RevenueTimeSeriesData[] = Object.entries(dailyData).map(([date, data]: [string, any]) => ({
+      date,
+      revenue: parseFloat(data.revenue.toFixed(2)),
+      orders: data.orders,
+      avgOrderValue: data.orders > 0 ? parseFloat((data.revenue / data.orders).toFixed(2)) : 0
+    })).sort((a, b) => a.date.localeCompare(b.date))
+
+    // Get top products for this customer
+    const productData = orders.reduce((acc, order) => {
+      (order.order_items as any[]).forEach(item => {
+        const productId = item.product_id
+        const productName = item.products?.name || 'Unknown Product'
+        
+        if (!acc[productId]) {
+          acc[productId] = {
+            id: productId,
+            name: productName,
+            revenue: 0,
+            quantity: 0,
+            orders: new Set()
+          }
+        }
+        
+        acc[productId].revenue += item.total || 0
+        acc[productId].quantity += item.quantity || 0
+        acc[productId].orders.add(order.id)
+      })
+      
+      return acc
+    }, {} as Record<string, any>)
+
+    const topProducts: TopProduct[] = Object.values(productData).map((product: any) => ({
+      id: product.id,
+      name: product.name,
+      revenue: parseFloat(product.revenue.toFixed(2)),
+      quantity: product.quantity,
+      orders: product.orders.size,
+      avgOrderValue: product.orders.size > 0 ? parseFloat((product.revenue / product.orders.size).toFixed(2)) : 0
+    })).sort((a, b) => b.revenue - a.revenue).slice(0, 10)
+
+    // Prepare order history
+    const orderHistory = orders.map(order => ({
+      id: order.id,
+      orderNumber: order.order_number,
+      date: order.created_at,
+      total: order.total_price || 0,
+      status: order.status || 'unknown',
+      channel: order.channel || 'unknown'
+    }))
+
+    const customerSummary: TopCustomer = {
+      id: customer.id,
+      name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown Customer',
+      email: customer.email || '',
+      revenue: parseFloat(orders.reduce((sum, order) => sum + (order.total_price || 0), 0).toFixed(2)),
+      orders: orders.length,
+      avgOrderValue: 0,
+      lastOrderDate: orders[0]?.created_at || ''
+    }
+    customerSummary.avgOrderValue = customerSummary.orders > 0 ? parseFloat((customerSummary.revenue / customerSummary.orders).toFixed(2)) : 0
+
+    return {
+      customer: customerSummary,
+      timeSeriesData,
+      topProducts,
+      orderHistory
+    }
+
+  } catch (error) {
+    console.error('❌ Error in getCustomerDrillDown:', error)
+    return null
+  }
+}
+
 export async function getSalesAnalysisData(filters: FilterState, merchant_id: string = HARDCODED_MERCHANT_ID) {
   try {
     console.log('🔄 Fetching complete sales analysis data')
 
-    const [kpis, timeSeriesData, channelData] = await Promise.all([
+    const [kpis, timeSeriesData, channelData, topProducts, topCustomers] = await Promise.all([
       getSalesAnalysisKPIs(filters, merchant_id),
       getRevenueTimeSeries(filters, 'daily', merchant_id),
-      getChannelRevenueBreakdown(filters, merchant_id)
+      getChannelRevenueBreakdown(filters, merchant_id),
+      getTopProducts(filters, merchant_id, 10),
+      getTopCustomers(filters, merchant_id, 10)
     ])
 
     const insights = await generateSalesInsights(kpis, timeSeriesData, channelData)
@@ -708,6 +1196,8 @@ export async function getSalesAnalysisData(filters: FilterState, merchant_id: st
       kpis,
       timeSeriesData,
       channelData,
+      topProducts,
+      topCustomers,
       insights
     }
 
