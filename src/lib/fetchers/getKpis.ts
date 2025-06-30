@@ -279,6 +279,38 @@ export async function getPreviousKPIs(filters: FilterState, merchant_id?: string
   }
 }
 
+// Get previous year KPIs for year-over-year comparison
+export async function getPreviousYearKPIs(filters: FilterState, merchant_id?: string): Promise<KPIData> {
+  try {
+    // Calculate previous year dates
+    const startDate = new Date(filters.startDate)
+    const endDate = new Date(filters.endDate)
+    
+    // Subtract one year from both dates
+    const previousYearStartDate = new Date(startDate)
+    previousYearStartDate.setFullYear(startDate.getFullYear() - 1)
+    
+    const previousYearEndDate = new Date(endDate)
+    previousYearEndDate.setFullYear(endDate.getFullYear() - 1)
+
+    const previousYearFilters: FilterState = {
+      ...filters,
+      startDate: previousYearStartDate.toISOString(),
+      endDate: previousYearEndDate.toISOString()
+    }
+
+    console.log('🔍 Fetching previous year KPIs:', {
+      current: { start: filters.startDate, end: filters.endDate },
+      previousYear: { start: previousYearFilters.startDate, end: previousYearFilters.endDate }
+    })
+
+    return await getKPIs(previousYearFilters, merchant_id)
+  } catch (error) {
+    console.error('Error fetching previous year KPIs:', error)
+    throw error; // Don't return fallback data, let the error bubble up
+  }
+}
+
 // Calculate KPI changes and trends
 export function calculateKPIChanges(current: KPIData, previous: KPIData) {
   const calculateChange = (current: number, previous: number): number => {

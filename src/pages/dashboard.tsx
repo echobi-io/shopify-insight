@@ -4,14 +4,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Users, RefreshCw, AlertCircle } from 'lucide-react'
-import { getKPIs, getPreviousKPIs, calculateKPIChanges, type KPIData, type FilterState } from '@/lib/fetchers/getKpis'
+import { getKPIs, getPreviousYearKPIs, calculateKPIChanges, type KPIData, type FilterState } from '@/lib/fetchers/getKpis'
 import { getRevenueByDate, type RevenueByDateData } from '@/lib/fetchers/getRevenueByDate'
 import { getProductData } from '@/lib/fetchers/getProductData'
 import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type CustomerSegmentData, type AICommentaryData } from '@/lib/fetchers/getDashboardData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
+import { formatCurrency } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import EnhancedKPICard from '@/components/EnhancedKPICard'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -25,52 +27,13 @@ interface ProductData {
   trend: number[]
 }
 
-// Clean KPI Card Component
-interface KPICardProps {
-  title: string
-  value: string | number
-  change?: number
-  changeType?: 'positive' | 'negative'
-  icon: React.ReactNode
-}
 
-const KPICard: React.FC<KPICardProps> = ({ title, value, change, changeType, icon }) => {
-  return (
-    <Card className="card-minimal">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-light text-gray-600 mb-1">{title}</p>
-            <p className="text-2xl font-light text-black">{value}</p>
-          </div>
-          <div className="flex flex-col items-end">
-            <div className="text-gray-400 mb-2">
-              {icon}
-            </div>
-            {change !== undefined && (
-              <div className={`flex items-center text-sm font-light ${
-                changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {changeType === 'positive' ? (
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                ) : (
-                  <TrendingDown className="w-3 h-3 mr-1" />
-                )}
-                {Math.abs(change).toFixed(1)}%
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 const DashboardPage: React.FC = () => {
   const [timeframe, setTimeframe] = useState('all_2024')
   const [loading, setLoading] = useState(true)
   const [kpiData, setKpiData] = useState<KPIData | null>(null)
-  const [kpiChanges, setKpiChanges] = useState<any>(null)
+  const [previousYearKpiData, setPreviousYearKpiData] = useState<KPIData | null>(null)
   const [revenueData, setRevenueData] = useState<RevenueByDateData[]>([])
   const [productData, setProductData] = useState<ProductData[]>([])
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
@@ -105,13 +68,13 @@ const DashboardPage: React.FC = () => {
       }
 
       // Load all data in parallel
-      const [currentKpis, previousKpis, revenue, products, dashboardData] = await Promise.all([
+      const [currentKpis, previousYearKpis, revenue, products, dashboardData] = await Promise.all([
         getKPIs(filters, MERCHANT_ID).catch(err => {
           console.error('❌ Error loading current KPIs:', err)
           return null
         }),
-        getPreviousKPIs(filters, MERCHANT_ID).catch(err => {
-          console.error('❌ Error loading previous KPIs:', err)
+        getPreviousYearKPIs(filters, MERCHANT_ID).catch(err => {
+          console.error('❌ Error loading previous year KPIs:', err)
           return null
         }),
         getRevenueByDate(filters, MERCHANT_ID),
@@ -120,9 +83,7 @@ const DashboardPage: React.FC = () => {
       ])
 
       setKpiData(currentKpis)
-      if (previousKpis && currentKpis) {
-        setKpiChanges(calculateKPIChanges(currentKpis, previousKpis))
-      }
+      setPreviousYearKpiData(previousYearKpis)
       setRevenueData(revenue)
       setProductData(products)
       setDashboardKpis(dashboardData.kpis)
@@ -140,13 +101,6 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     loadData()
   }, [timeframe])
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value)
-  }
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-US').format(value)
@@ -214,33 +168,33 @@ const DashboardPage: React.FC = () => {
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <KPICard
+            <EnhancedKPICard
               title="Total Revenue"
-              value={kpiData ? formatCurrency(kpiData.totalRevenue) : '$0'}
-              change={kpiChanges?.totalRevenue?.percentageChange}
-              changeType={kpiChanges?.totalRevenue?.percentageChange >= 0 ? 'positive' : 'negative'}
+              value={kpiData?.totalRevenue || 0}
+              previousValue={previousYearKpiData?.totalRevenue}
               icon={<DollarSign className="w-5 h-5" />}
+              isMonetary={true}
             />
-            <KPICard
+            <EnhancedKPICard
               title="Total Orders"
-              value={kpiData ? formatNumber(kpiData.totalOrders) : '0'}
-              change={kpiChanges?.totalOrders?.percentageChange}
-              changeType={kpiChanges?.totalOrders?.percentageChange >= 0 ? 'positive' : 'negative'}
+              value={kpiData?.totalOrders || 0}
+              previousValue={previousYearKpiData?.totalOrders}
               icon={<ShoppingCart className="w-5 h-5" />}
+              isMonetary={false}
             />
-            <KPICard
+            <EnhancedKPICard
               title="New Customers"
-              value={kpiData ? formatNumber(kpiData.newCustomers) : '0'}
-              change={kpiChanges?.newCustomers?.percentageChange}
-              changeType={kpiChanges?.newCustomers?.percentageChange >= 0 ? 'positive' : 'negative'}
+              value={kpiData?.newCustomers || 0}
+              previousValue={previousYearKpiData?.newCustomers}
               icon={<Users className="w-5 h-5" />}
+              isMonetary={false}
             />
-            <KPICard
+            <EnhancedKPICard
               title="Average Order Value"
-              value={kpiData ? formatCurrency(kpiData.avgOrderValue) : '$0'}
-              change={kpiChanges?.avgOrderValue?.percentageChange}
-              changeType={kpiChanges?.avgOrderValue?.percentageChange >= 0 ? 'positive' : 'negative'}
+              value={kpiData?.avgOrderValue || 0}
+              previousValue={previousYearKpiData?.avgOrderValue}
               icon={<DollarSign className="w-5 h-5" />}
+              isMonetary={true}
             />
           </div>
 

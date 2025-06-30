@@ -26,8 +26,8 @@ interface AppSettings {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  financialYearStart: '2024-01-01',
-  financialYearEnd: '2024-12-31',
+  financialYearStart: '01-01', // MM-DD format
+  financialYearEnd: '12-31',   // MM-DD format
   defaultDateRange: '2023',
   timezone: 'UTC',
   currency: 'USD'
@@ -60,22 +60,25 @@ const SettingsPage: React.FC = () => {
   }
 
   const validateSettings = (): string | null => {
-    // Validate financial year dates
-    const startDate = new Date(settings.financialYearStart)
-    const endDate = new Date(settings.financialYearEnd)
+    // Validate financial year dates (MM-DD format)
+    const startParts = settings.financialYearStart.split('-')
+    const endParts = settings.financialYearEnd.split('-')
     
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return 'Please enter valid dates for financial year'
+    if (startParts.length !== 2 || endParts.length !== 2) {
+      return 'Please enter valid dates in MM-DD format'
     }
     
-    if (startDate >= endDate) {
-      return 'Financial year start date must be before end date'
+    const startMonth = parseInt(startParts[0])
+    const startDay = parseInt(startParts[1])
+    const endMonth = parseInt(endParts[0])
+    const endDay = parseInt(endParts[1])
+    
+    if (startMonth < 1 || startMonth > 12 || endMonth < 1 || endMonth > 12) {
+      return 'Please enter valid months (01-12)'
     }
     
-    // Check if the date range is reasonable (not more than 2 years)
-    const diffInDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-    if (diffInDays > 730) {
-      return 'Financial year period cannot exceed 2 years'
+    if (startDay < 1 || startDay > 31 || endDay < 1 || endDay > 31) {
+      return 'Please enter valid days (01-31)'
     }
     
     return null
@@ -169,13 +172,14 @@ const SettingsPage: React.FC = () => {
                     </Label>
                     <Input
                       id="financialYearStart"
-                      type="date"
+                      type="text"
+                      placeholder="MM-DD"
                       value={settings.financialYearStart}
                       onChange={(e) => handleInputChange('financialYearStart', e.target.value)}
                       className="font-light"
                     />
                     <p className="text-xs text-gray-500 font-light">
-                      The beginning of your financial reporting period
+                      Enter in MM-DD format (e.g., 01-01 for January 1st)
                     </p>
                   </div>
                   
@@ -185,13 +189,14 @@ const SettingsPage: React.FC = () => {
                     </Label>
                     <Input
                       id="financialYearEnd"
-                      type="date"
+                      type="text"
+                      placeholder="MM-DD"
                       value={settings.financialYearEnd}
                       onChange={(e) => handleInputChange('financialYearEnd', e.target.value)}
                       className="font-light"
                     />
                     <p className="text-xs text-gray-500 font-light">
-                      The end of your financial reporting period
+                      Enter in MM-DD format (e.g., 12-31 for December 31st)
                     </p>
                   </div>
                 </div>
@@ -202,7 +207,7 @@ const SettingsPage: React.FC = () => {
                     <div>
                       <p className="text-sm font-medium text-blue-900">Financial Year Period</p>
                       <p className="text-sm text-blue-700 font-light">
-                        {new Date(settings.financialYearStart).toLocaleDateString()} - {new Date(settings.financialYearEnd).toLocaleDateString()}
+                        {settings.financialYearStart} to {settings.financialYearEnd} (each year)
                       </p>
                       <p className="text-xs text-blue-600 font-light mt-1">
                         This period will be used as the default date range for financial reports and year-over-year comparisons.
