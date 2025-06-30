@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { FilterState } from './getKpis'
+import { getSettings } from '../utils/settingsUtils'
 
 export interface EnhancedCustomerData {
   id: string
@@ -28,14 +29,21 @@ export interface EnhancedCustomerData {
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 // Helper function to calculate churn risk
-function calculateChurnRisk(daysSinceLastOrder: number | null, avgOrderFrequency: number): 'low' | 'medium' | 'high' {
+function calculateChurnRisk(daysSinceLastOrder: number | null, avgOrderFrequency: number, isChurned: boolean, churnPeriodDays: number): 'low' | 'medium' | 'high' {
   if (!daysSinceLastOrder) return 'low'
   
-  // If no orders in the last 90 days and average frequency is less than 30 days
-  if (daysSinceLastOrder > 90 && avgOrderFrequency < 30) return 'high'
+  // If customer is churned, always return high risk
+  if (isChurned) return 'high'
   
-  // If no orders in the last 60 days and average frequency is less than 45 days
-  if (daysSinceLastOrder > 60 && avgOrderFrequency < 45) return 'medium'
+  // Calculate risk thresholds based on churn period
+  const highRiskThreshold = Math.floor(churnPeriodDays * 0.5) // 50% of churn period
+  const mediumRiskThreshold = Math.floor(churnPeriodDays * 0.33) // 33% of churn period
+  
+  // If no orders in the high risk threshold and average frequency is less than 30 days
+  if (daysSinceLastOrder > highRiskThreshold && avgOrderFrequency < 30) return 'high'
+  
+  // If no orders in the medium risk threshold and average frequency is less than 45 days
+  if (daysSinceLastOrder > mediumRiskThreshold && avgOrderFrequency < 45) return 'medium'
   
   // If no orders in twice the average frequency
   if (daysSinceLastOrder > avgOrderFrequency * 2) return 'medium'
@@ -44,9 +52,9 @@ function calculateChurnRisk(daysSinceLastOrder: number | null, avgOrderFrequency
 }
 
 // Helper function to determine if customer is churned
-function isCustomerChurned(daysSinceLastOrder: number | null): boolean {
-  // Consider churned if no orders in the last 180 days
-  return daysSinceLastOrder !== null && daysSinceLastOrder > 180
+function isCustomerChurned(daysSinceLastOrder: number | null, churnPeriodDays: number): boolean {
+  // Consider churned if no orders in the configured churn period
+  return daysSinceLastOrder !== null && daysSinceLastOrder > churnPeriodDays
 }
 
 // Helper function to calculate intelligent customer segment
@@ -183,12 +191,16 @@ export async function getEnhancedCustomerData(
       avgOrderFrequency = totalDays / (allOrders.length - 1)
     }
 
+    // Get settings for churn period
+    const settings = getSettings()
+    const churnPeriodDays = settings.churnPeriodDays
+
     // Calculate Customer Lifetime Value (simple version: total spent)
     const customerLifetimeValue = lifetimeRevenue
 
     // Determine churn status and risk
-    const churned = isCustomerChurned(daysSinceLastOrder)
-    const churnRisk = calculateChurnRisk(daysSinceLastOrder, avgOrderFrequency)
+    const churned = isCustomerChurned(daysSinceLastOrder, churnPeriodDays)
+    const churnRisk = calculateChurnRisk(daysSinceLastOrder, avgOrderFrequency, churned, churnPeriodDays)
 
     // Calculate intelligent customer segment based on behavior and churn status
     const intelligentCustomerSegment = calculateIntelligentCustomerSegment(

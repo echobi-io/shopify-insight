@@ -11,7 +11,8 @@ import {
   RefreshCw,
   Settings as SettingsIcon,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Users
 } from 'lucide-react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Sidebar from '@/components/Sidebar'
@@ -23,6 +24,7 @@ interface AppSettings {
   defaultDateRange: string
   timezone: string
   currency: string
+  churnPeriodDays: number
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -30,7 +32,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   financialYearEnd: '12-31',   // MM-DD format
   defaultDateRange: '2023',
   timezone: 'UTC',
-  currency: 'USD'
+  currency: 'USD',
+  churnPeriodDays: 180 // Default: 180 days without purchase = churned
 }
 
 const SettingsPage: React.FC = () => {
@@ -79,6 +82,12 @@ const SettingsPage: React.FC = () => {
     
     if (startDay < 1 || startDay > 31 || endDay < 1 || endDay > 31) {
       return 'Please enter valid days (01-31)'
+    }
+    
+    // Validate churn period
+    const churnPeriod = parseInt(settings.churnPeriodDays.toString())
+    if (isNaN(churnPeriod) || churnPeriod < 30 || churnPeriod > 365) {
+      return 'Churn period must be between 30 and 365 days'
     }
     
     return null
@@ -211,6 +220,53 @@ const SettingsPage: React.FC = () => {
                       </p>
                       <p className="text-xs text-blue-600 font-light mt-1">
                         This period will be used as the default date range for financial reports and year-over-year comparisons.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Customer Analytics Settings */}
+            <Card className="card-minimal mb-8">
+              <CardHeader>
+                <CardTitle className="text-xl font-medium text-black flex items-center">
+                  <Users className="w-5 h-5 mr-2" />
+                  Customer Analytics Settings
+                </CardTitle>
+                <CardDescription className="font-light text-gray-600">
+                  Configure customer behavior analysis and churn detection parameters
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="churnPeriodDays" className="text-sm font-medium text-black">
+                    Churn Period (Days)
+                  </Label>
+                  <Input
+                    id="churnPeriodDays"
+                    type="number"
+                    min="30"
+                    max="365"
+                    value={settings.churnPeriodDays}
+                    onChange={(e) => handleInputChange('churnPeriodDays', e.target.value)}
+                    className="font-light"
+                  />
+                  <p className="text-xs text-gray-500 font-light">
+                    Number of days without a purchase before a customer is considered churned (30-365 days)
+                  </p>
+                </div>
+                
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-2">
+                    <Users className="w-4 h-4 text-orange-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-orange-900">Churn Detection</p>
+                      <p className="text-sm text-orange-700 font-light">
+                        Customers with no purchases in the last {settings.churnPeriodDays} days will be marked as churned and assigned high risk
+                      </p>
+                      <p className="text-xs text-orange-600 font-light mt-1">
+                        This setting affects customer risk calculations, retention analysis, and churn predictions across all analytics.
                       </p>
                     </div>
                   </div>
