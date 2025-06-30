@@ -740,6 +740,34 @@ export async function getTopProducts(
   try {
     console.log('🏆 Fetching top products with filters:', filters, 'merchant_id:', merchant_id)
 
+    // First, let's check if we have any order_items at all
+    const { data: allOrderItems, error: allError } = await supabase
+      .from('order_items')
+      .select('*')
+      .eq('merchant_id', merchant_id)
+      .limit(5)
+
+    console.log('🔍 All order items check:', { data: allOrderItems, error: allError })
+
+    // Check if we have any products
+    const { data: allProducts, error: productsError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('merchant_id', merchant_id)
+      .limit(5)
+
+    console.log('🔍 All products check:', { data: allProducts, error: productsError })
+
+    // Check if we have any orders
+    const { data: allOrders, error: ordersError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('merchant_id', merchant_id)
+      .limit(5)
+
+    console.log('🔍 All orders check:', { data: allOrders, error: ordersError })
+
+    // Now try the original query
     const { data: orderItems, error } = await supabase
       .from('order_items')
       .select(`
@@ -759,6 +787,17 @@ export async function getTopProducts(
 
     if (error) {
       console.error('❌ Error fetching top products:', error)
+      
+      // Try a simpler query without joins
+      console.log('🔄 Trying simpler query without joins...')
+      const { data: simpleOrderItems, error: simpleError } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('merchant_id', merchant_id)
+        .limit(10)
+
+      console.log('🔍 Simple order items result:', { data: simpleOrderItems, error: simpleError })
+      
       return []
     }
 
