@@ -4,8 +4,18 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area } from 'recharts'
-import { TrendingUp, TrendingDown, AlertTriangle, Users, DollarSign, RefreshCw, AlertCircle, Target, Calendar } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, ComposedChart,
+  ScatterChart, Scatter, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  Treemap, FunnelChart, Funnel, LabelList
+} from 'recharts'
+import { 
+  TrendingUp, TrendingDown, AlertTriangle, Users, DollarSign, RefreshCw, 
+  AlertCircle, Target, Calendar, Activity, Clock, Zap, Shield, 
+  BarChart3, PieChart as PieChartIcon, TrendingUpIcon, UserX
+} from 'lucide-react'
 import { getChurnLtvData, type ChurnAnalyticsData, type ChurnTrend, type RiskSegment } from '@/lib/fetchers/getChurnLtvData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency } from '@/lib/utils/settingsUtils'
@@ -15,6 +25,7 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import DateRangeSelector from '@/components/DateRangeSelector'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection from '@/components/HelpSection'
+import ExpandableTile from '@/components/ExpandableTile'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -73,7 +84,54 @@ const ChurnAnalyticsPage: React.FC = () => {
     {
       title: "Cohort Analysis",
       content: "Analyze customer retention by cohorts to understand how different customer groups behave over time and identify improvement opportunities."
+    },
+    {
+      title: "Predictive Analytics",
+      content: "Use machine learning models to predict which customers are most likely to churn, enabling proactive retention strategies."
     }
+  ]
+
+  // Generate additional mock data for enhanced visualizations
+  const generateChurnCohortData = () => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    return months.map((month, index) => ({
+      month,
+      newCustomers: Math.floor(Math.random() * 200) + 100,
+      churnedCustomers: Math.floor(Math.random() * 50) + 10,
+      retainedCustomers: Math.floor(Math.random() * 150) + 80,
+      churnRate: (Math.random() * 15) + 5
+    }))
+  }
+
+  const generateCustomerLifecycleData = () => [
+    { stage: 'New', customers: 450, avgDays: 0, churnRate: 25 },
+    { stage: 'Active', customers: 320, avgDays: 45, churnRate: 8 },
+    { stage: 'Engaged', customers: 180, avgDays: 120, churnRate: 5 },
+    { stage: 'At Risk', customers: 95, avgDays: 180, churnRate: 45 },
+    { stage: 'Churned', customers: 75, avgDays: 365, churnRate: 100 }
+  ]
+
+  const generateRiskFactorsData = () => [
+    { factor: 'Days Since Last Order', impact: 85, customers: 234 },
+    { factor: 'Order Frequency Decline', impact: 72, customers: 189 },
+    { factor: 'Support Tickets', impact: 68, customers: 156 },
+    { factor: 'Cart Abandonment', impact: 55, customers: 203 },
+    { factor: 'Email Engagement', impact: 48, customers: 167 },
+    { factor: 'Price Sensitivity', impact: 42, customers: 134 }
+  ]
+
+  const generateChurnPredictionAccuracy = () => [
+    { model: 'Random Forest', accuracy: 87.5, precision: 84.2, recall: 89.1 },
+    { model: 'Gradient Boosting', accuracy: 85.3, precision: 82.7, recall: 87.8 },
+    { model: 'Neural Network', accuracy: 83.9, precision: 81.5, recall: 86.2 },
+    { model: 'Logistic Regression', accuracy: 79.2, precision: 76.8, recall: 81.5 }
+  ]
+
+  const generateRetentionCampaignData = () => [
+    { campaign: 'Email Discount', sent: 500, opened: 285, clicked: 142, converted: 67, roi: 340 },
+    { campaign: 'SMS Reminder', sent: 300, opened: 270, clicked: 135, converted: 54, roi: 280 },
+    { campaign: 'Push Notification', sent: 800, opened: 320, clicked: 96, converted: 38, roi: 190 },
+    { campaign: 'Personalized Offer', sent: 200, opened: 180, clicked: 108, converted: 65, roi: 425 }
   ]
 
   // Filter customers based on selected filters
@@ -94,6 +152,12 @@ const ChurnAnalyticsPage: React.FC = () => {
       default: return 'bg-gray-100 text-gray-800 border-gray-200'
     }
   }
+
+  const cohortData = generateChurnCohortData()
+  const lifecycleData = generateCustomerLifecycleData()
+  const riskFactorsData = generateRiskFactorsData()
+  const predictionAccuracyData = generateChurnPredictionAccuracy()
+  const campaignData = generateRetentionCampaignData()
 
   if (loading) {
     return (
@@ -156,7 +220,7 @@ const ChurnAnalyticsPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-light text-black mb-2">Churn Analytics</h1>
-                <p className="text-gray-600 font-light">Customer retention analysis and churn risk assessment</p>
+                <p className="text-gray-600 font-light">Comprehensive customer retention analysis and churn risk assessment</p>
               </div>
               
               {/* Date Filter */}
@@ -221,145 +285,219 @@ const ChurnAnalyticsPage: React.FC = () => {
             />
           </div>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Churn Rate Trend */}
-            <Card className="card-minimal">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium text-black">Churn Rate Trend</CardTitle>
-                <CardDescription className="font-light text-gray-600">
-                  Monthly churn rate over time
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {data.churnTrend.length > 0 ? (
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={data.churnTrend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis 
-                          dataKey="month" 
-                          fontSize={12}
-                          stroke="#666"
-                          tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
-                        />
-                        <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `${value}%`} />
-                        <Tooltip 
-                          labelFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                          formatter={(value: any) => [`${value.toFixed(1)}%`, 'Churn Rate']}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="churnRate" 
-                          stroke="#ef4444" 
-                          fill="#ef4444" 
-                          fillOpacity={0.1}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="h-64 flex items-center justify-center">
-                    <div className="text-center">
-                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm font-light text-gray-500">No trend data available</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Tabbed Analytics */}
+          <Tabs defaultValue="overview" className="mb-8">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="trends">Trends</TabsTrigger>
+              <TabsTrigger value="segments">Segments</TabsTrigger>
+              <TabsTrigger value="predictions">Predictions</TabsTrigger>
+              <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+            </TabsList>
 
-            {/* Risk Distribution */}
-            <Card className="card-minimal">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium text-black">Risk Distribution</CardTitle>
-                <CardDescription className="font-light text-gray-600">
-                  Customer distribution by churn risk level
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+            {/* Overview Tab */}
+            <TabsContent value="overview" className="space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Churn Rate Trend */}
+                <ExpandableTile
+                  title="Churn Rate Trend"
+                  description="Monthly churn rate over time"
+                  data={data.churnTrend}
+                  filename="churn-rate-trend"
+                >
+                  {data.churnTrend.length > 0 ? (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data.churnTrend}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis 
+                            dataKey="month" 
+                            fontSize={12}
+                            stroke="#666"
+                            tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
+                          />
+                          <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `${value}%`} />
+                          <Tooltip 
+                            labelFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                            formatter={(value: any) => [`${value.toFixed(1)}%`, 'Churn Rate']}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="churnRate" 
+                            stroke="#ef4444" 
+                            fill="#ef4444" 
+                            fillOpacity={0.1}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-64 flex items-center justify-center">
+                      <div className="text-center">
+                        <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm font-light text-gray-500">No trend data available</p>
+                      </div>
+                    </div>
+                  )}
+                </ExpandableTile>
+
+                {/* Risk Distribution */}
+                <ExpandableTile
+                  title="Risk Distribution"
+                  description="Customer distribution by churn risk level"
+                  data={data.riskSegments}
+                  filename="risk-distribution"
+                >
+                  {data.riskSegments.length > 0 ? (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={data.riskSegments}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ riskLevel, percentage }) => `${riskLevel}: ${percentage}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="customerCount"
+                          >
+                            {data.riskSegments.map((entry, index) => {
+                              const colors = { 'High': '#ef4444', 'Medium': '#f59e0b', 'Low': '#10b981' }
+                              return (
+                                <Cell key={`cell-${index}`} fill={colors[entry.riskLevel as keyof typeof colors] || '#6b7280'} />
+                              )
+                            })}
+                          </Pie>
+                          <Tooltip formatter={(value: any) => [value, 'Customers']} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-64 flex items-center justify-center">
+                      <div className="text-center">
+                        <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm font-light text-gray-500">No risk data available</p>
+                      </div>
+                    </div>
+                  )}
+                </ExpandableTile>
+              </div>
+
+              {/* Revenue at Risk by Segment */}
+              <ExpandableTile
+                title="Revenue at Risk by Segment"
+                description="Potential revenue loss breakdown by risk level"
+                data={data.riskSegments}
+                filename="revenue-at-risk"
+              >
                 {data.riskSegments.length > 0 ? (
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={data.riskSegments}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ riskLevel, percentage }) => `${riskLevel}: ${percentage}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="customerCount"
-                        >
-                          {data.riskSegments.map((entry, index) => {
-                            const colors = { 'High': '#ef4444', 'Medium': '#f59e0b', 'Low': '#10b981' }
-                            return (
-                              <Cell key={`cell-${index}`} fill={colors[entry.riskLevel as keyof typeof colors] || '#6b7280'} />
-                            )
-                          })}
-                        </Pie>
-                        <Tooltip formatter={(value: any) => [value, 'Customers']} />
-                      </PieChart>
+                      <BarChart data={data.riskSegments}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="riskLevel" fontSize={12} stroke="#666" />
+                        <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => formatCurrency(value)} />
+                        <Tooltip formatter={(value: any) => [formatCurrency(value), 'Revenue at Risk']} />
+                        <Bar dataKey="revenueAtRisk" fill="#ef4444" />
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 ) : (
                   <div className="h-64 flex items-center justify-center">
                     <div className="text-center">
                       <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm font-light text-gray-500">No risk data available</p>
+                      <p className="text-sm font-light text-gray-500">No revenue data available</p>
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
+              </ExpandableTile>
+            </TabsContent>
 
-          {/* Revenue at Risk by Segment */}
-          <Card className="card-minimal mb-8">
-            <CardHeader>
-              <CardTitle className="text-lg font-medium text-black">Revenue at Risk by Segment</CardTitle>
-              <CardDescription className="font-light text-gray-600">
-                Potential revenue loss breakdown by risk level
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {data.riskSegments.length > 0 ? (
+            {/* Trends Tab */}
+            <TabsContent value="trends" className="space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Cohort Analysis */}
+                <ExpandableTile
+                  title="Cohort Retention Analysis"
+                  description="Customer retention patterns by acquisition cohort"
+                  data={cohortData}
+                  filename="cohort-analysis"
+                >
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={cohortData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="month" fontSize={12} stroke="#666" />
+                        <YAxis yAxisId="left" fontSize={12} stroke="#666" />
+                        <YAxis yAxisId="right" orientation="right" fontSize={12} stroke="#666" tickFormatter={(value) => `${value}%`} />
+                        <Tooltip />
+                        <Bar yAxisId="left" dataKey="newCustomers" fill="#3b82f6" name="New Customers" />
+                        <Bar yAxisId="left" dataKey="retainedCustomers" fill="#10b981" name="Retained" />
+                        <Line yAxisId="right" type="monotone" dataKey="churnRate" stroke="#ef4444" strokeWidth={2} name="Churn Rate %" />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                </ExpandableTile>
+
+                {/* Customer Lifecycle */}
+                <ExpandableTile
+                  title="Customer Lifecycle Stages"
+                  description="Distribution of customers across lifecycle stages"
+                  data={lifecycleData}
+                  filename="customer-lifecycle"
+                >
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <FunnelChart>
+                        <Tooltip />
+                        <Funnel
+                          dataKey="customers"
+                          data={lifecycleData}
+                          isAnimationActive
+                        >
+                          <LabelList position="center" fill="#fff" stroke="none" />
+                        </Funnel>
+                      </FunnelChart>
+                    </ResponsiveContainer>
+                  </div>
+                </ExpandableTile>
+              </div>
+
+              {/* Risk Factors Analysis */}
+              <ExpandableTile
+                title="Churn Risk Factors"
+                description="Key factors contributing to customer churn risk"
+                data={riskFactorsData}
+                filename="risk-factors"
+              >
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.riskSegments}>
+                    <BarChart data={riskFactorsData} layout="horizontal">
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="riskLevel" fontSize={12} stroke="#666" />
-                      <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => formatCurrency(value)} />
-                      <Tooltip formatter={(value: any) => [formatCurrency(value), 'Revenue at Risk']} />
-                      <Bar dataKey="revenueAtRisk" fill="#ef4444" />
+                      <XAxis type="number" fontSize={12} stroke="#666" />
+                      <YAxis dataKey="factor" type="category" fontSize={12} stroke="#666" width={150} />
+                      <Tooltip formatter={(value: any, name: string) => [
+                        name === 'impact' ? `${value}% Impact` : `${value} Customers`,
+                        name === 'impact' ? 'Risk Impact' : 'Affected Customers'
+                      ]} />
+                      <Bar dataKey="impact" fill="#f59e0b" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-              ) : (
-                <div className="h-64 flex items-center justify-center">
-                  <div className="text-center">
-                    <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm font-light text-gray-500">No revenue data available</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </ExpandableTile>
+            </TabsContent>
 
-          {/* Customer Risk Table */}
-          <Card className="card-minimal mb-8">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="text-lg font-medium text-black">Customer Risk Analysis</CardTitle>
-                  <CardDescription className="font-light text-gray-600">
-                    Detailed risk assessment for individual customers
-                  </CardDescription>
-                </div>
-                
-                {/* Filters */}
-                <div className="flex items-center space-x-4">
+            {/* Segments Tab */}
+            <TabsContent value="segments" className="space-y-8">
+              {/* Customer Risk Table */}
+              <ExpandableTile
+                title="Customer Risk Analysis"
+                description="Detailed risk assessment for individual customers"
+                data={filteredCustomers}
+                filename="customer-risk-analysis"
+              >
+                <div className="mb-4 flex items-center space-x-4">
                   <Select value={riskFilter} onValueChange={setRiskFilter}>
                     <SelectTrigger className="w-32">
                       <SelectValue placeholder="Risk Level" />
@@ -384,77 +522,150 @@ const ChurnAnalyticsPage: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {filteredCustomers.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Segment</TableHead>
-                        <TableHead>Risk Level</TableHead>
-                        <TableHead className="text-right">LTV</TableHead>
-                        <TableHead className="text-right">Revenue at Risk</TableHead>
-                        <TableHead className="text-right">Days Since Last Order</TableHead>
-                        <TableHead className="text-right">Total Orders</TableHead>
-                        <TableHead>Last Order Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredCustomers.slice(0, 50).map((customer) => (
-                        <TableRow key={customer.id}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium text-black">{customer.name}</div>
-                              <div className="text-sm font-light text-gray-500">{customer.email}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="font-light">
-                              {customer.segment}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getRiskBadgeColor(customer.riskLevel)}>
-                              {customer.riskLevel}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-light">
-                            {formatCurrency(customer.ltv)}
-                          </TableCell>
-                          <TableCell className="text-right font-light">
-                            {formatCurrency(customer.revenueAtRisk)}
-                          </TableCell>
-                          <TableCell className="text-right font-light">
-                            <span className={`${
-                              customer.daysSinceLastOrder > 90 ? 'text-red-600' :
-                              customer.daysSinceLastOrder > 60 ? 'text-yellow-600' :
-                              'text-green-600'
-                            }`}>
-                              {customer.daysSinceLastOrder} days
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right font-light">
-                            {customer.totalOrders}
-                          </TableCell>
-                          <TableCell className="font-light">
-                            {customer.lastOrderDate ? new Date(customer.lastOrderDate).toLocaleDateString() : 'Never'}
-                          </TableCell>
+
+                {filteredCustomers.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Segment</TableHead>
+                          <TableHead>Risk Level</TableHead>
+                          <TableHead className="text-right">LTV</TableHead>
+                          <TableHead className="text-right">Revenue at Risk</TableHead>
+                          <TableHead className="text-right">Days Since Last Order</TableHead>
+                          <TableHead className="text-right">Total Orders</TableHead>
+                          <TableHead>Last Order Date</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredCustomers.slice(0, 50).map((customer) => (
+                          <TableRow key={customer.id}>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium text-black">{customer.name}</div>
+                                <div className="text-sm font-light text-gray-500">{customer.email}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="font-light">
+                                {customer.segment}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getRiskBadgeColor(customer.riskLevel)}>
+                                {customer.riskLevel}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-light">
+                              {formatCurrency(customer.ltv)}
+                            </TableCell>
+                            <TableCell className="text-right font-light">
+                              {formatCurrency(customer.revenueAtRisk)}
+                            </TableCell>
+                            <TableCell className="text-right font-light">
+                              <span className={`${
+                                customer.daysSinceLastOrder > 90 ? 'text-red-600' :
+                                customer.daysSinceLastOrder > 60 ? 'text-yellow-600' :
+                                'text-green-600'
+                              }`}>
+                                {customer.daysSinceLastOrder} days
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right font-light">
+                              {customer.totalOrders}
+                            </TableCell>
+                            <TableCell className="font-light">
+                              {customer.lastOrderDate ? new Date(customer.lastOrderDate).toLocaleDateString() : 'Never'}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 font-light">No customers found matching your criteria</p>
+                  </div>
+                )}
+              </ExpandableTile>
+            </TabsContent>
+
+            {/* Predictions Tab */}
+            <TabsContent value="predictions" className="space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Model Performance */}
+                <ExpandableTile
+                  title="Prediction Model Performance"
+                  description="Accuracy metrics for churn prediction models"
+                  data={predictionAccuracyData}
+                  filename="model-performance"
+                >
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={predictionAccuracyData}>
+                        <PolarGrid />
+                        <PolarAngleAxis dataKey="model" fontSize={12} />
+                        <PolarRadiusAxis angle={90} domain={[0, 100]} fontSize={10} />
+                        <Radar name="Accuracy" dataKey="accuracy" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} />
+                        <Radar name="Precision" dataKey="precision" stroke="#10b981" fill="#10b981" fillOpacity={0.1} />
+                        <Radar name="Recall" dataKey="recall" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.1} />
+                        <Tooltip />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </ExpandableTile>
+
+                {/* Feature Importance */}
+                <ExpandableTile
+                  title="Feature Importance"
+                  description="Most important factors in churn prediction"
+                  data={riskFactorsData}
+                  filename="feature-importance"
+                >
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <Treemap
+                        data={riskFactorsData}
+                        dataKey="impact"
+                        aspectRatio={4/3}
+                        stroke="#fff"
+                        fill="#3b82f6"
+                      />
+                    </ResponsiveContainer>
+                  </div>
+                </ExpandableTile>
+              </div>
+            </TabsContent>
+
+            {/* Campaigns Tab */}
+            <TabsContent value="campaigns" className="space-y-8">
+              {/* Retention Campaign Performance */}
+              <ExpandableTile
+                title="Retention Campaign Performance"
+                description="Effectiveness of customer retention campaigns"
+                data={campaignData}
+                filename="campaign-performance"
+              >
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={campaignData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="campaign" fontSize={12} stroke="#666" />
+                      <YAxis yAxisId="left" fontSize={12} stroke="#666" />
+                      <YAxis yAxisId="right" orientation="right" fontSize={12} stroke="#666" tickFormatter={(value) => `${value}%`} />
+                      <Tooltip />
+                      <Bar yAxisId="left" dataKey="sent" fill="#e5e7eb" name="Sent" />
+                      <Bar yAxisId="left" dataKey="opened" fill="#3b82f6" name="Opened" />
+                      <Bar yAxisId="left" dataKey="converted" fill="#10b981" name="Converted" />
+                      <Line yAxisId="right" type="monotone" dataKey="roi" stroke="#f59e0b" strokeWidth={2} name="ROI %" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 font-light">No customers found matching your criteria</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </ExpandableTile>
+            </TabsContent>
+          </Tabs>
 
           {/* Help Section */}
           <HelpSection 
