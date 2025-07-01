@@ -68,7 +68,32 @@ export async function getProductPerformanceData(
 
   if (!currentProducts || currentProducts.length === 0) {
     console.warn('⚠️ No product data returned from RPC function')
-    throw new Error('No product data available')
+    
+    // Let's try to get basic product count for debugging
+    const { data: allProducts, error: allProductsError } = await supabase
+      .from('products')
+      .select('id, name, merchant_id, is_active')
+      .eq('merchant_id', merchantId)
+      .limit(5)
+    
+    console.log('🔍 Debug - All products for merchant:', { data: allProducts, error: allProductsError })
+    
+    // Return empty data structure instead of throwing error
+    return {
+      summary: {
+        totalProducts: 0,
+        totalRevenue: 0,
+        totalUnitsSold: 0,
+        avgProfitMargin: 0,
+        previousTotalProducts: 0,
+        previousTotalRevenue: 0,
+        previousTotalUnitsSold: 0,
+        previousAvgProfitMargin: 0
+      },
+      products: [],
+      categoryPerformance: [],
+      topProductsTrend: []
+    }
   }
 
   // Get previous period data for comparison
