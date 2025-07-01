@@ -55,7 +55,7 @@ export async function getReturnedProductsData(
       }
     }
 
-    // Get refunds data with product information
+    // Get refunds data
     const { data: refunds, error: refundsError } = await supabase
       .from('refunds')
       .select(`
@@ -63,8 +63,7 @@ export async function getReturnedProductsData(
         product_id,
         amount,
         reason,
-        created_at,
-        products!inner(id, name, category)
+        created_at
       `)
       .eq('merchant_id', merchantId)
       .gte('created_at', filters.startDate)
@@ -89,6 +88,24 @@ export async function getReturnedProductsData(
         totalReturnValue: 0,
         avgReturnRate: 0
       }
+    }
+
+    // Get unique product IDs from refunds
+    const productIds = [...new Set(refunds.map(refund => refund.product_id).filter(Boolean))]
+    
+    // Get product information for the refunded products
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('id, name, category, sku')
+      .eq('merchant_id', merchantId)
+      .in('id', productIds)
+
+    // Create products map for easy lookup
+    const productsMap = new Map()
+    if (productsData && !productsError) {
+      productsData.forEach((product: any) => {
+        productsMap.set(product.id, product)
+      })
     }
 
     // Get total sales data for return rate calculation
@@ -128,7 +145,7 @@ export async function getReturnedProductsData(
 
     refunds.forEach((refundItem: any) => {
       const productId = refundItem.product_id
-      const product = refundItem.products
+      const product = productsMap.get(productId)
       
       if (!productReturnsMap.has(productId)) {
         productReturnsMap.set(productId, {
@@ -170,7 +187,7 @@ export async function getReturnedProductsData(
       return {
         id: productId,
         name: data.product?.name || 'Unknown Product',
-        sku: productId, // Using product ID as SKU fallback
+        sku: data.product?.sku || productId, // Use actual SKU or product ID as fallback
         category: data.product?.category,
         totalReturns: data.totalCount,
         totalReturnValue: data.totalValue,
