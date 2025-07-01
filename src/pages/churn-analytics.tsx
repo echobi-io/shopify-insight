@@ -14,9 +14,11 @@ import {
 import { 
   TrendingUp, TrendingDown, AlertTriangle, Users, DollarSign, RefreshCw, 
   AlertCircle, Target, Calendar, Activity, Clock, Zap, Shield, 
-  BarChart3, PieChart as PieChartIcon, TrendingUpIcon, UserX
+  BarChart3, PieChart as PieChartIcon, TrendingUpIcon, UserX, X
 } from 'lucide-react'
-import { getChurnLtvData, type ChurnAnalyticsData, type ChurnTrend, type RiskSegment } from '@/lib/fetchers/getChurnLtvData'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Progress } from '@/components/ui/progress'
+import { getChurnLtvData, type ChurnAnalyticsData, type ChurnTrend, type RiskSegment, type ChurnCustomer, type ChurnRiskFactor } from '@/lib/fetchers/getChurnLtvData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
@@ -40,6 +42,7 @@ const ChurnAnalyticsPage: React.FC = () => {
   const [customEndDate, setCustomEndDate] = useState('')
   const [riskFilter, setRiskFilter] = useState('all')
   const [segmentFilter, setSegmentFilter] = useState('all')
+  const [selectedCustomer, setSelectedCustomer] = useState<ChurnCustomer | null>(null)
 
   useEffect(() => {
     loadData()
@@ -557,11 +560,14 @@ const ChurnAnalyticsPage: React.FC = () => {
                           <TableHead>Customer</TableHead>
                           <TableHead>Segment</TableHead>
                           <TableHead>Risk Level</TableHead>
+                          <TableHead className="text-right">Risk Score</TableHead>
+                          <TableHead className="text-right">Confidence</TableHead>
                           <TableHead className="text-right">LTV</TableHead>
                           <TableHead className="text-right">Revenue at Risk</TableHead>
                           <TableHead className="text-right">Days Since Last Order</TableHead>
                           <TableHead className="text-right">Total Orders</TableHead>
                           <TableHead>Last Order Date</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -584,6 +590,29 @@ const ChurnAnalyticsPage: React.FC = () => {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right font-light">
+                              <div className="flex items-center justify-end space-x-2">
+                                <span className={`font-medium ${
+                                  customer.riskScore >= 70 ? 'text-red-600' :
+                                  customer.riskScore >= 40 ? 'text-yellow-600' :
+                                  'text-green-600'
+                                }`}>
+                                  {customer.riskScore?.toFixed(0) || 0}
+                                </span>
+                                <span className="text-gray-400">/100</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-light">
+                              <div className="flex items-center justify-end space-x-2">
+                                <div className="w-12 bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full" 
+                                    style={{ width: `${customer.predictionConfidence || 0}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-sm">{customer.predictionConfidence?.toFixed(0) || 0}%</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-light">
                               {formatCurrency(customer.ltv)}
                             </TableCell>
                             <TableCell className="text-right font-light">
@@ -603,6 +632,16 @@ const ChurnAnalyticsPage: React.FC = () => {
                             </TableCell>
                             <TableCell className="font-light">
                               {customer.lastOrderDate ? new Date(customer.lastOrderDate).toLocaleDateString() : 'Never'}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedCustomer(customer)}
+                                className="font-light"
+                              >
+                                View Details
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -701,6 +740,281 @@ const ChurnAnalyticsPage: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Customer Detail Modal */}
+      <Dialog open={!!selectedCustomer} onOpenChange={() => setSelectedCustomer(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Churn Risk Analysis: {selectedCustomer?.name}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedCustomer(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogTitle>
+            <DialogDescription>
+              Detailed breakdown of churn prediction factors and risk assessment
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedCustomer && (
+            <div className="space-y-6">
+              {/* Customer Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Risk Score</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center space-x-2">
+                      <div className="text-2xl font-bold">
+                        <span className={`${
+                          selectedCustomer.riskScore >= 70 ? 'text-red-600' :
+                          selectedCustomer.riskScore >= 40 ? 'text-yellow-600' :
+                          'text-green-600'
+                        }`}>
+                          {selectedCustomer.riskScore?.toFixed(0) || 0}
+                        </span>
+                        <span className="text-sm text-gray-400 ml-1">/100</span>
+                      </div>
+                      <Badge className={getRiskBadgeColor(selectedCustomer.riskLevel)}>
+                        {selectedCustomer.riskLevel} Risk
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Prediction Confidence</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="text-2xl font-bold">
+                        {selectedCustomer.predictionConfidence?.toFixed(0) || 0}%
+                      </div>
+                      <Progress value={selectedCustomer.predictionConfidence || 0} className="h-2" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Revenue at Risk</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-600">
+                      {formatCurrency(selectedCustomer.revenueAtRisk)}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      of {formatCurrency(selectedCustomer.ltv)} LTV
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Risk Factors Breakdown */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Risk Factors Breakdown</CardTitle>
+                  <CardDescription>
+                    Individual factor contributions to the overall risk score
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {selectedCustomer.riskFactors && selectedCustomer.riskFactors.length > 0 ? (
+                    <div className="space-y-4">
+                      {selectedCustomer.riskFactors.map((factor, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium">{factor.factor}</div>
+                              <div className="text-sm text-gray-500">{factor.description}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold">
+                                {factor.contribution.toFixed(1)} points
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {factor.weight}% weight
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Progress 
+                              value={(factor.contribution / factor.weight) * 100} 
+                              className="flex-1 h-2"
+                            />
+                            <span className="text-sm text-gray-500 w-12">
+                              {((factor.contribution / factor.weight) * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-500">No detailed risk factors available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Customer Metrics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl font-bold">{selectedCustomer.totalOrders}</div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Days Since Last Order</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className={`text-xl font-bold ${
+                      selectedCustomer.daysSinceLastOrder > 90 ? 'text-red-600' :
+                      selectedCustomer.daysSinceLastOrder > 60 ? 'text-yellow-600' :
+                      'text-green-600'
+                    }`}>
+                      {selectedCustomer.daysSinceLastOrder}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Customer Segment</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Badge variant="outline" className="text-sm">
+                      {selectedCustomer.segment}
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Last Order Date</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-sm">
+                      {selectedCustomer.lastOrderDate ? 
+                        new Date(selectedCustomer.lastOrderDate).toLocaleDateString() : 
+                        'Never'
+                      }
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Risk Factor Visualization */}
+              {selectedCustomer.riskFactors && selectedCustomer.riskFactors.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Risk Factor Impact</CardTitle>
+                    <CardDescription>
+                      Visual representation of each factor's contribution to churn risk
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={selectedCustomer.riskFactors} layout="horizontal">
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis type="number" fontSize={12} stroke="#666" domain={[0, 'dataMax']} />
+                          <YAxis dataKey="factor" type="category" fontSize={12} stroke="#666" width={120} />
+                          <Tooltip 
+                            formatter={(value: any) => [`${value.toFixed(1)} points`, 'Contribution']}
+                            labelFormatter={(label) => `Factor: ${label}`}
+                          />
+                          <Bar dataKey="contribution" fill="#ef4444" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Action Recommendations */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Recommended Actions</CardTitle>
+                  <CardDescription>
+                    Suggested retention strategies based on risk profile
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {selectedCustomer.riskLevel === 'High' && (
+                      <>
+                        <div className="flex items-start space-x-3">
+                          <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+                          <div>
+                            <div className="font-medium">Immediate Intervention Required</div>
+                            <div className="text-sm text-gray-600">Send personalized discount offer within 24 hours</div>
+                          </div>
+                        </div>
+                        <div className="flex items-start space-x-3">
+                          <Target className="h-5 w-5 text-blue-500 mt-0.5" />
+                          <div>
+                            <div className="font-medium">Personal Outreach</div>
+                            <div className="text-sm text-gray-600">Schedule a call to understand concerns and offer support</div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {selectedCustomer.riskLevel === 'Medium' && (
+                      <>
+                        <div className="flex items-start space-x-3">
+                          <Calendar className="h-5 w-5 text-yellow-500 mt-0.5" />
+                          <div>
+                            <div className="font-medium">Re-engagement Campaign</div>
+                            <div className="text-sm text-gray-600">Include in next email marketing campaign with special offers</div>
+                          </div>
+                        </div>
+                        <div className="flex items-start space-x-3">
+                          <Activity className="h-5 w-5 text-green-500 mt-0.5" />
+                          <div>
+                            <div className="font-medium">Monitor Closely</div>
+                            <div className="text-sm text-gray-600">Track engagement and purchase behavior over next 30 days</div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {selectedCustomer.riskLevel === 'Low' && (
+                      <>
+                        <div className="flex items-start space-x-3">
+                          <Shield className="h-5 w-5 text-green-500 mt-0.5" />
+                          <div>
+                            <div className="font-medium">Maintain Engagement</div>
+                            <div className="text-sm text-gray-600">Continue regular communication and loyalty programs</div>
+                          </div>
+                        </div>
+                        <div className="flex items-start space-x-3">
+                          <TrendingUp className="h-5 w-5 text-blue-500 mt-0.5" />
+                          <div>
+                            <div className="font-medium">Upsell Opportunity</div>
+                            <div className="text-sm text-gray-600">Consider introducing premium products or services</div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

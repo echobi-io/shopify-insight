@@ -40,6 +40,14 @@ export interface RiskSegment {
   revenueAtRisk: number
 }
 
+export interface ChurnRiskFactor {
+  factor: string
+  value: number
+  weight: number
+  contribution: number
+  description: string
+}
+
 export interface ChurnCustomer {
   id: string
   name: string
@@ -51,6 +59,9 @@ export interface ChurnCustomer {
   daysSinceLastOrder: number
   totalOrders: number
   lastOrderDate: string | null
+  riskScore: number
+  riskFactors: ChurnRiskFactor[]
+  predictionConfidence: number
 }
 
 export interface ChurnAnalyticsData {
@@ -175,7 +186,7 @@ function calculateChurnAnalytics(customers: any[], filters: { startDate: string;
   
   console.log('📊 Calculating churn analytics for date range:', { startDate: startDate.toISOString(), endDate: endDate.toISOString() })
 
-  // Process customers and calculate risk levels based on the selected date range
+  // Process customers and calculate detailed risk predictions
   const processedCustomers: ChurnCustomer[] = customers.map(customer => {
     const orders = customer.orders || []
     
@@ -196,16 +207,43 @@ function calculateChurnAnalytics(customers: any[], filters: { startDate: string;
     // Calculate LTV from orders within the date range
     const ltvInRange = ordersInRange.reduce((sum: number, order: any) => sum + (order.total_price || 0), 0)
     
-    // Determine risk level based on days since last order and order frequency within the range
+    // Calculate average order value
+    const avgOrderValue = ordersInRange.length > 0 ? ltvInRange / ordersInRange.length : 0
+    
+    // Calculate order frequency (orders per month)
+    const dateRangeDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+    const orderFrequency = dateRangeDays > 0 ? (ordersInRange.length / dateRangeDays) * 30 : 0
+    
+    // Calculate detailed risk factors with weights and contributions
+    const riskFactors = calculateRiskFactors({
+      daysSinceLastOrder,
+      totalOrders: ordersInRange.length,
+      avgOrderValue,
+      orderFrequency,
+      ltv: ltvInRange,
+      dateRangeDays
+    })
+    
+    // Calculate overall risk score (0-100)
+    const riskScore = riskFactors.reduce((sum, factor) => sum + factor.contribution, 0)
+    
+    // Determine risk level based on risk score
     let riskLevel: 'High' | 'Medium' | 'Low' = 'Low'
-    if (daysSinceLastOrder > 90 || ordersInRange.length === 0) {
+    if (riskScore >= 70) {
       riskLevel = 'High'
-    } else if (daysSinceLastOrder > 60) {
+    } else if (riskScore >= 40) {
       riskLevel = 'Medium'
     }
     
-    // Calculate revenue at risk (percentage of LTV based on risk level)
-    const riskMultiplier = riskLevel === 'High' ? 0.8 : riskLevel === 'Medium' ? 0.4 : 0.1
+    // Calculate prediction confidence based on data availability
+    const predictionConfidence = calculatePredictionConfidence({
+      hasRecentOrders: ordersInRange.length > 0,
+      orderCount: ordersInRange.length,
+      dataCompleteness: dateRangeDays > 30 ? 1 : dateRangeDays / 30
+    })
+    
+    // Calculate revenue at risk (percentage of LTV based on risk score)
+    const riskMultiplier = riskScore / 100
     const revenueAtRisk = ltvInRange * riskMultiplier
     
     // Determine customer segment based on LTV in the selected range
@@ -224,7 +262,10 @@ function calculateChurnAnalytics(customers: any[], filters: { startDate: string;
       revenueAtRisk,
       daysSinceLastOrder,
       totalOrders: ordersInRange.length,
-      lastOrderDate: lastOrderInRange ? lastOrderInRange.toISOString() : null
+      lastOrderDate: lastOrderInRange ? lastOrderInRange.toISOString() : null,
+      riskScore,
+      riskFactors,
+      predictionConfidence
     }
   })
 
@@ -364,6 +405,151 @@ function generateChurnTrendForDateRange(customers: any[], startDate: Date, endDa
   }
   
   return churnTrend
+}
+
+function calculateRiskFactors(customerData: {
+  daysSinceLastOrder: number
+  totalOrders: number
+  avgOrderValue: number
+  orderFrequency: number
+  ltv: number
+  dateRangeDays: number
+}): ChurnRiskFactor[] {
+  const factors: ChurnRiskFactor[] = []
+  
+  // Factor 1: Recency (Days since last order) - Weight: 35%
+  const recencyWeight = 35
+  let recencyScore = 0
+  if (customerData.daysSinceLastOrder > 90) {
+    recencyScore = 100
+  } else if (customerData.daysSinceLastOrder > 60) {
+    recencyScore = 70
+  } else if (customerData.daysSinceLastOrder > 30) {
+    recencyScore = 40
+  } else {
+    recencyScore = 10
+  }
+  
+  factors.push({
+    factor: 'Recency',
+    value: customerData.daysSinceLastOrder,
+    weight: recencyWeight,
+    contribution: (recencyScore * recencyWeight) / 100,
+    description: `${customerData.daysSinceLastOrder} days since last order`
+  })
+  
+  // Factor 2: Order Frequency - Weight: 25%
+  const frequencyWeight = 25
+  let frequencyScore = 0
+  if (customerData.orderFrequency < 0.5) {
+    frequencyScore = 80
+  } else if (customerData.orderFrequency < 1) {
+    frequencyScore = 50
+  } else if (customerData.orderFrequency < 2) {
+    frequencyScore = 20
+  } else {
+    frequencyScore = 5
+  }
+  
+  factors.push({
+    factor: 'Frequency',
+    value: customerData.orderFrequency,
+    weight: frequencyWeight,
+    contribution: (frequencyScore * frequencyWeight) / 100,
+    description: `${customerData.orderFrequency.toFixed(1)} orders per month`
+  })
+  
+  // Factor 3: Order Count - Weight: 20%
+  const orderCountWeight = 20
+  let orderCountScore = 0
+  if (customerData.totalOrders === 0) {
+    orderCountScore = 100
+  } else if (customerData.totalOrders === 1) {
+    orderCountScore = 70
+  } else if (customerData.totalOrders <= 3) {
+    orderCountScore = 40
+  } else {
+    orderCountScore = 10
+  }
+  
+  factors.push({
+    factor: 'Order Count',
+    value: customerData.totalOrders,
+    weight: orderCountWeight,
+    contribution: (orderCountScore * orderCountWeight) / 100,
+    description: `${customerData.totalOrders} total orders in period`
+  })
+  
+  // Factor 4: Average Order Value - Weight: 10%
+  const aovWeight = 10
+  let aovScore = 0
+  if (customerData.avgOrderValue < 50) {
+    aovScore = 60
+  } else if (customerData.avgOrderValue < 100) {
+    aovScore = 40
+  } else if (customerData.avgOrderValue < 200) {
+    aovScore = 20
+  } else {
+    aovScore = 5
+  }
+  
+  factors.push({
+    factor: 'Avg Order Value',
+    value: customerData.avgOrderValue,
+    weight: aovWeight,
+    contribution: (aovScore * aovWeight) / 100,
+    description: `£${customerData.avgOrderValue.toFixed(2)} average order value`
+  })
+  
+  // Factor 5: Customer Value (LTV) - Weight: 10%
+  const ltvWeight = 10
+  let ltvScore = 0
+  if (customerData.ltv < 100) {
+    ltvScore = 50
+  } else if (customerData.ltv < 500) {
+    ltvScore = 30
+  } else if (customerData.ltv < 1000) {
+    ltvScore = 15
+  } else {
+    ltvScore = 5
+  }
+  
+  factors.push({
+    factor: 'Customer Value',
+    value: customerData.ltv,
+    weight: ltvWeight,
+    contribution: (ltvScore * ltvWeight) / 100,
+    description: `£${customerData.ltv.toFixed(2)} lifetime value`
+  })
+  
+  return factors
+}
+
+function calculatePredictionConfidence(data: {
+  hasRecentOrders: boolean
+  orderCount: number
+  dataCompleteness: number
+}): number {
+  let confidence = 0
+  
+  // Base confidence from data availability
+  confidence += data.dataCompleteness * 40 // Up to 40% from data completeness
+  
+  // Confidence from order history
+  if (data.hasRecentOrders) {
+    confidence += 30 // 30% if has recent orders
+  }
+  
+  // Confidence from order count
+  if (data.orderCount >= 5) {
+    confidence += 30 // 30% if sufficient order history
+  } else if (data.orderCount >= 2) {
+    confidence += 20 // 20% if some order history
+  } else if (data.orderCount >= 1) {
+    confidence += 10 // 10% if minimal order history
+  }
+  
+  return Math.min(100, Math.max(0, confidence))
 }
 
 function calculatePreviousPeriodMetrics(customers: any[], filters: { startDate: string; endDate: string }) {
