@@ -35,18 +35,18 @@ export async function getReturnedProductsData(
   const supabase = createClient()
 
   try {
-    // First, let's check if we have any returns data at all
-    const { data: allReturns, error: allReturnsError } = await supabase
-      .from('returns')
+    // First, let's check if we have any refunds data at all
+    const { data: allRefunds, error: allRefundsError } = await supabase
+      .from('refunds')
       .select('*')
       .eq('merchant_id', merchantId)
       .limit(5)
 
-    console.log('🔍 All returns check:', { data: allReturns, error: allReturnsError })
+    console.log('🔍 All refunds check:', { data: allRefunds, error: allRefundsError })
 
-    // If returns table doesn't exist or has no data, return empty structure
-    if (allReturnsError || !allReturns || allReturns.length === 0) {
-      console.log('📭 No returns data available')
+    // If refunds table doesn't exist or has no data, return empty structure
+    if (allRefundsError || !allRefunds || allRefunds.length === 0) {
+      console.log('📭 No refunds data available')
       return {
         products: [],
         totalReturns: 0,
@@ -55,15 +55,14 @@ export async function getReturnedProductsData(
       }
     }
 
-    // Get returns data with product information
-    const { data: returns, error: returnsError } = await supabase
-      .from('returns')
+    // Get refunds data with product information
+    const { data: refunds, error: refundsError } = await supabase
+      .from('refunds')
       .select(`
         id,
         product_id,
-        quantity,
+        amount,
         reason,
-        refund_amount,
         created_at,
         products!inner(id, name, category)
       `)
@@ -71,8 +70,8 @@ export async function getReturnedProductsData(
       .gte('created_at', filters.startDate)
       .lte('created_at', filters.endDate)
 
-    if (returnsError) {
-      console.error('❌ Error fetching returns:', returnsError)
+    if (refundsError) {
+      console.error('❌ Error fetching refunds:', refundsError)
       // If there's an error, return empty structure instead of throwing
       return {
         products: [],
@@ -82,8 +81,8 @@ export async function getReturnedProductsData(
       }
     }
 
-    if (!returns || returns.length === 0) {
-      console.log('📭 No returns found for the specified period')
+    if (!refunds || refunds.length === 0) {
+      console.log('📭 No refunds found for the specified period')
       return {
         products: [],
         totalReturns: 0,
@@ -118,54 +117,54 @@ export async function getReturnedProductsData(
       })
     }
 
-    // Group returns by product
+    // Group refunds by product
     const productReturnsMap = new Map<string, {
       product: any
-      returns: any[]
-      totalQuantity: number
+      refunds: any[]
+      totalCount: number
       totalValue: number
       reasons: Map<string, { count: number; value: number }>
     }>()
 
-    returns.forEach((returnItem: any) => {
-      const productId = returnItem.product_id
-      const product = returnItem.products
+    refunds.forEach((refundItem: any) => {
+      const productId = refundItem.product_id
+      const product = refundItem.products
       
       if (!productReturnsMap.has(productId)) {
         productReturnsMap.set(productId, {
           product,
-          returns: [],
-          totalQuantity: 0,
+          refunds: [],
+          totalCount: 0,
           totalValue: 0,
           reasons: new Map()
         })
       }
 
       const productData = productReturnsMap.get(productId)!
-      productData.returns.push(returnItem)
-      productData.totalQuantity += returnItem.quantity || 0
-      productData.totalValue += returnItem.refund_amount || 0
+      productData.refunds.push(refundItem)
+      productData.totalCount += 1 // Each refund record represents one return
+      productData.totalValue += refundItem.amount || 0
 
       // Track return reasons
-      const reason = returnItem.reason || 'Unknown'
+      const reason = refundItem.reason || 'Unknown'
       const existingReason = productData.reasons.get(reason) || { count: 0, value: 0 }
       productData.reasons.set(reason, {
-        count: existingReason.count + (returnItem.quantity || 0),
-        value: existingReason.value + (returnItem.refund_amount || 0)
+        count: existingReason.count + 1, // Count each refund as one return
+        value: existingReason.value + (refundItem.amount || 0)
       })
     })
 
     // Convert to ReturnedProduct array
     const products: ReturnedProduct[] = Array.from(productReturnsMap.entries()).map(([productId, data]) => {
       const salesInfo = salesMap.get(productId) || { quantity: 0, revenue: 0 }
-      const returnRate = salesInfo.quantity > 0 ? (data.totalQuantity / salesInfo.quantity) * 100 : 0
+      const returnRate = salesInfo.quantity > 0 ? (data.totalCount / salesInfo.quantity) * 100 : 0
 
       // Convert reasons map to array
       const returnReasons: ReturnReason[] = Array.from(data.reasons.entries()).map(([reason, reasonData]) => ({
         reason,
         count: reasonData.count,
         totalValue: reasonData.value,
-        percentage: data.totalQuantity > 0 ? (reasonData.count / data.totalQuantity) * 100 : 0
+        percentage: data.totalCount > 0 ? (reasonData.count / data.totalCount) * 100 : 0
       })).sort((a, b) => b.count - a.count)
 
       return {
@@ -173,10 +172,10 @@ export async function getReturnedProductsData(
         name: data.product?.name || 'Unknown Product',
         sku: productId, // Using product ID as SKU fallback
         category: data.product?.category,
-        totalReturns: data.totalQuantity,
+        totalReturns: data.totalCount,
         totalReturnValue: data.totalValue,
         returnRate,
-        avgReturnValue: data.totalQuantity > 0 ? data.totalValue / data.totalQuantity : 0,
+        avgReturnValue: data.totalCount > 0 ? data.totalValue / data.totalCount : 0,
         returnReasons
       }
     }).sort((a, b) => b.totalReturns - a.totalReturns)
