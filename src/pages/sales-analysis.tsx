@@ -49,7 +49,6 @@ import {
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
-import { FilterState } from '@/lib/fetchers/getKpis'
 import { 
   getSalesAnalysisData,
   SalesAnalysisKPIs,
