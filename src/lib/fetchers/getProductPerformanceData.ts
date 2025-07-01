@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma'
+import { createClient } from '@/util/supabase/api'
 
 export interface ProductMetrics {
   id: string
@@ -51,38 +51,34 @@ export async function getProductPerformanceData(
   try {
     console.log('🔄 Fetching product performance data for merchant:', merchantId, 'with filters:', filters)
 
-    // Get current period data
-    const currentProducts = await prisma.$queryRaw<any[]>`
-      SELECT 
-        p.id,
-        p.title as name,
-        p.handle as sku,
-        p.product_type as category,
-        COALESCE(SUM(li.price * li.quantity), 0) as total_revenue,
-        COALESCE(SUM(li.quantity), 0) as units_sold,
-        CASE 
-          WHEN SUM(li.quantity) > 0 
-          THEN SUM(li.price * li.quantity) / SUM(li.quantity)
-          ELSE 0 
-        END as avg_price,
-        -- Simple profit margin calculation (assuming 30% base margin)
-        30.0 as profit_margin,
-        -- Performance score based on revenue and units
-        CASE 
-          WHEN SUM(li.price * li.quantity) > 0 
-          THEN LEAST(100, (SUM(li.price * li.quantity) / 1000.0) * 20 + (SUM(li.quantity) / 10.0) * 10)
-          ELSE 0 
-        END as performance_score
-      FROM "Product" p
-      LEFT JOIN "LineItem" li ON p.id = li.product_id
-      LEFT JOIN "Order" o ON li.order_id = o.id
-      WHERE o.merchant_id = ${merchantId}
-        AND o.created_at >= ${filters.startDate}::timestamp
-        AND o.created_at <= ${filters.endDate}::timestamp
-        AND o.financial_status = 'paid'
-      GROUP BY p.id, p.title, p.handle, p.product_type
-      ORDER BY total_revenue DESC
-    `
+    const supabase = createClient()
+
+    // Get current period data using Supabase RPC or direct query
+    const { data: currentProducts, error: currentError } = await supabase.rpc('get_product_performance', {
+      merchant_id: merchantId,
+      start_date: filters.startDate,
+      end_date: filters.endDate
+    })
+
+    if (currentError) {
+      console.error('Error fetching current products:', currentError)
+      // Return empty data structure if no data available
+      return {
+        summary: {
+          totalProducts: 0,
+          totalRevenue: 0,
+          totalUnitsSold: 0,
+          avgProfitMargin: 0,
+          previousTotalProducts: 0,
+          previousTotalRevenue: 0,
+          previousTotalUnitsSold: 0,
+          previousAvgProfitMargin: 0
+        },
+        products: [],
+        categoryPerformance: [],
+        topProductsTrend: []
+      }
+    }
 
     // Get previous period data for comparison
     const startDate = new Date(filters.startDate)
@@ -91,34 +87,27 @@ export async function getProductPerformanceData(
     const previousStartDate = new Date(startDate.getTime() - periodLength)
     const previousEndDate = new Date(startDate.getTime())
 
-    const previousProducts = await prisma.$queryRaw<any[]>`
-      SELECT 
-        p.id,
-        COALESCE(SUM(li.price * li.quantity), 0) as total_revenue,
-        COALESCE(SUM(li.quantity), 0) as units_sold
-      FROM "Product" p
-      LEFT JOIN "LineItem" li ON p.id = li.product_id
-      LEFT JOIN "Order" o ON li.order_id = o.id
-      WHERE o.merchant_id = ${merchantId}
-        AND o.created_at >= ${previousStartDate.toISOString()}::timestamp
-        AND o.created_at <= ${previousEndDate.toISOString()}::timestamp
-        AND o.financial_status = 'paid'
-      GROUP BY p.id
-    `
+    const { data: previousProducts, error: previousError } = await supabase.rpc('get_product_performance', {
+      merchant_id: merchantId,
+      start_date: previousStartDate.toISOString(),
+      end_date: previousEndDate.toISOString()
+    })
 
     // Create a map for previous period data
     const previousDataMap = new Map()
-    previousProducts.forEach(product => {
-      previousDataMap.set(product.id, {
-        revenue: Number(product.total_revenue),
-        units: Number(product.units_sold)
+    if (previousProducts && !previousError) {
+      previousProducts.forEach((product: any) => {
+        previousDataMap.set(product.id, {
+          revenue: Number(product.total_revenue || 0),
+          units: Number(product.units_sold || 0)
+        })
       })
-    })
+    }
 
     // Process current products with growth calculations
-    const products: ProductMetrics[] = currentProducts.map(product => {
-      const currentRevenue = Number(product.total_revenue)
-      const currentUnits = Number(product.units_sold)
+    const products: ProductMetrics[] = (currentProducts || []).map((product: any) => {
+      const currentRevenue = Number(product.total_revenue || 0)
+      const currentUnits = Number(product.units_sold || 0)
       const previousData = previousDataMap.get(product.id)
       const previousRevenue = previousData?.revenue || 0
 
@@ -136,10 +125,10 @@ export async function getProductPerformanceData(
         category: product.category,
         totalRevenue: currentRevenue,
         unitsSold: currentUnits,
-        avgPrice: Number(product.avg_price),
-        profitMargin: Number(product.profit_margin),
+        avgPrice: Number(product.avg_price || 0),
+        profitMargin: Number(product.profit_margin || 30),
         growthRate,
-        performanceScore: Number(product.performance_score)
+        performanceScore: Number(product.performance_score || 0)
       }
     })
 
@@ -166,26 +155,17 @@ export async function getProductPerformanceData(
 
     // Get trend data for top products
     const topProductIds = products.slice(0, 5).map(p => p.id)
-    const trendData = await prisma.$queryRaw<any[]>`
-      SELECT 
-        DATE(o.created_at) as date,
-        SUM(li.price * li.quantity) as revenue,
-        SUM(li.quantity) as units
-      FROM "Order" o
-      JOIN "LineItem" li ON o.id = li.order_id
-      WHERE o.merchant_id = ${merchantId}
-        AND li.product_id = ANY(${topProductIds})
-        AND o.created_at >= ${filters.startDate}::timestamp
-        AND o.created_at <= ${filters.endDate}::timestamp
-        AND o.financial_status = 'paid'
-      GROUP BY DATE(o.created_at)
-      ORDER BY date
-    `
+    const { data: trendData } = await supabase.rpc('get_product_trend', {
+      merchant_id: merchantId,
+      product_ids: topProductIds,
+      start_date: filters.startDate,
+      end_date: filters.endDate
+    })
 
-    const topProductsTrend: ProductTrend[] = trendData.map(row => ({
-      date: row.date.toISOString().split('T')[0],
-      revenue: Number(row.revenue),
-      units: Number(row.units)
+    const topProductsTrend: ProductTrend[] = (trendData || []).map((row: any) => ({
+      date: row.date,
+      revenue: Number(row.revenue || 0),
+      units: Number(row.units || 0)
     }))
 
     // Calculate summary metrics
@@ -197,9 +177,9 @@ export async function getProductPerformanceData(
     }
 
     const previousSummary = {
-      totalProducts: previousProducts.length,
-      totalRevenue: previousProducts.reduce((sum, p) => sum + Number(p.total_revenue), 0),
-      totalUnitsSold: previousProducts.reduce((sum, p) => sum + Number(p.units_sold), 0),
+      totalProducts: previousProducts?.length || 0,
+      totalRevenue: (previousProducts || []).reduce((sum: number, p: any) => sum + Number(p.total_revenue || 0), 0),
+      totalUnitsSold: (previousProducts || []).reduce((sum: number, p: any) => sum + Number(p.units_sold || 0), 0),
       avgProfitMargin: 30.0 // Assuming same margin for previous period
     }
 
