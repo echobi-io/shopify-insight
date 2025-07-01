@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts'
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package, Star, RefreshCw, AlertCircle, Search, Filter } from 'lucide-react'
 import { getProductPerformanceData, type ProductPerformanceData, type ProductMetrics, type ProductTrend } from '@/lib/fetchers/getProductPerformanceData'
+import { getReturnedProductsData, type ReturnedProductsData } from '@/lib/fetchers/getReturnedProductsData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
@@ -16,11 +17,13 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import DateRangeSelector from '@/components/DateRangeSelector'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection from '@/components/HelpSection'
+import ReturnedProductsSection from '@/components/ReturnedProductsSection'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 const ProductInsightsPage: React.FC = () => {
   const [data, setData] = useState<ProductPerformanceData | null>(null)
+  const [returnedProductsData, setReturnedProductsData] = useState<ReturnedProductsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -50,8 +53,14 @@ const ProductInsightsPage: React.FC = () => {
 
       console.log('🔄 Loading product insights data with filters:', filters)
       
-      const result = await getProductPerformanceData(HARDCODED_MERCHANT_ID, filters)
-      setData(result)
+      // Load both product performance and returned products data in parallel
+      const [performanceResult, returnsResult] = await Promise.all([
+        getProductPerformanceData(HARDCODED_MERCHANT_ID, filters),
+        getReturnedProductsData(HARDCODED_MERCHANT_ID, filters)
+      ])
+      
+      setData(performanceResult)
+      setReturnedProductsData(returnsResult)
     } catch (err) {
       console.error('Error loading product insights data:', err)
       setError('Failed to load product insights data')
@@ -72,6 +81,10 @@ const ProductInsightsPage: React.FC = () => {
     {
       title: "Trend Analysis",
       content: "Monitor product performance trends over time to identify seasonal patterns and growth opportunities."
+    },
+    {
+      title: "Return Analysis",
+      content: "Analyze product returns to identify quality issues, customer satisfaction problems, and opportunities for improvement. Drill down into specific return reasons for each product."
     },
     {
       title: "Inventory Insights",
@@ -330,6 +343,18 @@ const ProductInsightsPage: React.FC = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Returned Products Section */}
+          {returnedProductsData && (
+            <div className="mb-8">
+              <ReturnedProductsSection
+                products={returnedProductsData.products}
+                totalReturns={returnedProductsData.totalReturns}
+                totalReturnValue={returnedProductsData.totalReturnValue}
+                avgReturnRate={returnedProductsData.avgReturnRate}
+              />
+            </div>
+          )}
 
           {/* Product Table */}
           <Card className="card-minimal mb-8">
