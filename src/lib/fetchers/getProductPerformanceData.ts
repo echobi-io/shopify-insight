@@ -1,4 +1,4 @@
-import { createClient } from '@/util/supabase/api'
+import { createClient } from '@/util/supabase/component'
 
 export interface ProductMetrics {
   id: string
