@@ -1,5 +1,5 @@
 import React from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -76,6 +76,9 @@ const GraphExplanationModal: React.FC<GraphExplanationModalProps> = ({ open, onO
             <HelpCircle className="w-5 h-5" />
             Understanding Your Customer Analytics Graphs
           </DialogTitle>
+          <DialogDescription>
+            Learn how to interpret and use the various analytics graphs in your customer insights dashboard.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">

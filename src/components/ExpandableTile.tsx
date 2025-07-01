@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Maximize2, Download, FileText, Image, FileSpreadsheet } from 'lucide-react'
 import html2canvas from 'html2canvas'
@@ -182,9 +182,9 @@ const ExpandableTile: React.FC<ExpandableTileProps> = ({
         <DialogContent className="max-w-7xl w-full" style={{ height: expandedHeight }}>
           <DialogHeader>
             <DialogTitle className="text-xl font-medium text-black">{title}</DialogTitle>
-            {description && (
-              <p className="text-gray-600 font-light">{description}</p>
-            )}
+            <DialogDescription>
+              {description || "Expanded view of the chart or data visualization"}
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-auto" ref={contentRef}>
             {children}
