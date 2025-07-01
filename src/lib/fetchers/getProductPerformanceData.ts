@@ -220,12 +220,42 @@ async function getProductPerformanceDataFallback(
 
   try {
     // First, try to get basic products data to see if tables exist
-    const { data: basicProducts, error: basicError } = await supabase
-      .from('products')
-      .select('id, name, shopify_product_id, category, price, cost, active, merchant_id')
-      .eq('merchant_id', merchantId)
-      .eq('active', true)
-      .limit(10)
+    // Try with shopify_product_id first, then fallback to sku, then just basic fields
+    let basicProducts: any[] | null = null
+    let basicError: any = null
+
+    try {
+      const result = await supabase
+        .from('products')
+        .select('id, name, shopify_product_id, category, price, cost, active, merchant_id')
+        .eq('merchant_id', merchantId)
+        .eq('active', true)
+        .limit(10)
+      basicProducts = result.data
+      basicError = result.error
+    } catch (error) {
+      // If shopify_product_id doesn't exist, try with sku
+      try {
+        const result = await supabase
+          .from('products')
+          .select('id, name, sku, category, price, cost, active, merchant_id')
+          .eq('merchant_id', merchantId)
+          .eq('active', true)
+          .limit(10)
+        basicProducts = result.data
+        basicError = result.error
+      } catch (error2) {
+        // If sku doesn't exist either, try with just basic fields
+        const result = await supabase
+          .from('products')
+          .select('id, name, category, price, cost, active, merchant_id')
+          .eq('merchant_id', merchantId)
+          .eq('active', true)
+          .limit(10)
+        basicProducts = result.data
+        basicError = result.error
+      }
+    }
 
     if (basicError) {
       console.error('❌ Error accessing products table:', basicError)
@@ -246,28 +276,86 @@ async function getProductPerformanceDataFallback(
     console.log('📊 Found products for merchant:', basicProducts.length)
 
     // Now try to get products with order data using direct queries
-    const { data: productsData, error: productsError } = await supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        shopify_product_id,
-        category,
-        price,
-        cost,
-        active,
-        order_items (
-          quantity,
+    // Try different column combinations based on what worked in the basic query
+    let productsData: any[] | null = null
+    let productsError: any = null
+
+    // Determine which SKU field to use based on the basic products query
+    const hasShopifyProductId = basicProducts.some(p => p.shopify_product_id !== undefined)
+    const hasSku = basicProducts.some(p => p.sku !== undefined)
+
+    if (hasShopifyProductId) {
+      const result = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          shopify_product_id,
+          category,
           price,
-          orders (
-            merchant_id,
-            created_at,
-            status
+          cost,
+          active,
+          order_items (
+            quantity,
+            price,
+            orders (
+              merchant_id,
+              created_at
+            )
           )
-        )
-      `)
-      .eq('merchant_id', merchantId)
-      .eq('active', true)
+        `)
+        .eq('merchant_id', merchantId)
+        .eq('active', true)
+      productsData = result.data
+      productsError = result.error
+    } else if (hasSku) {
+      const result = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          sku,
+          category,
+          price,
+          cost,
+          active,
+          order_items (
+            quantity,
+            price,
+            orders (
+              merchant_id,
+              created_at
+            )
+          )
+        `)
+        .eq('merchant_id', merchantId)
+        .eq('active', true)
+      productsData = result.data
+      productsError = result.error
+    } else {
+      const result = await supabase
+        .from('products')
+        .select(`
+          id,
+          name,
+          category,
+          price,
+          cost,
+          active,
+          order_items (
+            quantity,
+            price,
+            orders (
+              merchant_id,
+              created_at
+            )
+          )
+        `)
+        .eq('merchant_id', merchantId)
+        .eq('active', true)
+      productsData = result.data
+      productsError = result.error
+    }
 
     if (productsError) {
       console.error('❌ Error in fallback query:', productsError)
@@ -318,7 +406,7 @@ async function getProductPerformanceDataFallback(
         productMetrics.set(productId, {
           id: product.id,
           name: product.name,
-          sku: product.shopify_product_id || product.id,
+          sku: product.shopify_product_id || product.sku || product.id,
           category: product.category,
           price: Number(product.price || 0),
           cost: Number(product.cost || 0),
