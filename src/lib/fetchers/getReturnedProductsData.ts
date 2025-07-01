@@ -92,6 +92,7 @@ export async function getReturnedProductsData(
 
     // Get unique product IDs from refunds
     const productIds = [...new Set(refunds.map(refund => refund.product_id).filter(Boolean))]
+    console.log('🔍 Product IDs from refunds:', productIds)
     
     // Get product information for the refunded products
     const { data: productsData, error: productsError } = await supabase
@@ -100,6 +101,8 @@ export async function getReturnedProductsData(
       .eq('merchant_id', merchantId)
       .in('id', productIds)
 
+    console.log('🔍 Products data response:', { data: productsData, error: productsError })
+
     // Create products map for easy lookup
     const productsMap = new Map()
     if (productsData && !productsError) {
@@ -107,6 +110,7 @@ export async function getReturnedProductsData(
         productsMap.set(product.id, product)
       })
     }
+    console.log('🔍 Products map size:', productsMap.size)
 
     // Get total sales data for return rate calculation
     const { data: salesData, error: salesError } = await supabase
