@@ -1,26 +1,32 @@
 import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, AreaChart, Area } from 'recharts'
 import { getCustomerInsightsData, getCustomerDetails, CustomerInsightsData, ChurnPrediction, LtvPrediction, CohortData, CustomerCluster } from '@/lib/fetchers/getCustomerInsightsData'
+import { getKPIs, getPreviousYearKPIs, type KPIData } from '@/lib/fetchers/getKpis'
 import { exportToCSV } from '@/lib/utils/exportUtils'
-import { getDateRangeFromTimeframe } from '@/lib/utils/dateUtils'
+import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
+import { formatCurrency } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import DateRangeSelector from '@/components/DateRangeSelector'
+import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection, { getCustomerInsightsHelpItems } from '@/components/HelpSection'
-import { RefreshCw, AlertCircle } from 'lucide-react'
+import { RefreshCw, AlertCircle, Users, TrendingDown, DollarSign, Target, AlertTriangle, Calendar, Mail, Phone, Star, Shield } from 'lucide-react'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 const CustomerInsightsPage: React.FC = () => {
   const [data, setData] = useState<CustomerInsightsData | null>(null)
+  const [enhancedKpis, setEnhancedKpis] = useState<KPIData | null>(null)
+  const [previousYearKpis, setPreviousYearKpis] = useState<KPIData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
@@ -68,13 +74,32 @@ const CustomerInsightsPage: React.FC = () => {
       
       // Get date range based on selection
       const dateFilters = getDateRangeFromTimeframe(dateRange, customStartDate, customEndDate)
-      console.log('🔄 Loading customer insights data with date filters:', dateFilters)
+      const filters = {
+        startDate: formatDateForSQL(dateFilters.startDate),
+        endDate: formatDateForSQL(dateFilters.endDate)
+      }
       
-      const result = await getCustomerInsightsData(HARDCODED_MERCHANT_ID, {
-        startDate: dateFilters.startDate.toISOString(),
-        endDate: dateFilters.endDate.toISOString()
-      })
-      setData(result)
+      console.log('🔄 Loading customer insights data with date filters:', filters)
+      
+      // Load all data in parallel
+      const [customerData, currentKpis, previousKpis] = await Promise.all([
+        getCustomerInsightsData(HARDCODED_MERCHANT_ID, {
+          startDate: dateFilters.startDate.toISOString(),
+          endDate: dateFilters.endDate.toISOString()
+        }),
+        getKPIs(filters, HARDCODED_MERCHANT_ID).catch(err => {
+          console.error('❌ Error loading current KPIs:', err)
+          return null
+        }),
+        getPreviousYearKPIs(filters, HARDCODED_MERCHANT_ID).catch(err => {
+          console.error('❌ Error loading previous year KPIs:', err)
+          return null
+        })
+      ])
+      
+      setData(customerData)
+      setEnhancedKpis(currentKpis)
+      setPreviousYearKpis(previousKpis)
     } catch (err) {
       console.error('Error loading customer insights data:', err)
       setError('Failed to load customer insights data')
@@ -109,8 +134,8 @@ const CustomerInsightsPage: React.FC = () => {
       'Customer Name': `${prediction.customer?.first_name || ''} ${prediction.customer?.last_name || ''}`.trim(),
       'Churn Risk %': `${(prediction.churn_probability * 100).toFixed(1)}%`,
       'Risk Band': prediction.churn_band,
-      'Revenue at Risk': `£${prediction.revenue_at_risk.toFixed(2)}`,
-      'Total Spent': `£${prediction.customer?.total_spent?.toFixed(2) || '0.00'}`,
+      'Revenue at Risk': formatCurrency(prediction.revenue_at_risk),
+      'Total Spent': formatCurrency(prediction.customer?.total_spent || 0),
       'Last Order': prediction.customer?.last_order_date ? new Date(prediction.customer.last_order_date).toLocaleDateString() : 'Never'
     }))
     
@@ -125,8 +150,8 @@ const CustomerInsightsPage: React.FC = () => {
       'Period': cohort.period_month,
       'Customers Remaining': cohort.customers_remaining,
       'Retention Rate': `${cohort.retention_rate.toFixed(1)}%`,
-      'Cumulative Revenue': `£${cohort.cumulative_revenue.toFixed(2)}`,
-      'Avg Revenue per Customer': `£${cohort.avg_revenue_per_customer.toFixed(2)}`
+      'Cumulative Revenue': formatCurrency(cohort.cumulative_revenue),
+      'Avg Revenue per Customer': formatCurrency(cohort.avg_revenue_per_customer)
     }))
     
     exportToCSV(exportData, 'cohort-analysis')
@@ -173,6 +198,7 @@ const CustomerInsightsPage: React.FC = () => {
           <Header />
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
+              <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
               <p className="text-red-600 mb-4 font-light">{error}</p>
               <Button onClick={loadData} className="font-light">Retry</Button>
             </div>
@@ -203,47 +229,34 @@ const CustomerInsightsPage: React.FC = () => {
 
   const pageContent = hasData ? (
     <>
-      {/* KPI Cards */}
+      {/* Enhanced KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="card-minimal">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-light text-gray-600">Total Active Customers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-light text-black">{data.kpis.totalActiveCustomers}</div>
-            <p className="text-xs font-light text-gray-500 mt-1">Active in last 60 days</p>
-          </CardContent>
-        </Card>
-
-        <Card className="card-minimal">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-light text-gray-600">Customers at High Risk</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-light text-red-600">{data.kpis.customersAtHighRisk}</div>
-            <p className="text-xs font-light text-gray-500 mt-1">Likely to churn in 30 days</p>
-          </CardContent>
-        </Card>
-
-        <Card className="card-minimal">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-light text-gray-600">Average LTV</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-light text-green-600">£{data.kpis.averageLtv.toFixed(0)}</div>
-            <p className="text-xs font-light text-gray-500 mt-1">Predicted customer lifetime value</p>
-          </CardContent>
-        </Card>
-
-        <Card className="card-minimal">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-light text-gray-600">Revenue at Risk</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-light text-orange-600">£{data.kpis.revenueAtRisk.toFixed(0)}</div>
-            <p className="text-xs font-light text-gray-500 mt-1">High & medium risk customers</p>
-          </CardContent>
-        </Card>
+        <EnhancedKPICard
+          title="Total Active Customers"
+          value={data.kpis.totalActiveCustomers}
+          previousValue={previousYearKpis?.totalCustomers}
+          icon={<Users className="w-5 h-5" />}
+          isMonetary={false}
+        />
+        <EnhancedKPICard
+          title="Customers at High Risk"
+          value={data.kpis.customersAtHighRisk}
+          icon={<AlertTriangle className="w-5 h-5" />}
+          isMonetary={false}
+        />
+        <EnhancedKPICard
+          title="Average LTV"
+          value={data.kpis.averageLtv}
+          previousValue={previousYearKpis?.avgCustomerLTV}
+          icon={<Target className="w-5 h-5" />}
+          isMonetary={true}
+        />
+        <EnhancedKPICard
+          title="Revenue at Risk"
+          value={data.kpis.revenueAtRisk}
+          icon={<DollarSign className="w-5 h-5" />}
+          isMonetary={true}
+        />
       </div>
 
       {/* Tabs for different insights */}
@@ -264,28 +277,42 @@ const CustomerInsightsPage: React.FC = () => {
             <Card className="card-minimal">
               <CardHeader>
                 <CardTitle className="text-lg font-medium text-black">Customer Distribution by Segment</CardTitle>
+                <CardDescription className="font-light text-gray-600">
+                  Customer breakdown by calculated segments
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={data.customerSegments}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name.replace(/_/g, ' ')} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="customers_count"
-                      nameKey="calculated_segment"
-                    >
-                      {data.customerSegments.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                {data.customerSegments.length > 0 ? (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={data.customerSegments}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name.replace(/_/g, ' ')} ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="customers_count"
+                          nameKey="calculated_segment"
+                        >
+                          {data.customerSegments.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center">
+                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm font-light text-gray-500">No segment data available</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -293,17 +320,45 @@ const CustomerInsightsPage: React.FC = () => {
             <Card className="card-minimal">
               <CardHeader>
                 <CardTitle className="text-lg font-medium text-black">Revenue at Risk Trend</CardTitle>
+                <CardDescription className="font-light text-gray-600">
+                  Potential revenue loss from at-risk customers
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={data.churnTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" fontSize={12} stroke="#666" />
-                    <YAxis fontSize={12} stroke="#666" />
-                    <Tooltip formatter={(value) => typeof value === 'number' ? [`£${value.toFixed(2)}`, 'Revenue at Risk'] : [null, null]} />
-                    <Line type="monotone" dataKey="total_revenue_at_risk" stroke="#ef4444" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
+                {data.churnTrendData.length > 0 ? (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={data.churnTrendData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="date" 
+                          fontSize={12} 
+                          stroke="#666"
+                          tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        />
+                        <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => formatCurrency(value)} />
+                        <Tooltip 
+                          labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                          formatter={(value: any) => [formatCurrency(value), 'Revenue at Risk']}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="total_revenue_at_risk" 
+                          stroke="#ef4444" 
+                          fill="#ef4444" 
+                          fillOpacity={0.1}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center">
+                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm font-light text-gray-500">No trend data available</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -312,36 +367,48 @@ const CustomerInsightsPage: React.FC = () => {
           <Card className="card-minimal">
             <CardHeader>
               <CardTitle className="text-lg font-medium text-black">Customer Segments Performance</CardTitle>
+              <CardDescription className="font-light text-gray-600">
+                Detailed performance metrics by customer segment
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Segment</TableHead>
-                    <TableHead>Customers</TableHead>
-                    <TableHead>Avg Orders</TableHead>
-                    <TableHead>Avg LTV</TableHead>
-                    <TableHead>Avg Order Value</TableHead>
-                    <TableHead>Active (30d)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.customerSegments.map((segment) => (
-                    <TableRow key={segment.calculated_segment}>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize font-light">
-                          {segment.calculated_segment.replace('_', ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-light">{segment.customers_count}</TableCell>
-                      <TableCell className="font-light">{segment.avg_orders_per_customer.toFixed(1)}</TableCell>
-                      <TableCell className="font-light">£{segment.avg_customer_ltv.toFixed(0)}</TableCell>
-                      <TableCell className="font-light">£{segment.avg_order_value.toFixed(0)}</TableCell>
-                      <TableCell className="font-light">{segment.active_last_30_days}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {data.customerSegments.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Segment</TableHead>
+                        <TableHead className="text-right">Customers</TableHead>
+                        <TableHead className="text-right">Avg Orders</TableHead>
+                        <TableHead className="text-right">Avg LTV</TableHead>
+                        <TableHead className="text-right">Avg Order Value</TableHead>
+                        <TableHead className="text-right">Active (30d)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.customerSegments.map((segment) => (
+                        <TableRow key={segment.calculated_segment}>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize font-light">
+                              {segment.calculated_segment.replace('_', ' ')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-light">{segment.customers_count}</TableCell>
+                          <TableCell className="text-right font-light">{segment.avg_orders_per_customer.toFixed(1)}</TableCell>
+                          <TableCell className="text-right font-light">{formatCurrency(segment.avg_customer_ltv)}</TableCell>
+                          <TableCell className="text-right font-light">{formatCurrency(segment.avg_order_value)}</TableCell>
+                          <TableCell className="text-right font-light">{segment.active_last_30_days}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 font-light">No segment data available</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -351,7 +418,12 @@ const CustomerInsightsPage: React.FC = () => {
           <Card className="card-minimal">
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle className="text-lg font-medium text-black">Churn Risk Analysis</CardTitle>
+                <div>
+                  <CardTitle className="text-lg font-medium text-black">Churn Risk Analysis</CardTitle>
+                  <CardDescription className="font-light text-gray-600">
+                    AI-powered customer churn predictions and risk assessment
+                  </CardDescription>
+                </div>
                 <div className="flex gap-4">
                   <Select value={riskFilter} onValueChange={setRiskFilter}>
                     <SelectTrigger className="w-32">
@@ -377,93 +449,392 @@ const CustomerInsightsPage: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Churn Risk</TableHead>
-                    <TableHead>Risk Band</TableHead>
-                    <TableHead>Revenue at Risk</TableHead>
-                    <TableHead>Total Spent</TableHead>
-                    <TableHead>Last Order</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredChurnData.slice(0, 50).map((prediction) => (
-                    <TableRow key={prediction.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">
-                            {prediction.customer?.first_name} {prediction.customer?.last_name}
-                          </div>
-                          <div className="text-sm font-light text-gray-500">{prediction.customer?.email}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{(prediction.churn_probability * 100).toFixed(1)}%</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getRiskBadgeColor(prediction.churn_band)}>
-                          {prediction.churn_band}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-light">£{prediction.revenue_at_risk.toFixed(2)}</TableCell>
-                      <TableCell className="font-light">£{prediction.customer?.total_spent?.toFixed(2) || '0.00'}</TableCell>
-                      <TableCell className="font-light">
-                        {prediction.customer?.last_order_date 
-                          ? new Date(prediction.customer.last_order_date).toLocaleDateString()
-                          : 'Never'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleCustomerClick(prediction.customer_id)}
-                          className="font-light"
-                        >
-                          View Details
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {filteredChurnData.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Customer</TableHead>
+                        <TableHead className="text-right">Churn Risk</TableHead>
+                        <TableHead>Risk Band</TableHead>
+                        <TableHead className="text-right">Revenue at Risk</TableHead>
+                        <TableHead className="text-right">Total Spent</TableHead>
+                        <TableHead>Last Order</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredChurnData.slice(0, 50).map((prediction) => (
+                        <TableRow key={prediction.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium text-black">
+                                {prediction.customer?.first_name} {prediction.customer?.last_name}
+                              </div>
+                              <div className="text-sm font-light text-gray-500">{prediction.customer?.email}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="font-medium">{(prediction.churn_probability * 100).toFixed(1)}%</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getRiskBadgeColor(prediction.churn_band)}>
+                              {prediction.churn_band}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-light">{formatCurrency(prediction.revenue_at_risk)}</TableCell>
+                          <TableCell className="text-right font-light">{formatCurrency(prediction.customer?.total_spent || 0)}</TableCell>
+                          <TableCell className="font-light">
+                            {prediction.customer?.last_order_date 
+                              ? new Date(prediction.customer.last_order_date).toLocaleDateString()
+                              : 'Never'
+                            }
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCustomerClick(prediction.customer_id)}
+                              className="font-light"
+                            >
+                              View Details
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 font-light">No churn predictions available for the selected criteria</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Other tabs would follow the same pattern... */}
+        {/* Cohort Analysis Tab */}
         <TabsContent value="cohort" className="space-y-6">
-          <div className="text-center py-8">
-            <p className="text-gray-600 font-light">Cohort analysis coming soon</p>
-          </div>
+          <Card className="card-minimal">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-lg font-medium text-black">Cohort Analysis</CardTitle>
+                  <CardDescription className="font-light text-gray-600">
+                    Customer retention and revenue analysis by cohorts
+                  </CardDescription>
+                </div>
+                <Button onClick={exportCohortData} variant="outline" className="font-light">
+                  Export CSV
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {data.cohortAnalysis.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Retention Rate Chart */}
+                  <div>
+                    <h3 className="text-lg font-medium text-black mb-4">Retention Rate by Cohort</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={retentionData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                          <XAxis dataKey="period_month" fontSize={12} stroke="#666" />
+                          <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `${value}%`} />
+                          <Tooltip formatter={(value: any) => [`${value.toFixed(1)}%`, 'Retention Rate']} />
+                          {retentionCohorts.slice(0, 6).map((cohort, index) => (
+                            <Line
+                              key={cohort}
+                              type="monotone"
+                              dataKey={cohort}
+                              stroke={COLORS[index % COLORS.length]}
+                              strokeWidth={2}
+                              dot={false}
+                            />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Cohort Table */}
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Cohort Month</TableHead>
+                          <TableHead className="text-right">Period</TableHead>
+                          <TableHead className="text-right">Customers Remaining</TableHead>
+                          <TableHead className="text-right">Retention Rate</TableHead>
+                          <TableHead className="text-right">Cumulative Revenue</TableHead>
+                          <TableHead className="text-right">Avg Revenue per Customer</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data.cohortAnalysis.slice(0, 20).map((cohort, index) => (
+                          <TableRow key={`${cohort.cohort_month}-${cohort.period_month}`}>
+                            <TableCell className="font-light">{cohort.cohort_month}</TableCell>
+                            <TableCell className="text-right font-light">{cohort.period_month}</TableCell>
+                            <TableCell className="text-right font-light">{cohort.customers_remaining}</TableCell>
+                            <TableCell className="text-right font-light">{cohort.retention_rate.toFixed(1)}%</TableCell>
+                            <TableCell className="text-right font-light">{formatCurrency(cohort.cumulative_revenue)}</TableCell>
+                            <TableCell className="text-right font-light">{formatCurrency(cohort.avg_revenue_per_customer)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 font-light">No cohort data available for the selected period</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
+        {/* LTV Modeling Tab */}
         <TabsContent value="ltv" className="space-y-6">
-          <div className="text-center py-8">
-            <p className="text-gray-600 font-light">LTV modeling coming soon</p>
-          </div>
+          <Card className="card-minimal">
+            <CardHeader>
+              <CardTitle className="text-lg font-medium text-black">Customer Lifetime Value Predictions</CardTitle>
+              <CardDescription className="font-light text-gray-600">
+                AI-powered LTV predictions for customer segments
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {data.ltvPredictions.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Customer</TableHead>
+                        <TableHead className="text-right">Predicted LTV</TableHead>
+                        <TableHead className="text-right">Current Spent</TableHead>
+                        <TableHead className="text-right">Potential Value</TableHead>
+                        <TableHead>Confidence</TableHead>
+                        <TableHead>Segment</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.ltvPredictions.slice(0, 50).map((prediction) => (
+                        <TableRow key={prediction.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium text-black">
+                                {prediction.customer?.first_name} {prediction.customer?.last_name}
+                              </div>
+                              <div className="text-sm font-light text-gray-500">{prediction.customer?.email}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-light">{formatCurrency(prediction.predicted_ltv)}</TableCell>
+                          <TableCell className="text-right font-light">{formatCurrency(prediction.customer?.total_spent || 0)}</TableCell>
+                          <TableCell className="text-right font-light">
+                            {formatCurrency(Math.max(0, prediction.predicted_ltv - (prediction.customer?.total_spent || 0)))}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="font-light">
+                              {prediction.confidence_score > 0.8 ? 'High' : 
+                               prediction.confidence_score > 0.6 ? 'Medium' : 'Low'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-light">{prediction.ltv_segment}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 font-light">No LTV predictions available</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
+        {/* Customer Segments Tab */}
         <TabsContent value="segments" className="space-y-6">
-          <div className="text-center py-8">
-            <p className="text-gray-600 font-light">Customer segments coming soon</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Segment Performance Chart */}
+            <Card className="card-minimal">
+              <CardHeader>
+                <CardTitle className="text-lg font-medium text-black">Segment Revenue Distribution</CardTitle>
+                <CardDescription className="font-light text-gray-600">
+                  Revenue contribution by customer segment
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data.customerSegments.length > 0 ? (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={data.customerSegments}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="calculated_segment" 
+                          fontSize={12} 
+                          stroke="#666"
+                          tickFormatter={(value) => value.replace('_', ' ')}
+                        />
+                        <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => formatCurrency(value)} />
+                        <Tooltip 
+                          formatter={(value: any) => [formatCurrency(value), 'Avg LTV']}
+                          labelFormatter={(value) => value.replace('_', ' ')}
+                        />
+                        <Bar dataKey="avg_customer_ltv" fill="#3b82f6" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center">
+                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm font-light text-gray-500">No segment data available</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Segment Activity Chart */}
+            <Card className="card-minimal">
+              <CardHeader>
+                <CardTitle className="text-lg font-medium text-black">Segment Activity Levels</CardTitle>
+                <CardDescription className="font-light text-gray-600">
+                  Active customers by segment (last 30 days)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data.customerSegments.length > 0 ? (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={data.customerSegments}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="calculated_segment" 
+                          fontSize={12} 
+                          stroke="#666"
+                          tickFormatter={(value) => value.replace('_', ' ')}
+                        />
+                        <YAxis fontSize={12} stroke="#666" />
+                        <Tooltip 
+                          formatter={(value: any) => [value, 'Active Customers']}
+                          labelFormatter={(value) => value.replace('_', ' ')}
+                        />
+                        <Bar dataKey="active_last_30_days" fill="#10b981" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center">
+                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm font-light text-gray-500">No activity data available</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
+        {/* AI Clusters Tab */}
         <TabsContent value="clusters" className="space-y-6">
-          <div className="text-center py-8">
-            <p className="text-gray-600 font-light">AI clusters coming soon</p>
-          </div>
+          <Card className="card-minimal">
+            <CardHeader>
+              <CardTitle className="text-lg font-medium text-black">AI-Generated Customer Clusters</CardTitle>
+              <CardDescription className="font-light text-gray-600">
+                Machine learning-based customer clustering analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {data.customerClusters.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Cluster Visualization */}
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart data={data.customerClusters}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="avg_order_value" 
+                          fontSize={12} 
+                          stroke="#666"
+                          tickFormatter={(value) => formatCurrency(value)}
+                        />
+                        <YAxis 
+                          dataKey="total_spent" 
+                          fontSize={12} 
+                          stroke="#666"
+                          tickFormatter={(value) => formatCurrency(value)}
+                        />
+                        <Tooltip 
+                          formatter={(value: any, name: string) => [
+                            name === 'avg_order_value' ? formatCurrency(value) : formatCurrency(value),
+                            name === 'avg_order_value' ? 'Avg Order Value' : 'Total Spent'
+                          ]}
+                        />
+                        <Scatter dataKey="total_spent" fill="#3b82f6" />
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Cluster Summary Table */}
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Cluster</TableHead>
+                          <TableHead className="text-right">Customers</TableHead>
+                          <TableHead className="text-right">Avg Total Spent</TableHead>
+                          <TableHead className="text-right">Avg Order Value</TableHead>
+                          <TableHead className="text-right">Avg Orders</TableHead>
+                          <TableHead>Characteristics</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data.customerClusters.map((cluster, index) => (
+                          <TableRow key={cluster.cluster_id}>
+                            <TableCell>
+                              <Badge 
+                                variant="outline" 
+                                className="font-light"
+                                style={{ borderColor: getClusterColor(index), color: getClusterColor(index) }}
+                              >
+                                Cluster {cluster.cluster_id}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-light">{cluster.customer_count}</TableCell>
+                            <TableCell className="text-right font-light">{formatCurrency(cluster.total_spent)}</TableCell>
+                            <TableCell className="text-right font-light">{formatCurrency(cluster.avg_order_value)}</TableCell>
+                            <TableCell className="text-right font-light">{cluster.orders_count.toFixed(1)}</TableCell>
+                            <TableCell className="font-light">{cluster.cluster_description || 'Standard customer group'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 font-light">No cluster data available</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </>
   ) : (
     <div className="text-center py-20">
+      <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
       <p className="text-lg font-light text-gray-700">No customer insights data available for the selected period.</p>
-      <p className="font-light text-gray-500">Try selecting a different date range.</p>
+      <p className="font-light text-gray-500">Try selecting a different date range or check back once you have more transaction data.</p>
     </div>
   );
 
@@ -538,7 +909,7 @@ const CustomerInsightsPage: React.FC = () => {
                   <h3 className="font-medium mb-2">Customer Information</h3>
                   <p className="font-light"><strong>Name:</strong> {selectedCustomer.customer.first_name} {selectedCustomer.customer.last_name}</p>
                   <p className="font-light"><strong>Email:</strong> {selectedCustomer.customer.email}</p>
-                  <p className="font-light"><strong>Total Spent:</strong> £{selectedCustomer.customer.total_spent?.toFixed(2) || '0.00'}</p>
+                  <p className="font-light"><strong>Total Spent:</strong> {formatCurrency(selectedCustomer.customer.total_spent || 0)}</p>
                   <p className="font-light"><strong>Orders Count:</strong> {selectedCustomer.customer.orders_count || 0}</p>
                 </div>
                 <div>

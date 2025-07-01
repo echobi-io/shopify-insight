@@ -65,69 +65,12 @@ import {
   getCustomerDrillDown
 } from '@/lib/fetchers/getSalesAnalysisData'
 import { getEnhancedCustomerData, EnhancedCustomerData } from '@/lib/fetchers/getEnhancedCustomerData'
+import { getKPIs, getPreviousYearKPIs, type KPIData, type FilterState } from '@/lib/fetchers/getKpis'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
+import EnhancedKPICard from '@/components/EnhancedKPICard'
 import DataDebugPanel from '@/components/DataDebugPanel'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
-
-// KPI Card Component
-interface KPICardProps {
-  title: string
-  value: number | null
-  growth: number | null
-  icon: React.ReactNode
-  format?: 'currency' | 'number' | 'percentage'
-  suffix?: string
-}
-
-const KPICard: React.FC<KPICardProps> = ({ title, value, growth, icon, format = 'number', suffix = '' }) => {
-  const formatValue = (val: number | null) => {
-    if (val === null) return 'No data'
-    
-    switch (format) {
-      case 'currency':
-        return `$${val.toLocaleString()}`
-      case 'percentage':
-        return `${val.toFixed(1)}%`
-      default:
-        return val.toLocaleString() + suffix
-    }
-  }
-
-  const getGrowthColor = (growth: number | null) => {
-    if (growth === null) return 'text-gray-400'
-    return growth >= 0 ? 'text-green-600' : 'text-red-600'
-  }
-
-  const getGrowthIcon = (growth: number | null) => {
-    if (growth === null) return null
-    return growth >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />
-  }
-
-  return (
-    <Card className="card-minimal">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-light text-gray-600 mb-1">{title}</p>
-            <p className="text-2xl font-light text-black">{formatValue(value)}</p>
-          </div>
-          <div className="flex flex-col items-end">
-            <div className="text-gray-400 mb-2">
-              {icon}
-            </div>
-            {growth !== null && (
-              <div className={`flex items-center text-sm font-light ${getGrowthColor(growth)}`}>
-                {getGrowthIcon(growth)}
-                <span className="ml-1">{Math.abs(growth).toFixed(1)}%</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 const SalesAnalysisPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
@@ -135,6 +78,8 @@ const SalesAnalysisPage: React.FC = () => {
   
   // Data states
   const [kpis, setKpis] = useState<SalesAnalysisKPIs | null>(null)
+  const [enhancedKpis, setEnhancedKpis] = useState<KPIData | null>(null)
+  const [previousYearKpis, setPreviousYearKpis] = useState<KPIData | null>(null)
   const [timeSeriesData, setTimeSeriesData] = useState<RevenueTimeSeriesData[]>([])
   const [channelData, setChannelData] = useState<ChannelRevenueData[]>([])
   const [topProducts, setTopProducts] = useState<TopProduct[]>([])
@@ -174,18 +119,28 @@ const SalesAnalysisPage: React.FC = () => {
 
       console.log('🔄 Loading sales analysis data with filters:', filters)
 
-      const data = await getSalesAnalysisData(filters, HARDCODED_MERCHANT_ID)
+      // Load all data in parallel
+      const [data, currentKpis, previousYearKpis, timeSeriesWithGranularity] = await Promise.all([
+        getSalesAnalysisData(filters, HARDCODED_MERCHANT_ID),
+        getKPIs(filters, HARDCODED_MERCHANT_ID).catch(err => {
+          console.error('❌ Error loading current KPIs:', err)
+          return null
+        }),
+        getPreviousYearKPIs(filters, HARDCODED_MERCHANT_ID).catch(err => {
+          console.error('❌ Error loading previous year KPIs:', err)
+          return null
+        }),
+        getRevenueTimeSeries(filters, granularity, HARDCODED_MERCHANT_ID)
+      ])
       
       setKpis(data.kpis)
-      setTimeSeriesData(data.timeSeriesData)
+      setEnhancedKpis(currentKpis)
+      setPreviousYearKpis(previousYearKpis)
+      setTimeSeriesData(timeSeriesWithGranularity)
       setChannelData(data.channelData)
       setTopProducts(data.topProducts)
       setTopCustomers(data.topCustomers)
       setInsights(data.insights)
-
-      // Load time series data with selected granularity
-      const timeSeriesWithGranularity = await getRevenueTimeSeries(filters, granularity, HARDCODED_MERCHANT_ID)
-      setTimeSeriesData(timeSeriesWithGranularity)
 
     } catch (err) {
       console.error('❌ Error loading sales analysis data:', err)
@@ -401,31 +356,33 @@ const SalesAnalysisPage: React.FC = () => {
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <KPICard
+            <EnhancedKPICard
               title="Total Revenue"
-              value={kpis?.totalRevenue || null}
-              growth={kpis?.revenueGrowth || null}
+              value={enhancedKpis?.totalRevenue || 0}
+              previousValue={previousYearKpis?.totalRevenue}
               icon={<DollarSign className="w-5 h-5" />}
-              format="currency"
+              isMonetary={true}
             />
-            <KPICard
+            <EnhancedKPICard
               title="Total Orders"
-              value={kpis?.totalOrders || null}
-              growth={kpis?.ordersGrowth || null}
+              value={enhancedKpis?.totalOrders || 0}
+              previousValue={previousYearKpis?.totalOrders}
               icon={<ShoppingCart className="w-5 h-5" />}
+              isMonetary={false}
             />
-            <KPICard
+            <EnhancedKPICard
               title="Average Order Value"
-              value={kpis?.avgOrderValue || null}
-              growth={kpis?.aovGrowth || null}
+              value={enhancedKpis?.avgOrderValue || 0}
+              previousValue={previousYearKpis?.avgOrderValue}
               icon={<Target className="w-5 h-5" />}
-              format="currency"
+              isMonetary={true}
             />
-            <KPICard
+            <EnhancedKPICard
               title="New Customers"
-              value={kpis?.newCustomers || null}
-              growth={kpis?.customerGrowth || null}
+              value={enhancedKpis?.newCustomers || 0}
+              previousValue={previousYearKpis?.newCustomers}
               icon={<Users className="w-5 h-5" />}
+              isMonetary={false}
             />
           </div>
 

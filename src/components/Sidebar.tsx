@@ -27,6 +27,21 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
       href: '/customer-insights'
     },
     {
+      id: 'product-insights',
+      label: 'Product Insights',
+      href: '/product-insights'
+    },
+    {
+      id: 'churn-analytics',
+      label: 'Churn Analytics',
+      href: '/churn-analytics'
+    },
+    {
+      id: 'churn-predictions',
+      label: 'Churn Predictions',
+      href: '/churn-predictions'
+    },
+    {
       id: 'settings',
       label: 'Settings',
       href: '/settings'
@@ -42,6 +57,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
     if (path === '/dashboard') return 'dashboard'
     if (path === '/sales-analysis') return 'sales-analysis'
     if (path === '/customer-insights') return 'customer-insights'
+    if (path === '/product-insights') return 'product-insights'
+    if (path === '/churn-analytics') return 'churn-analytics'
+    if (path === '/churn-predictions') return 'churn-predictions'
     if (path === '/settings') return 'settings'
     return 'dashboard'
   }
@@ -64,14 +82,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
             <h1 className="text-2xl font-light text-black tracking-tight">EchoIQ</h1>
             <p className="text-sm font-light text-gray-600 mt-1">Intelligent Analytics</p>
           </div>
-        </div>
-      </div>
-=======
-      {/* Footer */}
-      <div className="p-6 border-t border-gray-200">
-        <div className="text-xs font-light text-gray-400">
-          <p>© 2024 EchoIQ</p>
-          <p className="mt-1">Clean Analytics</p>
         </div>
       </div>
 
