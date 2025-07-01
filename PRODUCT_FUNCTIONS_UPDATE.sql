@@ -33,7 +33,7 @@ BEGIN
   SELECT 
     p.id,
     p.name,
-    COALESCE(p.sku, p.id::text) as sku,
+    COALESCE(p.shopify_product_id, p.id::text) as sku,
     p.category,
     COALESCE(SUM(oi.price * oi.quantity), 0) as total_revenue,
     COALESCE(SUM(oi.quantity), 0) as units_sold,
@@ -62,7 +62,7 @@ BEGIN
     AND o.created_at <= get_product_performance.end_date
     AND o.status IN ('confirmed', 'shipped', 'delivered')
     AND p.active = true
-  GROUP BY p.id, p.name, p.sku, p.category, p.cost, p.price
+  GROUP BY p.id, p.name, p.shopify_product_id, p.category, p.cost, p.price
   ORDER BY total_revenue DESC;
 END;
 $$;

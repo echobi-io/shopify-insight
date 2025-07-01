@@ -222,7 +222,7 @@ async function getProductPerformanceDataFallback(
     // First, try to get basic products data to see if tables exist
     const { data: basicProducts, error: basicError } = await supabase
       .from('products')
-      .select('id, name, sku, category, price, cost, active, merchant_id')
+      .select('id, name, shopify_product_id, category, price, cost, active, merchant_id')
       .eq('merchant_id', merchantId)
       .eq('active', true)
       .limit(10)
@@ -251,7 +251,7 @@ async function getProductPerformanceDataFallback(
       .select(`
         id,
         name,
-        sku,
+        shopify_product_id,
         category,
         price,
         cost,
@@ -318,7 +318,7 @@ async function getProductPerformanceDataFallback(
         productMetrics.set(productId, {
           id: product.id,
           name: product.name,
-          sku: product.sku || product.id,
+          sku: product.shopify_product_id || product.id,
           category: product.category,
           price: Number(product.price || 0),
           cost: Number(product.cost || 0),
@@ -437,7 +437,7 @@ function getBasicProductData(basicProducts: any[]): ProductPerformanceData {
     return {
       id: product.id,
       name: product.name || 'Unknown Product',
-      sku: product.sku || product.id,
+      sku: product.shopify_product_id || product.id,
       category: product.category,
       totalRevenue: 0, // No sales data available
       unitsSold: 0, // No sales data available
