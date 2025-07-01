@@ -25,32 +25,37 @@ BEGIN
   RETURN QUERY
   SELECT 
     p.id,
-    p.title as name,
-    COALESCE(p.handle, p.id::text) as sku,
-    p.product_type as category,
-    COALESCE(SUM(li.price * li.quantity), 0) as total_revenue,
-    COALESCE(SUM(li.quantity), 0) as units_sold,
+    p.name,
+    COALESCE(p.sku, p.id::text) as sku,
+    p.category,
+    COALESCE(SUM(oi.price * oi.quantity), 0) as total_revenue,
+    COALESCE(SUM(oi.quantity), 0) as units_sold,
     CASE 
-      WHEN SUM(li.quantity) > 0 
-      THEN SUM(li.price * li.quantity) / SUM(li.quantity)
+      WHEN SUM(oi.quantity) > 0 
+      THEN SUM(oi.price * oi.quantity) / SUM(oi.quantity)
       ELSE 0 
     END as avg_price,
-    -- Simple profit margin calculation (assuming 30% base margin)
-    30.0 as profit_margin,
+    -- Calculate profit margin based on cost if available, otherwise use 30%
+    CASE 
+      WHEN p.cost IS NOT NULL AND p.cost > 0 AND p.price > 0
+      THEN ((p.price - p.cost) / p.price) * 100
+      ELSE 30.0 
+    END as profit_margin,
     -- Performance score based on revenue and units (0-100 scale)
     CASE 
-      WHEN SUM(li.price * li.quantity) > 0 
-      THEN LEAST(100, (SUM(li.price * li.quantity) / 1000.0) * 20 + (SUM(li.quantity) / 10.0) * 10)
+      WHEN SUM(oi.price * oi.quantity) > 0 
+      THEN LEAST(100, (SUM(oi.price * oi.quantity) / 1000.0) * 20 + (SUM(oi.quantity) / 10.0) * 10)
       ELSE 0 
     END as performance_score
-  FROM "Product" p
-  LEFT JOIN "LineItem" li ON p.id = li.product_id
-  LEFT JOIN "Order" o ON li.order_id = o.id
+  FROM products p
+  LEFT JOIN order_items oi ON p.id = oi.product_id
+  LEFT JOIN orders o ON oi.order_id = o.id
   WHERE o.merchant_id = get_product_performance.merchant_id
     AND o.created_at >= get_product_performance.start_date
     AND o.created_at <= get_product_performance.end_date
-    AND o.financial_status = 'paid'
-  GROUP BY p.id, p.title, p.handle, p.product_type
+    AND o.status IN ('confirmed', 'shipped', 'delivered')
+    AND p.active = true
+  GROUP BY p.id, p.name, p.sku, p.category, p.cost, p.price
   ORDER BY total_revenue DESC;
 END;
 $$;
@@ -74,15 +79,15 @@ BEGIN
   RETURN QUERY
   SELECT 
     DATE(o.created_at) as date,
-    SUM(li.price * li.quantity) as revenue,
-    SUM(li.quantity) as units
-  FROM "Order" o
-  JOIN "LineItem" li ON o.id = li.order_id
+    SUM(oi.price * oi.quantity) as revenue,
+    SUM(oi.quantity) as units
+  FROM orders o
+  JOIN order_items oi ON o.id = oi.order_id
   WHERE o.merchant_id = get_product_trend.merchant_id
-    AND li.product_id = ANY(get_product_trend.product_ids)
+    AND oi.product_id = ANY(get_product_trend.product_ids)
     AND o.created_at >= get_product_trend.start_date
     AND o.created_at <= get_product_trend.end_date
-    AND o.financial_status = 'paid'
+    AND o.status IN ('confirmed', 'shipped', 'delivered')
   GROUP BY DATE(o.created_at)
   ORDER BY date;
 END;
@@ -93,8 +98,8 @@ GRANT EXECUTE ON FUNCTION get_product_performance(UUID, TIMESTAMP, TIMESTAMP) TO
 GRANT EXECUTE ON FUNCTION get_product_trend(UUID, UUID[], TIMESTAMP, TIMESTAMP) TO authenticated;
 
 -- Optional: Create indexes for better performance if they don't exist
--- CREATE INDEX IF NOT EXISTS idx_order_merchant_created ON "Order"(merchant_id, created_at);
--- CREATE INDEX IF NOT EXISTS idx_order_financial_status ON "Order"(financial_status);
--- CREATE INDEX IF NOT EXISTS idx_lineitem_product ON "LineItem"(product_id);
--- CREATE INDEX IF NOT EXISTS idx_lineitem_order ON "LineItem"(order_id);
--- CREATE INDEX IF NOT EXISTS idx_product_merchant ON "Product"(merchant_id);
+-- CREATE INDEX IF NOT EXISTS idx_orders_merchant_created ON orders(merchant_id, created_at);
+-- CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+-- CREATE INDEX IF NOT EXISTS idx_order_items_product ON order_items(product_id);
+-- CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+-- CREATE INDEX IF NOT EXISTS idx_products_merchant ON products(merchant_id);
