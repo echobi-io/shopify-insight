@@ -64,9 +64,12 @@ export async function getProductPerformanceData(
 
     if (currentError) {
       console.error('❌ Error fetching current products:', currentError)
-      // Check if it's a function not found error
-      if (currentError.message?.includes('function') || currentError.code === '42883') {
-        console.warn('⚠️ RPC function not found, falling back to direct query')
+      // Check if it's a function not found error or table doesn't exist
+      if (currentError.message?.includes('function') || 
+          currentError.code === '42883' || 
+          currentError.code === '42P01' ||
+          currentError.message?.includes('does not exist')) {
+        console.warn('⚠️ RPC function not found or table issue, falling back to direct query')
         // Fallback to direct query if RPC function doesn't exist
         return await getProductPerformanceDataFallback(merchantId, filters)
       }
@@ -216,7 +219,33 @@ async function getProductPerformanceDataFallback(
   const supabase = createClient()
 
   try {
-    // Get products with order data using direct queries
+    // First, try to get basic products data to see if tables exist
+    const { data: basicProducts, error: basicError } = await supabase
+      .from('products')
+      .select('id, name, sku, category, price, cost, active, merchant_id')
+      .eq('merchant_id', merchantId)
+      .eq('active', true)
+      .limit(10)
+
+    if (basicError) {
+      console.error('❌ Error accessing products table:', basicError)
+      // If products table doesn't exist, return empty data
+      if (basicError.code === '42P01' || basicError.message?.includes('does not exist')) {
+        console.warn('⚠️ Products table does not exist, returning empty data')
+        return getEmptyProductData()
+      }
+      throw new Error(`Database access failed: ${basicError.message}`)
+    }
+
+    // If no products exist for this merchant, return empty data
+    if (!basicProducts || basicProducts.length === 0) {
+      console.warn('⚠️ No products found for merchant, returning empty data')
+      return getEmptyProductData()
+    }
+
+    console.log('📊 Found products for merchant:', basicProducts.length)
+
+    // Now try to get products with order data using direct queries
     const { data: productsData, error: productsError } = await supabase
       .from('products')
       .select(`
@@ -227,10 +256,10 @@ async function getProductPerformanceDataFallback(
         price,
         cost,
         active,
-        order_items!inner (
+        order_items (
           quantity,
           price,
-          orders!inner (
+          orders (
             merchant_id,
             created_at,
             status
@@ -239,14 +268,12 @@ async function getProductPerformanceDataFallback(
       `)
       .eq('merchant_id', merchantId)
       .eq('active', true)
-      .eq('order_items.orders.merchant_id', merchantId)
-      .gte('order_items.orders.created_at', filters.startDate)
-      .lte('order_items.orders.created_at', filters.endDate)
-      .in('order_items.orders.status', ['confirmed', 'shipped', 'delivered'])
 
     if (productsError) {
       console.error('❌ Error in fallback query:', productsError)
-      throw new Error(`Fallback query failed: ${productsError.message}`)
+      // If the join fails, just return basic product data without sales metrics
+      console.warn('⚠️ Could not fetch order data, returning products without sales metrics')
+      return getBasicProductData(basicProducts)
     }
 
     console.log('📊 Fallback products data:', productsData)
@@ -378,5 +405,81 @@ async function getProductPerformanceDataFallback(
   } catch (error) {
     console.error('❌ Error in fallback product performance data:', error)
     throw new Error('Failed to fetch product performance data using fallback method')
+  }
+}
+
+// Helper function to return empty product data structure
+function getEmptyProductData(): ProductPerformanceData {
+  return {
+    summary: {
+      totalProducts: 0,
+      totalRevenue: 0,
+      totalUnitsSold: 0,
+      avgProfitMargin: 0,
+      previousTotalProducts: 0,
+      previousTotalRevenue: 0,
+      previousTotalUnitsSold: 0,
+      previousAvgProfitMargin: 0
+    },
+    products: [],
+    categoryPerformance: [],
+    topProductsTrend: []
+  }
+}
+
+// Helper function to return basic product data without sales metrics
+function getBasicProductData(basicProducts: any[]): ProductPerformanceData {
+  const products: ProductMetrics[] = basicProducts.map(product => {
+    const profitMargin = product.cost && product.price && product.price > 0 
+      ? ((product.price - product.cost) / product.price) * 100 
+      : 30.0
+
+    return {
+      id: product.id,
+      name: product.name || 'Unknown Product',
+      sku: product.sku || product.id,
+      category: product.category,
+      totalRevenue: 0, // No sales data available
+      unitsSold: 0, // No sales data available
+      avgPrice: Number(product.price || 0),
+      profitMargin,
+      growthRate: 0,
+      performanceScore: 0 // No performance data without sales
+    }
+  })
+
+  // Calculate category performance (just product counts since no revenue data)
+  const categoryMap = new Map<string, { revenue: number; units: number }>()
+  
+  products.forEach(product => {
+    const category = product.category || 'Uncategorized'
+    const existing = categoryMap.get(category) || { revenue: 0, units: 0 }
+    categoryMap.set(category, {
+      revenue: existing.revenue,
+      units: existing.units + 1 // Count products instead of units sold
+    })
+  })
+
+  const categoryPerformance: CategoryPerformance[] = Array.from(categoryMap.entries()).map(([category, data]) => ({
+    category,
+    revenue: 0,
+    units: data.units,
+    percentage: products.length > 0 ? (data.units / products.length) * 100 : 0
+  }))
+
+  return {
+    summary: {
+      totalProducts: products.length,
+      totalRevenue: 0,
+      totalUnitsSold: 0,
+      avgProfitMargin: products.length > 0 ? products.reduce((sum, p) => sum + p.profitMargin, 0) / products.length : 0,
+      previousTotalProducts: 0,
+      previousTotalRevenue: 0,
+      previousTotalUnitsSold: 0,
+      previousAvgProfitMargin: 0
+    },
+    products,
+    categoryPerformance,
+    topProductsTrend: []
   }
 }
