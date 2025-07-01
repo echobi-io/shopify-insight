@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Progress } from '@/components/ui/progress'
 import { getChurnLtvData, type ChurnAnalyticsData, type ChurnTrend, type RiskSegment, type ChurnCustomer, type ChurnRiskFactor } from '@/lib/fetchers/getChurnLtvData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
-import { formatCurrency } from '@/lib/utils/settingsUtils'
+import { formatCurrency, getSettings } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -111,11 +111,16 @@ const ChurnAnalyticsPage: React.FC = () => {
     if (!data?.customers || data.customers.length === 0) return []
     
     const customers = data.customers
+    const settings = getSettings()
+    const churnPeriodDays = settings.churnPeriodDays
+    const mediumRiskThreshold = Math.floor(churnPeriodDays * 0.67)
+    const lowRiskThreshold = Math.floor(churnPeriodDays * 0.33)
+    
     const newCustomers = customers.filter(c => c.totalOrders <= 1)
-    const activeCustomers = customers.filter(c => c.totalOrders > 1 && c.daysSinceLastOrder <= 30)
-    const engagedCustomers = customers.filter(c => c.totalOrders > 3 && c.daysSinceLastOrder <= 60)
+    const activeCustomers = customers.filter(c => c.totalOrders > 1 && c.daysSinceLastOrder <= lowRiskThreshold)
+    const engagedCustomers = customers.filter(c => c.totalOrders > 3 && c.daysSinceLastOrder <= mediumRiskThreshold)
     const atRiskCustomers = customers.filter(c => c.riskLevel === 'High' || c.riskLevel === 'Medium')
-    const churnedCustomers = customers.filter(c => c.daysSinceLastOrder > 90)
+    const churnedCustomers = customers.filter(c => c.daysSinceLastOrder >= churnPeriodDays)
     
     return [
       { stage: 'New', customers: newCustomers.length, avgDays: 0, churnRate: 25 },
@@ -300,6 +305,14 @@ const ChurnAnalyticsPage: React.FC = () => {
               <div>
                 <h1 className="text-3xl font-light text-black mb-2">Churn Analytics</h1>
                 <p className="text-gray-600 font-light">Comprehensive customer retention analysis and churn risk assessment</p>
+                <div className="mt-2 flex items-center space-x-2">
+                  <Badge variant="outline" className="text-xs">
+                    Churn Period: {getSettings().churnPeriodDays} days
+                  </Badge>
+                  <span className="text-xs text-gray-500">
+                    (Configure in Settings)
+                  </span>
+                </div>
               </div>
               
               {/* Date Filter */}

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient'
+import { getSettings } from '@/lib/utils/settingsUtils'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -183,8 +184,14 @@ function generateEmptyChurnData(): ChurnAnalyticsData {
 function calculateChurnAnalytics(customers: any[], filters: { startDate: string; endDate: string }): ChurnAnalyticsData {
   const endDate = new Date(filters.endDate)
   const startDate = new Date(filters.startDate)
+  const settings = getSettings()
+  const churnPeriodDays = settings.churnPeriodDays
   
-  console.log('📊 Calculating churn analytics for date range:', { startDate: startDate.toISOString(), endDate: endDate.toISOString() })
+  console.log('📊 Calculating churn analytics for date range:', { 
+    startDate: startDate.toISOString(), 
+    endDate: endDate.toISOString(),
+    churnPeriodDays 
+  })
 
   // Process customers and calculate detailed risk predictions
   const processedCustomers: ChurnCustomer[] = customers.map(customer => {
@@ -221,7 +228,8 @@ function calculateChurnAnalytics(customers: any[], filters: { startDate: string;
       avgOrderValue,
       orderFrequency,
       ltv: ltvInRange,
-      dateRangeDays
+      dateRangeDays,
+      churnPeriodDays
     })
     
     // Calculate overall risk score (0-100)
@@ -303,7 +311,7 @@ function calculateChurnAnalytics(customers: any[], filters: { startDate: string;
   ]
 
   // Generate trend data based on the selected date range
-  const churnTrend: ChurnTrend[] = generateChurnTrendForDateRange(customers, startDate, endDate)
+  const churnTrend: ChurnTrend[] = generateChurnTrendForDateRange(customers, startDate, endDate, churnPeriodDays)
 
   // Calculate previous period metrics for comparison
   const dateRangeDuration = endDate.getTime() - startDate.getTime()
@@ -313,7 +321,7 @@ function calculateChurnAnalytics(customers: any[], filters: { startDate: string;
   const previousPeriodAnalytics = calculatePreviousPeriodMetrics(customers, {
     startDate: previousStartDate.toISOString(),
     endDate: previousEndDate.toISOString()
-  })
+  }, churnPeriodDays)
 
   console.log('📈 Churn analytics calculated:', {
     totalCustomers,
@@ -340,7 +348,7 @@ function calculateChurnAnalytics(customers: any[], filters: { startDate: string;
   }
 }
 
-function generateChurnTrendForDateRange(customers: any[], startDate: Date, endDate: Date): ChurnTrend[] {
+function generateChurnTrendForDateRange(customers: any[], startDate: Date, endDate: Date, churnPeriodDays: number): ChurnTrend[] {
   const churnTrend: ChurnTrend[] = []
   const totalDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
   
@@ -382,8 +390,9 @@ function generateChurnTrendForDateRange(customers: any[], startDate: Date, endDa
       if (!lastOrder) return false
       
       // Customer churned if their last order was in this interval and they haven't ordered since
+      // Use settings-based churn period instead of hardcoded 90 days
       return lastOrder >= intervalStart && lastOrder <= intervalEnd &&
-             Math.floor((endDate.getTime() - lastOrder.getTime()) / (1000 * 60 * 60 * 24)) > 90
+             Math.floor((endDate.getTime() - lastOrder.getTime()) / (1000 * 60 * 60 * 24)) > churnPeriodDays
     })
     
     const intervalChurnRate = totalCustomersAtStart > 0 ? 
@@ -414,17 +423,23 @@ function calculateRiskFactors(customerData: {
   orderFrequency: number
   ltv: number
   dateRangeDays: number
+  churnPeriodDays: number
 }): ChurnRiskFactor[] {
   const factors: ChurnRiskFactor[] = []
   
   // Factor 1: Recency (Days since last order) - Weight: 35%
+  // Use settings-based churn period instead of hardcoded values
   const recencyWeight = 35
   let recencyScore = 0
-  if (customerData.daysSinceLastOrder > 90) {
+  const churnThreshold = customerData.churnPeriodDays
+  const mediumRiskThreshold = Math.floor(churnThreshold * 0.67) // 67% of churn period
+  const lowRiskThreshold = Math.floor(churnThreshold * 0.33) // 33% of churn period
+  
+  if (customerData.daysSinceLastOrder >= churnThreshold) {
     recencyScore = 100
-  } else if (customerData.daysSinceLastOrder > 60) {
+  } else if (customerData.daysSinceLastOrder >= mediumRiskThreshold) {
     recencyScore = 70
-  } else if (customerData.daysSinceLastOrder > 30) {
+  } else if (customerData.daysSinceLastOrder >= lowRiskThreshold) {
     recencyScore = 40
   } else {
     recencyScore = 10
@@ -552,7 +567,7 @@ function calculatePredictionConfidence(data: {
   return Math.min(100, Math.max(0, confidence))
 }
 
-function calculatePreviousPeriodMetrics(customers: any[], filters: { startDate: string; endDate: string }) {
+function calculatePreviousPeriodMetrics(customers: any[], filters: { startDate: string; endDate: string }, churnPeriodDays: number) {
   const endDate = new Date(filters.endDate)
   const startDate = new Date(filters.startDate)
   
@@ -574,10 +589,13 @@ function calculatePreviousPeriodMetrics(customers: any[], filters: { startDate: 
     
     const ltvInRange = ordersInRange.reduce((sum: number, order: any) => sum + (order.total_price || 0), 0)
     
+    // Use settings-based churn period instead of hardcoded values
+    const mediumRiskThreshold = Math.floor(churnPeriodDays * 0.67)
+    
     let riskLevel: 'High' | 'Medium' | 'Low' = 'Low'
-    if (daysSinceLastOrder > 90 || ordersInRange.length === 0) {
+    if (daysSinceLastOrder >= churnPeriodDays || ordersInRange.length === 0) {
       riskLevel = 'High'
-    } else if (daysSinceLastOrder > 60) {
+    } else if (daysSinceLastOrder >= mediumRiskThreshold) {
       riskLevel = 'Medium'
     }
     
