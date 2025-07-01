@@ -50,6 +50,7 @@ BEGIN
   LEFT JOIN orders o ON oi.order_id = o.id
   WHERE p.merchant_id = get_product_performance.merchant_id
     AND (o.created_at IS NULL OR (o.created_at >= get_product_performance.start_date AND o.created_at <= get_product_performance.end_date))
+    AND (p.is_active IS NULL OR p.is_active = true)
   GROUP BY p.id, p.name, p.category, p.price
   ORDER BY total_revenue DESC;
 END;
