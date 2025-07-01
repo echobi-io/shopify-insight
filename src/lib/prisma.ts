@@ -1,17 +1,11 @@
-// Mock Prisma client for build compatibility
-const mockPrisma = {
-  user: {
-    findUnique: async () => null,
-    findMany: async () => [],
-    create: async () => null,
-    update: async () => null,
-    delete: async () => null,
-  },
-  $connect: async () => {},
-  $disconnect: async () => {},
-};
+import { PrismaClient } from '@prisma/client'
 
-// Use mock for now to avoid database connection issues during build
-const prisma = mockPrisma;
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+}
 
-export default prisma;
+export const prisma = globalForPrisma.prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+export default prisma
