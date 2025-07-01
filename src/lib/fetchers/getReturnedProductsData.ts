@@ -97,7 +97,7 @@ export async function getReturnedProductsData(
     // Get product information for the refunded products
     const { data: productsData, error: productsError } = await supabase
       .from('products')
-      .select('id, name, category, sku')
+      .select('id, name, category')
       .eq('merchant_id', merchantId)
       .in('id', productIds)
 
@@ -191,7 +191,7 @@ export async function getReturnedProductsData(
       return {
         id: productId,
         name: data.product?.name || 'Unknown Product',
-        sku: data.product?.sku || productId, // Use actual SKU or product ID as fallback
+        sku: productId, // Use product ID as SKU since sku column doesn't exist
         category: data.product?.category,
         totalReturns: data.totalCount,
         totalReturnValue: data.totalValue,
