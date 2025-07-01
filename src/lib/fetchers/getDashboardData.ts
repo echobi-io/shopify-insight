@@ -41,54 +41,58 @@ export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKP
     const today = new Date().toISOString().split('T')[0];
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // Get today's revenue and orders
-    const { data: todayData, error: todayError } = await supabase
-      .from('daily_revenue_summary')
-      .select('total_orders, total_revenue')
+    // Get today's revenue and orders from actual orders table
+    const { data: todayOrders, error: todayError } = await supabase
+      .from('orders')
+      .select('total_price')
       .eq('merchant_id', effectiveMerchantId)
-      .eq('date', today)
-      .single();
+      .gte('created_at', today + 'T00:00:00.000Z')
+      .lt('created_at', today + 'T23:59:59.999Z');
 
-    if (todayError && todayError.code !== 'PGRST116') {
+    if (todayError) {
       console.error('❌ Error fetching today data:', todayError);
     }
 
-    // Get 7-day AOV
-    const { data: aovData, error: aovError } = await supabase
-      .from('daily_revenue_summary')
-      .select('total_orders, total_revenue')
+    // Get 7-day AOV from actual orders table
+    const { data: aovOrders, error: aovError } = await supabase
+      .from('orders')
+      .select('total_price')
       .eq('merchant_id', effectiveMerchantId)
-      .gte('date', sevenDaysAgo)
-      .lte('date', today);
+      .gte('created_at', sevenDaysAgo + 'T00:00:00.000Z')
+      .lte('created_at', today + 'T23:59:59.999Z');
 
     if (aovError) {
       console.error('❌ Error fetching AOV data:', aovError);
     }
 
+    // Calculate today's metrics
+    const revenueToday = todayOrders?.reduce((sum, order) => sum + (parseFloat(order.total_price) || 0), 0) || 0;
+    const ordersToday = todayOrders?.length || 0;
+
     // Calculate 7-day AOV
     let avgOrderValue7d = 0;
-    if (aovData && aovData.length > 0) {
-      const totalRevenue = aovData.reduce((sum, row) => sum + (row.total_revenue || 0), 0);
-      const totalOrders = aovData.reduce((sum, row) => sum + (row.total_orders || 0), 0);
+    if (aovOrders && aovOrders.length > 0) {
+      const totalRevenue = aovOrders.reduce((sum, order) => sum + (parseFloat(order.total_price) || 0), 0);
+      const totalOrders = aovOrders.length;
       avgOrderValue7d = totalOrders > 0 ? totalRevenue / totalOrders : 0;
     }
 
-    // Get new customers (customers with only 1 lifetime order)
+    // Get new customers (customers created today)
     const { data: newCustomersData, error: newCustomersError } = await supabase
-      .from('customer_retention_summary')
-      .select('customers_count')
+      .from('customers')
+      .select('id')
       .eq('merchant_id', effectiveMerchantId)
-      .eq('calculated_segment', 'new')
-      .single();
+      .gte('created_at', today + 'T00:00:00.000Z')
+      .lt('created_at', today + 'T23:59:59.999Z');
 
-    if (newCustomersError && newCustomersError.code !== 'PGRST116') {
+    if (newCustomersError) {
       console.error('❌ Error fetching new customers:', newCustomersError);
     }
 
     const result = {
-      revenueToday: todayData?.total_revenue || 0,
-      ordersToday: todayData?.total_orders || 0,
-      newCustomers: newCustomersData?.customers_count || 0,
+      revenueToday,
+      ordersToday,
+      newCustomers: newCustomersData?.length || 0,
       avgOrderValue7d: avgOrderValue7d > 0 ? parseFloat(avgOrderValue7d.toFixed(2)) : 0
     };
 
@@ -111,19 +115,20 @@ export async function getDashboardTrendData(merchant_id: string, filters?: Filte
   try {
     console.log('📈 Fetching dashboard trend data for merchant:', merchant_id, 'with filters:', filters);
 
+    // Use actual orders table to calculate daily trends
     let query = supabase
-      .from('daily_revenue_summary')
-      .select('date, total_orders, total_revenue')
+      .from('orders')
+      .select('created_at, total_price')
       .eq('merchant_id', merchant_id);
 
     if (filters?.startDate) {
-      query = query.gte('date', filters.startDate);
+      query = query.gte('created_at', filters.startDate + 'T00:00:00.000Z');
     }
     if (filters?.endDate) {
-      query = query.lte('date', filters.endDate);
+      query = query.lte('created_at', filters.endDate + 'T23:59:59.999Z');
     }
 
-    const { data, error } = await query.order('date');
+    const { data, error } = await query.order('created_at');
 
     if (error) {
       console.error('❌ Error fetching trend data:', error);
@@ -135,11 +140,23 @@ export async function getDashboardTrendData(merchant_id: string, filters?: Filte
       return [];
     }
 
-    const result = data.map(row => ({
-      date: row.date,
-      total_revenue: row.total_revenue || 0,
-      total_orders: row.total_orders || 0
-    }));
+    // Group by date and calculate totals
+    const dailyTotals: Record<string, { revenue: number; orders: number }> = {};
+    
+    data.forEach(order => {
+      const date = order.created_at.split('T')[0];
+      if (!dailyTotals[date]) {
+        dailyTotals[date] = { revenue: 0, orders: 0 };
+      }
+      dailyTotals[date].revenue += parseFloat(order.total_price) || 0;
+      dailyTotals[date].orders += 1;
+    });
+
+    const result = Object.entries(dailyTotals).map(([date, totals]) => ({
+      date,
+      total_revenue: totals.revenue,
+      total_orders: totals.orders
+    })).sort((a, b) => a.date.localeCompare(b.date));
 
     console.log('✅ Dashboard trend data result:', { count: result.length });
     return result;
@@ -154,50 +171,9 @@ export async function getCustomerSegmentBreakdown(merchant_id: string, filters?:
   try {
     console.log('👥 Fetching customer segment breakdown for merchant:', merchant_id, 'with filters:', filters);
 
-    let query = supabase
-      .from('customer_segment_summary')
-      .select('customer_segment, orders_count')
-      .eq('merchant_id', merchant_id);
-
-    if (filters?.startDate) {
-      query = query.gte('date', filters.startDate);
-    }
-    if (filters?.endDate) {
-      query = query.lte('date', filters.endDate);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('❌ Error fetching segment data:', error);
-      return [];
-    }
-
-    if (!data || data.length === 0) {
-      console.log('📭 No segment data found');
-      return [];
-    }
-
-    // Group by segment and sum orders
-    const segmentTotals = data.reduce((acc, row) => {
-      const segment = row.customer_segment;
-      if (!acc[segment]) {
-        acc[segment] = 0;
-      }
-      acc[segment] += row.orders_count || 0;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const totalOrders = Object.values(segmentTotals).reduce((sum, count) => sum + count, 0);
-
-    const result = Object.entries(segmentTotals).map(([segment, orders_count]) => ({
-      customer_segment: segment,
-      orders_count,
-      percentage: totalOrders > 0 ? parseFloat(((orders_count / totalOrders) * 100).toFixed(1)) : 0
-    }));
-
-    console.log('✅ Customer segment breakdown result:', result);
-    return result;
+    // Since customer_segment_summary doesn't exist, return empty data for now
+    console.log('📭 Customer segment data not available - table does not exist');
+    return [];
 
   } catch (error) {
     console.error('❌ Error fetching customer segment breakdown:', error);
@@ -218,67 +194,41 @@ export async function generateAICommentary(merchant_id: string, filters?: Filter
     const previousEndDate = new Date(new Date(startDate).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const previousStartDate = new Date(new Date(startDate).getTime() - periodLength).toISOString().split('T')[0];
 
-    // Get current period revenue
-    const { data: currentPeriodData, error: currentError } = await supabase
-      .from('daily_revenue_summary')
-      .select('total_revenue')
+    // Get current period revenue from actual orders table
+    const { data: currentPeriodOrders, error: currentError } = await supabase
+      .from('orders')
+      .select('total_price')
       .eq('merchant_id', merchant_id)
-      .gte('date', startDate)
-      .lte('date', endDate);
+      .gte('created_at', startDate + 'T00:00:00.000Z')
+      .lte('created_at', endDate + 'T23:59:59.999Z');
 
-    // Get previous period revenue
-    const { data: previousPeriodData, error: previousError } = await supabase
-      .from('daily_revenue_summary')
-      .select('total_revenue')
+    // Get previous period revenue from actual orders table
+    const { data: previousPeriodOrders, error: previousError } = await supabase
+      .from('orders')
+      .select('total_price')
       .eq('merchant_id', merchant_id)
-      .gte('date', previousStartDate)
-      .lte('date', previousEndDate);
+      .gte('created_at', previousStartDate + 'T00:00:00.000Z')
+      .lte('created_at', previousEndDate + 'T23:59:59.999Z');
 
     if (currentError || previousError) {
       console.error('❌ Error fetching revenue data for AI commentary:', currentError || previousError);
     }
 
     // Calculate revenue change
-    const currentRevenue = currentPeriodData?.reduce((sum, row) => sum + (row.total_revenue || 0), 0) || 0;
-    const previousRevenue = previousPeriodData?.reduce((sum, row) => sum + (row.total_revenue || 0), 0) || 0;
+    const currentRevenue = currentPeriodOrders?.reduce((sum, order) => sum + (parseFloat(order.total_price) || 0), 0) || 0;
+    const previousRevenue = previousPeriodOrders?.reduce((sum, order) => sum + (parseFloat(order.total_price) || 0), 0) || 0;
     const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
 
-    // Get top product for the selected period
-    let productQuery = supabase
-      .from('product_performance_summary')
-      .select('product_name, total_revenue')
-      .eq('merchant_id', merchant_id)
-      .order('total_revenue', { ascending: false })
-      .limit(1);
+    // Get top product from RPC function (if available)
+    const { data: topProductData, error: productError } = await supabase.rpc('get_product_performance', {
+      merchant_id: merchant_id,
+      start_date: startDate + 'T00:00:00.000Z',
+      end_date: endDate + 'T23:59:59.999Z'
+    });
 
-    if (filters?.startDate) {
-      productQuery = productQuery.gte('order_date', filters.startDate);
-    }
-    if (filters?.endDate) {
-      productQuery = productQuery.lte('order_date', filters.endDate);
-    }
-
-    const { data: topProductData, error: productError } = await productQuery.single();
-
-    if (productError && productError.code !== 'PGRST116') {
-      console.error('❌ Error fetching top product:', productError);
-    }
-
-    // Get churn indicator
-    const { data: churnData, error: churnError } = await supabase
-      .from('customer_retention_summary')
-      .select('customers_count')
-      .eq('merchant_id', merchant_id)
-      .eq('calculated_segment', 'at_risk')
-      .single();
-
-    if (churnError && churnError.code !== 'PGRST116') {
-      console.error('❌ Error fetching churn data:', churnError);
-    }
-
-    const topProduct = topProductData?.product_name || 'Unknown Product';
+    const topProduct = topProductData && topProductData.length > 0 ? topProductData[0].name : 'Unknown Product';
     const topProductGrowth = Math.abs(revenueChange); // Simplified for now
-    const customerChurnIndicator = churnData?.customers_count || 0;
+    const customerChurnIndicator = 0; // No churn data available
 
     // Generate dynamic commentary based on actual data
     let commentary = '';
@@ -288,15 +238,9 @@ export async function generateAICommentary(merchant_id: string, filters?: Filter
       if (topProduct !== 'Unknown Product') {
         commentary += `, largely driven by strong performance from ${topProduct}`;
       }
-      if (customerChurnIndicator > 0) {
-        commentary += `. However, ${customerChurnIndicator} customers are at risk of churning`;
-      }
       commentary += '.';
     } else if (revenueChange < 0) {
       commentary = `Revenue declined by ${Math.abs(revenueChange).toFixed(1)}% compared to the previous period`;
-      if (customerChurnIndicator > 0) {
-        commentary += `, with ${customerChurnIndicator} customers at risk of churning`;
-      }
       commentary += '. Focus on customer retention strategies.';
     } else {
       commentary = 'Revenue remained stable compared to the previous period';
