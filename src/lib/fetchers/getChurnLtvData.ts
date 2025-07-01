@@ -170,23 +170,35 @@ function generateEmptyChurnData(): ChurnAnalyticsData {
 }
 
 function calculateChurnAnalytics(customers: any[], filters: { startDate: string; endDate: string }): ChurnAnalyticsData {
-  const now = new Date()
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)
-  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+  const endDate = new Date(filters.endDate)
+  const startDate = new Date(filters.startDate)
+  
+  console.log('📊 Calculating churn analytics for date range:', { startDate: startDate.toISOString(), endDate: endDate.toISOString() })
 
-  // Process customers and calculate risk levels
+  // Process customers and calculate risk levels based on the selected date range
   const processedCustomers: ChurnCustomer[] = customers.map(customer => {
     const orders = customer.orders || []
-    const lastOrder = orders.length > 0 ? new Date(Math.max(...orders.map((o: any) => new Date(o.created_at).getTime()))) : null
-    const daysSinceLastOrder = lastOrder ? Math.floor((now.getTime() - lastOrder.getTime()) / (1000 * 60 * 60 * 24)) : 999
     
-    // Calculate LTV (total spent)
-    const ltv = customer.total_spent || 0
+    // Filter orders to only include those within the selected date range
+    const ordersInRange = orders.filter((order: any) => {
+      const orderDate = new Date(order.created_at)
+      return orderDate >= startDate && orderDate <= endDate
+    })
     
-    // Determine risk level based on days since last order and order frequency
+    // Find the last order within the date range
+    const lastOrderInRange = ordersInRange.length > 0 ? 
+      new Date(Math.max(...ordersInRange.map((o: any) => new Date(o.created_at).getTime()))) : null
+    
+    // Calculate days since last order from the END of the selected date range
+    const daysSinceLastOrder = lastOrderInRange ? 
+      Math.floor((endDate.getTime() - lastOrderInRange.getTime()) / (1000 * 60 * 60 * 24)) : 999
+    
+    // Calculate LTV from orders within the date range
+    const ltvInRange = ordersInRange.reduce((sum: number, order: any) => sum + (order.total_price || 0), 0)
+    
+    // Determine risk level based on days since last order and order frequency within the range
     let riskLevel: 'High' | 'Medium' | 'Low' = 'Low'
-    if (daysSinceLastOrder > 90) {
+    if (daysSinceLastOrder > 90 || ordersInRange.length === 0) {
       riskLevel = 'High'
     } else if (daysSinceLastOrder > 60) {
       riskLevel = 'Medium'
@@ -194,13 +206,13 @@ function calculateChurnAnalytics(customers: any[], filters: { startDate: string;
     
     // Calculate revenue at risk (percentage of LTV based on risk level)
     const riskMultiplier = riskLevel === 'High' ? 0.8 : riskLevel === 'Medium' ? 0.4 : 0.1
-    const revenueAtRisk = ltv * riskMultiplier
+    const revenueAtRisk = ltvInRange * riskMultiplier
     
-    // Determine customer segment based on LTV
+    // Determine customer segment based on LTV in the selected range
     let segment = 'Bronze'
-    if (ltv > 5000) segment = 'Platinum'
-    else if (ltv > 2000) segment = 'Gold'
-    else if (ltv > 500) segment = 'Silver'
+    if (ltvInRange > 5000) segment = 'Platinum'
+    else if (ltvInRange > 2000) segment = 'Gold'
+    else if (ltvInRange > 500) segment = 'Silver'
 
     return {
       id: customer.id,
@@ -208,11 +220,11 @@ function calculateChurnAnalytics(customers: any[], filters: { startDate: string;
       email: customer.email || '',
       segment,
       riskLevel,
-      ltv,
+      ltv: ltvInRange,
       revenueAtRisk,
       daysSinceLastOrder,
-      totalOrders: orders.length,
-      lastOrderDate: lastOrder ? lastOrder.toISOString() : null
+      totalOrders: ordersInRange.length,
+      lastOrderDate: lastOrderInRange ? lastOrderInRange.toISOString() : null
     }
   })
 
@@ -249,44 +261,160 @@ function calculateChurnAnalytics(customers: any[], filters: { startDate: string;
     }
   ]
 
-  // Generate trend data (simplified - last 6 months)
-  const churnTrend: ChurnTrend[] = []
-  for (let i = 5; i >= 0; i--) {
-    const date = new Date()
-    date.setMonth(date.getMonth() - i)
-    const monthStart = new Date(date.getFullYear(), date.getMonth(), 1)
-    const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0)
-    
-    // Calculate customers who became inactive in this month
-    const monthlyChurnedCustomers = processedCustomers.filter(customer => {
-      if (!customer.lastOrderDate) return false
-      const lastOrder = new Date(customer.lastOrderDate)
-      const daysSinceLastOrder = Math.floor((now.getTime() - lastOrder.getTime()) / (1000 * 60 * 60 * 1000))
-      return daysSinceLastOrder > 90 && lastOrder >= monthStart && lastOrder <= monthEnd
-    })
+  // Generate trend data based on the selected date range
+  const churnTrend: ChurnTrend[] = generateChurnTrendForDateRange(customers, startDate, endDate)
 
-    churnTrend.push({
-      month: monthStart.toISOString(),
-      churnRate: totalCustomers > 0 ? (monthlyChurnedCustomers.length / totalCustomers) * 100 : 0,
-      customersLost: monthlyChurnedCustomers.length,
-      revenueImpact: monthlyChurnedCustomers.reduce((sum, c) => sum + c.ltv, 0)
-    })
-  }
+  // Calculate previous period metrics for comparison
+  const dateRangeDuration = endDate.getTime() - startDate.getTime()
+  const previousEndDate = new Date(startDate.getTime() - 1) // Day before start date
+  const previousStartDate = new Date(previousEndDate.getTime() - dateRangeDuration)
+  
+  const previousPeriodAnalytics = calculatePreviousPeriodMetrics(customers, {
+    startDate: previousStartDate.toISOString(),
+    endDate: previousEndDate.toISOString()
+  })
+
+  console.log('📈 Churn analytics calculated:', {
+    totalCustomers,
+    churnRate: churnRate.toFixed(1),
+    customersAtRisk,
+    revenueAtRisk: revenueAtRisk.toFixed(2),
+    trendPoints: churnTrend.length
+  })
 
   return {
     summary: {
       churnRate,
-      previousChurnRate: churnRate * 0.9, // Mock previous value
+      previousChurnRate: previousPeriodAnalytics.churnRate,
       customersAtRisk,
-      previousCustomersAtRisk: Math.floor(customersAtRisk * 0.85), // Mock previous value
+      previousCustomersAtRisk: previousPeriodAnalytics.customersAtRisk,
       revenueAtRisk,
-      previousRevenueAtRisk: revenueAtRisk * 0.92, // Mock previous value
+      previousRevenueAtRisk: previousPeriodAnalytics.revenueAtRisk,
       avgCustomerLTV,
-      previousAvgCustomerLTV: avgCustomerLTV * 0.95 // Mock previous value
+      previousAvgCustomerLTV: previousPeriodAnalytics.avgCustomerLTV
     },
     churnTrend,
     riskSegments,
     customers: processedCustomers
+  }
+}
+
+function generateChurnTrendForDateRange(customers: any[], startDate: Date, endDate: Date): ChurnTrend[] {
+  const churnTrend: ChurnTrend[] = []
+  const totalDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+  
+  // If date range is less than 6 months, show monthly data
+  // If more than 6 months, show quarterly data
+  const isLongRange = totalDays > 180
+  const intervals = isLongRange ? 4 : Math.min(6, Math.ceil(totalDays / 30))
+  
+  for (let i = 0; i < intervals; i++) {
+    const intervalDuration = totalDays / intervals
+    const intervalStart = new Date(startDate.getTime() + (i * intervalDuration * 24 * 60 * 60 * 1000))
+    const intervalEnd = new Date(startDate.getTime() + ((i + 1) * intervalDuration * 24 * 60 * 60 * 1000))
+    
+    // Calculate customers who had their last order in this interval and then became inactive
+    const customersInInterval = customers.filter((customer: any) => {
+      const orders = customer.orders || []
+      const ordersInInterval = orders.filter((order: any) => {
+        const orderDate = new Date(order.created_at)
+        return orderDate >= intervalStart && orderDate <= intervalEnd
+      })
+      return ordersInInterval.length > 0
+    })
+    
+    // Calculate churn rate for this interval
+    const totalCustomersAtStart = customers.filter((customer: any) => {
+      const orders = customer.orders || []
+      const hasOrdersBeforeInterval = orders.some((order: any) => {
+        const orderDate = new Date(order.created_at)
+        return orderDate < intervalStart
+      })
+      return hasOrdersBeforeInterval
+    }).length
+    
+    const churnedCustomers = customers.filter((customer: any) => {
+      const orders = customer.orders || []
+      const lastOrder = orders.length > 0 ? 
+        new Date(Math.max(...orders.map((o: any) => new Date(o.created_at).getTime()))) : null
+      
+      if (!lastOrder) return false
+      
+      // Customer churned if their last order was in this interval and they haven't ordered since
+      return lastOrder >= intervalStart && lastOrder <= intervalEnd &&
+             Math.floor((endDate.getTime() - lastOrder.getTime()) / (1000 * 60 * 60 * 24)) > 90
+    })
+    
+    const intervalChurnRate = totalCustomersAtStart > 0 ? 
+      (churnedCustomers.length / totalCustomersAtStart) * 100 : 0
+    
+    const revenueImpact = churnedCustomers.reduce((sum: number, customer: any) => {
+      const orders = customer.orders || []
+      const customerRevenue = orders.reduce((orderSum: number, order: any) => 
+        orderSum + (order.total_price || 0), 0)
+      return sum + customerRevenue
+    }, 0)
+    
+    churnTrend.push({
+      month: intervalStart.toISOString(),
+      churnRate: intervalChurnRate,
+      customersLost: churnedCustomers.length,
+      revenueImpact
+    })
+  }
+  
+  return churnTrend
+}
+
+function calculatePreviousPeriodMetrics(customers: any[], filters: { startDate: string; endDate: string }) {
+  const endDate = new Date(filters.endDate)
+  const startDate = new Date(filters.startDate)
+  
+  // Process customers for the previous period
+  const processedCustomers = customers.map((customer: any) => {
+    const orders = customer.orders || []
+    
+    // Filter orders to only include those within the previous period
+    const ordersInRange = orders.filter((order: any) => {
+      const orderDate = new Date(order.created_at)
+      return orderDate >= startDate && orderDate <= endDate
+    })
+    
+    const lastOrderInRange = ordersInRange.length > 0 ? 
+      new Date(Math.max(...ordersInRange.map((o: any) => new Date(o.created_at).getTime()))) : null
+    
+    const daysSinceLastOrder = lastOrderInRange ? 
+      Math.floor((endDate.getTime() - lastOrderInRange.getTime()) / (1000 * 60 * 60 * 24)) : 999
+    
+    const ltvInRange = ordersInRange.reduce((sum: number, order: any) => sum + (order.total_price || 0), 0)
+    
+    let riskLevel: 'High' | 'Medium' | 'Low' = 'Low'
+    if (daysSinceLastOrder > 90 || ordersInRange.length === 0) {
+      riskLevel = 'High'
+    } else if (daysSinceLastOrder > 60) {
+      riskLevel = 'Medium'
+    }
+    
+    const riskMultiplier = riskLevel === 'High' ? 0.8 : riskLevel === 'Medium' ? 0.4 : 0.1
+    const revenueAtRisk = ltvInRange * riskMultiplier
+    
+    return {
+      riskLevel,
+      ltv: ltvInRange,
+      revenueAtRisk,
+      ordersInRange: ordersInRange.length
+    }
+  })
+  
+  const totalCustomers = processedCustomers.length
+  const highRiskCustomers = processedCustomers.filter(c => c.riskLevel === 'High')
+  const mediumRiskCustomers = processedCustomers.filter(c => c.riskLevel === 'Medium')
+  
+  return {
+    churnRate: totalCustomers > 0 ? (highRiskCustomers.length / totalCustomers) * 100 : 0,
+    customersAtRisk: highRiskCustomers.length + mediumRiskCustomers.length,
+    revenueAtRisk: processedCustomers.reduce((sum, c) => sum + c.revenueAtRisk, 0),
+    avgCustomerLTV: totalCustomers > 0 ? processedCustomers.reduce((sum, c) => sum + c.ltv, 0) / totalCustomers : 0
   }
 }
 
