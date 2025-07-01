@@ -410,11 +410,10 @@ const ChurnAnalyticsPage: React.FC = () => {
 
           {/* Tabbed Analytics */}
           <Tabs defaultValue="overview" className="mb-8">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="trends">Trends</TabsTrigger>
               <TabsTrigger value="segments">Segments</TabsTrigger>
-              <TabsTrigger value="predictions">Predictions</TabsTrigger>
               <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
             </TabsList>
 
@@ -850,79 +849,7 @@ const ChurnAnalyticsPage: React.FC = () => {
               </ExpandableTile>
             </TabsContent>
 
-            {/* Predictions Tab */}
-            <TabsContent value="predictions" className="space-y-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Model Performance */}
-                <ExpandableTile
-                  title={
-                    <div className="flex items-center space-x-2">
-                      <span>Prediction Model Performance</span>
-                      <ChurnCalculationHelp type="radar-chart" />
-                    </div>
-                  }
-                  description="Accuracy metrics for churn prediction models"
-                  data={predictionAccuracyData}
-                  filename="model-performance"
-                >
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={predictionAccuracyData}>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="model" fontSize={12} />
-                        <PolarRadiusAxis angle={90} domain={[0, 100]} fontSize={10} />
-                        <Radar name="Accuracy" dataKey="accuracy" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} />
-                        <Radar name="Precision" dataKey="precision" stroke="#10b981" fill="#10b981" fillOpacity={0.1} />
-                        <Radar name="Recall" dataKey="recall" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.1} />
-                        <Tooltip />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </ExpandableTile>
 
-                {/* Feature Importance */}
-                <ExpandableTile
-                  title={
-                    <div className="flex items-center space-x-2">
-                      <span>Feature Importance</span>
-                      <ChurnCalculationHelp type="feature-importance" />
-                    </div>
-                  }
-                  description="Most important factors in churn prediction"
-                  data={riskFactorsData}
-                  filename="feature-importance"
-                >
-                  {riskFactorsData.length > 0 ? (
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={riskFactorsData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="factor" fontSize={12} stroke="#666" angle={-45} textAnchor="end" height={80} />
-                          <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `${value.toFixed(1)}`} />
-                          <Tooltip 
-                            formatter={(value: any) => [`${value.toFixed(1)} avg impact`, 'Average Impact Score']}
-                            labelFormatter={(label) => `Factor: ${label}`}
-                          />
-                          <Bar dataKey="impact">
-                            {riskFactorsData.map((entry, index) => {
-                              const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
-                              return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                            })}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="h-64 flex items-center justify-center">
-                      <div className="text-center">
-                        <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm font-light text-gray-500">No feature importance data available</p>
-                      </div>
-                    </div>
-                  )}
-                </ExpandableTile>
-              </div>
-            </TabsContent>
 
             {/* Campaigns Tab */}
             <TabsContent value="campaigns" className="space-y-8">
