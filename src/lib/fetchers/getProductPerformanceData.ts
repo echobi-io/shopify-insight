@@ -142,7 +142,7 @@ export async function getProductPerformanceData(
       totalRevenue: currentRevenue,
       unitsSold: currentUnits,
       avgPrice: Number(product.avg_price || 0),
-      profitMargin: Number(product.profit_margin || 30),
+      profitMargin: Number(product.profit_margin || 0),
       growthRate,
       performanceScore: Number(product.performance_score || 0)
     }
@@ -201,7 +201,7 @@ export async function getProductPerformanceData(
     totalProducts: previousProducts?.length || 0,
     totalRevenue: (previousProducts || []).reduce((sum: number, p: any) => sum + Number(p.total_revenue || 0), 0),
     totalUnitsSold: (previousProducts || []).reduce((sum: number, p: any) => sum + Number(p.units_sold || 0), 0),
-    avgProfitMargin: 30.0 // Assuming same margin for previous period
+    avgProfitMargin: previousProducts?.length > 0 ? (previousProducts || []).reduce((sum: number, p: any) => sum + Number(p.profit_margin || 0), 0) / previousProducts.length : 0
   }
 
   const summary: ProductSummary = {

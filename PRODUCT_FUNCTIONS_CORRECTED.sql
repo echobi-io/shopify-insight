@@ -39,7 +39,7 @@ BEGIN
       THEN SUM(oi.price * oi.quantity) / SUM(oi.quantity)
       ELSE COALESCE(p.price, 0)
     END as avg_price,
-    COALESCE(30.0, 0) as profit_margin,
+    COALESCE(p.profit_margin, 0) as profit_margin,
     CASE 
       WHEN SUM(oi.price * oi.quantity) > 0 
       THEN LEAST(100, (SUM(oi.price * oi.quantity) / 1000.0) * 20 + (SUM(oi.quantity) / 10.0) * 10)
