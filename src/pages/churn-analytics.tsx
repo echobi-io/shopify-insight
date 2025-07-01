@@ -28,6 +28,7 @@ import DateRangeSelector from '@/components/DateRangeSelector'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection from '@/components/HelpSection'
 import ExpandableTile from '@/components/ExpandableTile'
+import ChurnCalculationHelp from '@/components/ChurnCalculationHelp'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -347,27 +348,57 @@ const ChurnAnalyticsPage: React.FC = () => {
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <EnhancedKPICard
-              title="Overall Churn Rate"
-              value={data.summary.churnRate}
-              previousValue={data.summary.previousChurnRate}
-              icon={<TrendingDown className="w-5 h-5" />}
-              isMonetary={false}
-            />
-            <EnhancedKPICard
-              title="Customers at Risk"
-              value={data.summary.customersAtRisk}
-              previousValue={data.summary.previousCustomersAtRisk}
-              icon={<AlertTriangle className="w-5 h-5" />}
-              isMonetary={false}
-            />
-            <EnhancedKPICard
-              title="Revenue at Risk"
-              value={data.summary.revenueAtRisk}
-              previousValue={data.summary.previousRevenueAtRisk}
-              icon={<DollarSign className="w-5 h-5" />}
-              isMonetary={true}
-            />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  Overall Churn Rate
+                  <ChurnCalculationHelp type="churn-rate" />
+                </CardTitle>
+                <TrendingDown className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.summary.churnRate.toFixed(1)}%</div>
+                <p className="text-xs text-muted-foreground">
+                  {data.summary.churnRate > data.summary.previousChurnRate ? '+' : ''}
+                  {(data.summary.churnRate - data.summary.previousChurnRate).toFixed(1)}% from last period
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  Customers at Risk
+                  <ChurnCalculationHelp type="risk-score" />
+                </CardTitle>
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{data.summary.customersAtRisk}</div>
+                <p className="text-xs text-muted-foreground">
+                  {data.summary.customersAtRisk > data.summary.previousCustomersAtRisk ? '+' : ''}
+                  {data.summary.customersAtRisk - data.summary.previousCustomersAtRisk} from last period
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  Revenue at Risk
+                  <ChurnCalculationHelp type="revenue-at-risk" />
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(data.summary.revenueAtRisk)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {data.summary.revenueAtRisk > data.summary.previousRevenueAtRisk ? '+' : ''}
+                  {formatCurrency(data.summary.revenueAtRisk - data.summary.previousRevenueAtRisk)} from last period
+                </p>
+              </CardContent>
+            </Card>
+            
             <EnhancedKPICard
               title="Avg Customer LTV"
               value={data.summary.avgCustomerLTV}
@@ -392,7 +423,12 @@ const ChurnAnalyticsPage: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Churn Rate Trend */}
                 <ExpandableTile
-                  title="Churn Rate Trend"
+                  title={
+                    <div className="flex items-center space-x-2">
+                      <span>Churn Rate Trend</span>
+                      <ChurnCalculationHelp type="churn-rate" />
+                    </div>
+                  }
                   description="Monthly churn rate over time"
                   data={data.churnTrend}
                   filename="churn-rate-trend"
@@ -478,7 +514,12 @@ const ChurnAnalyticsPage: React.FC = () => {
 
               {/* Revenue at Risk by Segment */}
               <ExpandableTile
-                title="Revenue at Risk by Segment"
+                title={
+                  <div className="flex items-center space-x-2">
+                    <span>Revenue at Risk by Segment</span>
+                    <ChurnCalculationHelp type="revenue-at-risk" />
+                  </div>
+                }
                 description="Potential revenue loss breakdown by risk level"
                 data={data.riskSegments}
                 filename="revenue-at-risk"
@@ -558,7 +599,12 @@ const ChurnAnalyticsPage: React.FC = () => {
 
               {/* Risk Factors Analysis */}
               <ExpandableTile
-                title="Churn Risk Factors"
+                title={
+                  <div className="flex items-center space-x-2">
+                    <span>Churn Risk Factors</span>
+                    <ChurnCalculationHelp type="feature-importance" />
+                  </div>
+                }
                 description="Key factors contributing to customer churn risk"
                 data={riskFactorsData}
                 filename="risk-factors"
@@ -809,7 +855,12 @@ const ChurnAnalyticsPage: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Model Performance */}
                 <ExpandableTile
-                  title="Prediction Model Performance"
+                  title={
+                    <div className="flex items-center space-x-2">
+                      <span>Prediction Model Performance</span>
+                      <ChurnCalculationHelp type="radar-chart" />
+                    </div>
+                  }
                   description="Accuracy metrics for churn prediction models"
                   data={predictionAccuracyData}
                   filename="model-performance"
@@ -831,7 +882,12 @@ const ChurnAnalyticsPage: React.FC = () => {
 
                 {/* Feature Importance */}
                 <ExpandableTile
-                  title="Feature Importance"
+                  title={
+                    <div className="flex items-center space-x-2">
+                      <span>Feature Importance</span>
+                      <ChurnCalculationHelp type="feature-importance" />
+                    </div>
+                  }
                   description="Most important factors in churn prediction"
                   data={riskFactorsData}
                   filename="feature-importance"
@@ -930,7 +986,10 @@ const ChurnAnalyticsPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Risk Score</CardTitle>
+                    <CardTitle className="text-sm font-medium flex items-center">
+                      Risk Score
+                      <ChurnCalculationHelp type="risk-score" />
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center space-x-2">
@@ -953,7 +1012,10 @@ const ChurnAnalyticsPage: React.FC = () => {
 
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Prediction Confidence</CardTitle>
+                    <CardTitle className="text-sm font-medium flex items-center">
+                      Prediction Confidence
+                      <ChurnCalculationHelp type="prediction-model" />
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -967,7 +1029,10 @@ const ChurnAnalyticsPage: React.FC = () => {
 
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Revenue at Risk</CardTitle>
+                    <CardTitle className="text-sm font-medium flex items-center">
+                      Revenue at Risk
+                      <ChurnCalculationHelp type="revenue-at-risk" />
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-red-600">
@@ -983,7 +1048,10 @@ const ChurnAnalyticsPage: React.FC = () => {
               {/* Risk Factors Breakdown */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Risk Factors Breakdown</CardTitle>
+                  <CardTitle className="text-lg flex items-center">
+                    Risk Factors Breakdown
+                    <ChurnCalculationHelp type="risk-score" />
+                  </CardTitle>
                   <CardDescription>
                     Individual factor contributions to the overall risk score
                   </CardDescription>
