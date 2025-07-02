@@ -1,3 +1,6 @@
+-- Drop existing function first (if it exists)
+DROP FUNCTION IF EXISTS get_top_customers(DATE, DATE, INTEGER);
+
 -- Function to get top customers by total spent within a date range
 CREATE OR REPLACE FUNCTION get_top_customers(
   start_date DATE,
