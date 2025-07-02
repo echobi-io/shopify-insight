@@ -46,8 +46,8 @@ export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKP
       .from('orders')
       .select('total_price')
       .eq('merchant_id', effectiveMerchantId)
-      .gte('created_at', today + 'T00:00:00.000Z')
-      .lt('created_at', today + 'T23:59:59.999Z');
+      .gte('created_at', today)
+      .lt('created_at', new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 
     if (todayError) {
       console.error('❌ Error fetching today data:', todayError);
@@ -58,8 +58,8 @@ export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKP
       .from('orders')
       .select('total_price')
       .eq('merchant_id', effectiveMerchantId)
-      .gte('created_at', sevenDaysAgo + 'T00:00:00.000Z')
-      .lte('created_at', today + 'T23:59:59.999Z');
+      .gte('created_at', sevenDaysAgo)
+      .lte('created_at', today);
 
     if (aovError) {
       console.error('❌ Error fetching AOV data:', aovError);
@@ -82,8 +82,8 @@ export async function getDashboardKPIs(merchant_id: string): Promise<DashboardKP
       .from('customers')
       .select('id')
       .eq('merchant_id', effectiveMerchantId)
-      .gte('created_at', today + 'T00:00:00.000Z')
-      .lt('created_at', today + 'T23:59:59.999Z');
+      .gte('created_at', today)
+      .lt('created_at', new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 
     if (newCustomersError) {
       console.error('❌ Error fetching new customers:', newCustomersError);
@@ -122,10 +122,10 @@ export async function getDashboardTrendData(merchant_id: string, filters?: Filte
       .eq('merchant_id', merchant_id);
 
     if (filters?.startDate) {
-      query = query.gte('created_at', filters.startDate + 'T00:00:00.000Z');
+      query = query.gte('created_at', filters.startDate);
     }
     if (filters?.endDate) {
-      query = query.lte('created_at', filters.endDate + 'T23:59:59.999Z');
+      query = query.lte('created_at', filters.endDate);
     }
 
     const { data, error } = await query.order('created_at');
@@ -199,16 +199,16 @@ export async function generateAICommentary(merchant_id: string, filters?: Filter
       .from('orders')
       .select('total_price')
       .eq('merchant_id', merchant_id)
-      .gte('created_at', startDate + 'T00:00:00.000Z')
-      .lte('created_at', endDate + 'T23:59:59.999Z');
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
 
     // Get previous period revenue from actual orders table
     const { data: previousPeriodOrders, error: previousError } = await supabase
       .from('orders')
       .select('total_price')
       .eq('merchant_id', merchant_id)
-      .gte('created_at', previousStartDate + 'T00:00:00.000Z')
-      .lte('created_at', previousEndDate + 'T23:59:59.999Z');
+      .gte('created_at', previousStartDate)
+      .lte('created_at', previousEndDate);
 
     if (currentError || previousError) {
       console.error('❌ Error fetching revenue data for AI commentary:', currentError || previousError);
@@ -222,8 +222,8 @@ export async function generateAICommentary(merchant_id: string, filters?: Filter
     // Get top product from RPC function (if available)
     const { data: topProductData, error: productError } = await supabase.rpc('get_product_performance', {
       merchant_id: merchant_id,
-      start_date: startDate + 'T00:00:00.000Z',
-      end_date: endDate + 'T23:59:59.999Z'
+      start_date: startDate,
+      end_date: endDate
     });
 
     const topProduct = topProductData && topProductData.length > 0 ? topProductData[0].name : 'Unknown Product';

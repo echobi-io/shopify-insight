@@ -29,10 +29,10 @@ export async function getDashboardChartsData(merchant_id: string, filters?: Filt
       .eq('merchant_id', merchant_id)
 
     if (filters?.startDate) {
-      query = query.gte('created_at', filters.startDate + 'T00:00:00.000Z')
+      query = query.gte('created_at', filters.startDate)
     }
     if (filters?.endDate) {
-      query = query.lte('created_at', filters.endDate + 'T23:59:59.999Z')
+      query = query.lte('created_at', filters.endDate)
     }
 
     const { data: orders, error } = await query.order('created_at')
