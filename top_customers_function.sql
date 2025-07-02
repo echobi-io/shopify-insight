@@ -30,10 +30,9 @@ BEGIN
     END as avg_order_value,
     MAX(o.created_at) as last_order_date
   FROM customers c
-  LEFT JOIN orders o ON c.id = o.customer_id
+  INNER JOIN orders o ON c.id = o.customer_id
   WHERE o.created_at >= start_date 
     AND o.created_at <= end_date
-    AND o.status IN ('confirmed', 'shipped', 'delivered')
   GROUP BY c.id, c.first_name, c.last_name, c.email
   HAVING COUNT(o.id) > 0
   ORDER BY total_spent DESC
