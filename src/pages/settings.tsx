@@ -17,43 +17,33 @@ import {
 import ProtectedRoute from '@/components/ProtectedRoute'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
+import { getSettings, saveSettings, AppSettings, DEFAULT_SETTINGS, clearSettingsCache } from '@/lib/fetchers/getSettingsData'
 
-interface AppSettings {
-  financialYearStart: string
-  financialYearEnd: string
-  defaultDateRange: string
-  timezone: string
-  currency: string
-  churnPeriodDays: number
-}
-
-const DEFAULT_SETTINGS: AppSettings = {
-  financialYearStart: '01-01', // MM-DD format
-  financialYearEnd: '12-31',   // MM-DD format
-  defaultDateRange: 'financial_current',
-  timezone: 'UTC',
-  currency: 'USD',
-  churnPeriodDays: 180 // Default: 180 days without purchase = churned
-}
+const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 const SettingsPage: React.FC = () => {
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
-  const [loading, setLoading] = useState(false)
+  const [settings, setSettings] = useState<AppSettings>({ ...DEFAULT_SETTINGS, merchant_id: MERCHANT_ID })
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  // Load settings from localStorage on component mount
+  // Load settings from database on component mount
   useEffect(() => {
+    loadSettings()
+  }, [])
+
+  const loadSettings = async () => {
     try {
-      const savedSettings = localStorage.getItem('echobi-settings')
-      if (savedSettings) {
-        const parsed = JSON.parse(savedSettings)
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed })
-      }
+      setLoading(true)
+      const loadedSettings = await getSettings(MERCHANT_ID)
+      setSettings(loadedSettings)
     } catch (error) {
       console.error('Error loading settings:', error)
+      setMessage({ type: 'error', text: 'Failed to load settings. Using defaults.' })
+    } finally {
+      setLoading(false)
     }
-  }, [])
+  }
 
   const handleInputChange = (field: keyof AppSettings, value: string) => {
     setSettings(prev => ({
@@ -105,16 +95,23 @@ const SettingsPage: React.FC = () => {
         return
       }
       
-      // Save to localStorage
-      localStorage.setItem('echobi-settings', JSON.stringify(settings))
+      // Save to database
+      const success = await saveSettings(settings)
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      setMessage({ type: 'success', text: 'Settings saved successfully!' })
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setMessage(null), 3000)
+      if (success) {
+        // Clear cache to force reload of settings
+        clearSettingsCache()
+        
+        // Also save to localStorage as backup
+        localStorage.setItem('echobi-settings', JSON.stringify(settings))
+        
+        setMessage({ type: 'success', text: 'Settings saved successfully!' })
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setMessage(null), 3000)
+      } else {
+        setMessage({ type: 'error', text: 'Failed to save settings. Please try again.' })
+      }
       
     } catch (error) {
       console.error('Error saving settings:', error)
@@ -125,7 +122,7 @@ const SettingsPage: React.FC = () => {
   }
 
   const handleReset = () => {
-    setSettings(DEFAULT_SETTINGS)
+    setSettings({ ...DEFAULT_SETTINGS, merchant_id: MERCHANT_ID })
     setMessage({ type: 'success', text: 'Settings reset to defaults' })
     setTimeout(() => setMessage(null), 3000)
   }

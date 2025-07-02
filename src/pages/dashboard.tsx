@@ -17,6 +17,13 @@ import {
   type NewCustomerData,
   type AOVStatsData
 } from '@/lib/fetchers/getDetailedKPIData'
+import { 
+  getDashboardChartsData, 
+  getHourLabel, 
+  getBusiestHours,
+  type DashboardChartData,
+  type OrderTimingData
+} from '@/lib/fetchers/getDashboardChartsData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency, getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
@@ -55,6 +62,10 @@ const DashboardPage: React.FC = () => {
   const [segmentData, setSegmentData] = useState<CustomerSegmentData[]>([])
   const [aiCommentary, setAiCommentary] = useState<AICommentaryData | null>(null)
   
+  // New combined chart data state
+  const [dashboardChartData, setDashboardChartData] = useState<DashboardChartData[]>([])
+  const [orderTimingData, setOrderTimingData] = useState<OrderTimingData[]>([])
+  
   // Detailed KPI data state
   const [dailyRevenueData, setDailyRevenueData] = useState<DailyRevenueData[]>([])
   const [ordersByProductData, setOrdersByProductData] = useState<OrdersByProductData[]>([])
@@ -83,6 +94,7 @@ const DashboardPage: React.FC = () => {
         revenue, 
         products, 
         dashboardData,
+        chartsData,
         dailyRevenue,
         ordersByProduct,
         newCustomers,
@@ -99,6 +111,10 @@ const DashboardPage: React.FC = () => {
         getRevenueByDate(filters, MERCHANT_ID),
         getProductData(filters, MERCHANT_ID),
         getAllDashboardData(MERCHANT_ID, filters),
+        getDashboardChartsData(MERCHANT_ID, filters).catch(err => {
+          console.error('❌ Error loading dashboard charts data:', err)
+          return { dailyData: [], orderTimingData: [] }
+        }),
         getDailyRevenueBreakdown(MERCHANT_ID, filters).catch(err => {
           console.error('❌ Error loading daily revenue data:', err)
           return []
@@ -125,6 +141,8 @@ const DashboardPage: React.FC = () => {
       setDashboardTrendData(dashboardData.trendData)
       setSegmentData(dashboardData.segmentData)
       setAiCommentary(dashboardData.aiCommentary)
+      setDashboardChartData(chartsData.dailyData)
+      setOrderTimingData(chartsData.orderTimingData)
       setDailyRevenueData(dailyRevenue)
       setOrdersByProductData(ordersByProduct)
       setNewCustomersData(newCustomers)
@@ -248,19 +266,19 @@ const DashboardPage: React.FC = () => {
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Revenue Trend */}
+            {/* Combined Revenue & Orders Chart */}
             <Card className="card-minimal">
               <CardHeader>
-                <CardTitle className="text-lg font-medium text-black">Revenue Trend</CardTitle>
+                <CardTitle className="text-lg font-medium text-black">Revenue & Orders Trend</CardTitle>
                 <CardDescription className="font-light text-gray-600">
-                  Daily revenue performance
+                  Daily performance overview
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {dashboardTrendData.length > 0 ? (
+                {dashboardChartData.length > 0 ? (
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={dashboardTrendData}>
+                      <LineChart data={dashboardChartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                         <XAxis 
                           dataKey="date" 
@@ -268,10 +286,14 @@ const DashboardPage: React.FC = () => {
                           stroke="#666"
                           tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         />
-                        <YAxis fontSize={12} stroke="#666" />
+                        <YAxis yAxisId="revenue" orientation="left" fontSize={12} stroke="#3b82f6" />
+                        <YAxis yAxisId="orders" orientation="right" fontSize={12} stroke="#10b981" />
                         <Tooltip 
                           labelFormatter={(value) => new Date(value).toLocaleDateString()}
-                          formatter={(value: any) => [formatCurrency(value), 'Revenue']}
+                          formatter={(value: any, name: string) => [
+                            name === 'total_revenue' ? formatCurrency(value) : formatNumber(value),
+                            name === 'total_revenue' ? 'Revenue' : 'Orders'
+                          ]}
                           contentStyle={{ 
                             backgroundColor: 'white', 
                             border: '1px solid #e5e7eb',
@@ -280,11 +302,22 @@ const DashboardPage: React.FC = () => {
                           }}
                         />
                         <Line 
+                          yAxisId="revenue"
                           type="monotone" 
                           dataKey="total_revenue" 
                           stroke="#3b82f6" 
                           strokeWidth={2}
                           dot={false}
+                          name="Revenue"
+                        />
+                        <Line 
+                          yAxisId="orders"
+                          type="monotone" 
+                          dataKey="total_orders" 
+                          stroke="#10b981" 
+                          strokeWidth={2}
+                          dot={false}
+                          name="Orders"
                         />
                       </LineChart>
                     </ResponsiveContainer>
@@ -300,30 +333,33 @@ const DashboardPage: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Order Volume */}
+            {/* Order Timing Analysis */}
             <Card className="card-minimal">
               <CardHeader>
-                <CardTitle className="text-lg font-medium text-black">Order Volume</CardTitle>
+                <CardTitle className="text-lg font-medium text-black">Order Timing Analysis</CardTitle>
                 <CardDescription className="font-light text-gray-600">
-                  Daily order count
+                  When your site is busiest (orders by hour)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {dashboardTrendData.length > 0 ? (
+                {orderTimingData.length > 0 ? (
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={dashboardTrendData}>
+                      <BarChart data={orderTimingData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                         <XAxis 
-                          dataKey="date" 
+                          dataKey="hour" 
                           fontSize={12}
                           stroke="#666"
-                          tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          tickFormatter={(value) => getHourLabel(value)}
                         />
                         <YAxis fontSize={12} stroke="#666" />
                         <Tooltip 
-                          labelFormatter={(value) => new Date(value).toLocaleDateString()}
-                          formatter={(value: any) => [formatNumber(value), 'Orders']}
+                          labelFormatter={(value) => `${getHourLabel(value)}`}
+                          formatter={(value: any, name: string) => [
+                            formatNumber(value),
+                            name === 'order_count' ? 'Orders' : name
+                          ]}
                           contentStyle={{ 
                             backgroundColor: 'white', 
                             border: '1px solid #e5e7eb',
@@ -331,7 +367,11 @@ const DashboardPage: React.FC = () => {
                             fontSize: '14px'
                           }}
                         />
-                        <Bar dataKey="total_orders" fill="#10b981" />
+                        <Bar 
+                          dataKey="order_count" 
+                          fill="#8b5cf6"
+                          name="Orders"
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -339,13 +379,70 @@ const DashboardPage: React.FC = () => {
                   <div className="h-64 flex items-center justify-center">
                     <div className="text-center">
                       <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm font-light text-gray-500">No data available</p>
+                      <p className="text-sm font-light text-gray-500">No timing data available</p>
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
+
+          {/* Order Timing Insights */}
+          {orderTimingData.length > 0 && (
+            <Card className="card-minimal mb-8">
+              <CardHeader>
+                <CardTitle className="text-lg font-medium text-black">Peak Hours Insights</CardTitle>
+                <CardDescription className="font-light text-gray-600">
+                  Understanding your busiest and quietest periods
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Busiest Hours */}
+                  <div>
+                    <h4 className="font-medium text-black mb-3">🔥 Busiest Hours</h4>
+                    <div className="space-y-2">
+                      {getBusiestHours(orderTimingData, 3).map((data, index) => (
+                        <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-red-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-medium">
+                              {index + 1}
+                            </span>
+                            <span className="font-medium text-black">{getHourLabel(data.hour)}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-medium text-black">{formatNumber(data.order_count)} orders</span>
+                            <span className="text-xs text-gray-600 ml-2">({data.percentage.toFixed(1)}%)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Quietest Hours */}
+                  <div>
+                    <h4 className="font-medium text-black mb-3">😴 Quietest Hours</h4>
+                    <div className="space-y-2">
+                      {getBusiestHours(orderTimingData, 3).reverse().map((data, index) => (
+                        <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-blue-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                              {index + 1}
+                            </span>
+                            <span className="font-medium text-black">{getHourLabel(data.hour)}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-medium text-black">{formatNumber(data.order_count)} orders</span>
+                            <span className="text-xs text-gray-600 ml-2">({data.percentage.toFixed(1)}%)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Top Products */}
           <Card className="card-minimal mb-8">

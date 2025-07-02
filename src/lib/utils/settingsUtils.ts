@@ -1,47 +1,70 @@
-export interface AppSettings {
-  financialYearStart: string
-  financialYearEnd: string
-  defaultDateRange: string
-  timezone: string
-  currency: string
-  churnPeriodDays: number
+import { getSettings as getSettingsFromDB, AppSettings, DEFAULT_SETTINGS, getCurrencySymbol as getCurrencySymbolFromDB } from '../fetchers/getSettingsData'
+
+// Re-export types and constants
+export type { AppSettings }
+export { DEFAULT_SETTINGS }
+
+const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
+
+// Cache for settings to avoid repeated database calls
+let settingsCache: AppSettings | null = null
+let cacheTimestamp: number = 0
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
+export async function getSettings(): Promise<AppSettings> {
+  try {
+    // Check if we have valid cached settings
+    const now = Date.now()
+    if (settingsCache && (now - cacheTimestamp) < CACHE_DURATION) {
+      return settingsCache
+    }
+
+    // Fetch from database
+    const settings = await getSettingsFromDB(MERCHANT_ID)
+    
+    // Update cache
+    settingsCache = settings
+    cacheTimestamp = now
+    
+    return settings
+  } catch (error) {
+    console.error('Error loading settings:', error)
+    return {
+      ...DEFAULT_SETTINGS,
+      merchant_id: MERCHANT_ID
+    }
+  }
 }
 
-export const DEFAULT_SETTINGS: AppSettings = {
-  financialYearStart: '01-01', // MM-DD format
-  financialYearEnd: '12-31',   // MM-DD format
-  defaultDateRange: 'financial_current',
-  timezone: 'UTC',
-  currency: 'USD',
-  churnPeriodDays: 180 // Default: 180 days without purchase = churned
-}
-
-export function getSettings(): AppSettings {
+// Synchronous version that returns cached settings or defaults
+export function getSettingsSync(): AppSettings {
+  if (settingsCache) {
+    return settingsCache
+  }
+  
+  // Try to get from localStorage as fallback
   try {
     const savedSettings = localStorage.getItem('echobi-settings')
     if (savedSettings) {
       const parsed = JSON.parse(savedSettings)
-      return { ...DEFAULT_SETTINGS, ...parsed }
+      return { ...DEFAULT_SETTINGS, merchant_id: MERCHANT_ID, ...parsed }
     }
   } catch (error) {
-    console.error('Error loading settings:', error)
+    console.error('Error loading settings from localStorage:', error)
   }
-  return DEFAULT_SETTINGS
+  
+  return {
+    ...DEFAULT_SETTINGS,
+    merchant_id: MERCHANT_ID
+  }
 }
 
 export function getCurrencySymbol(currency: string): string {
-  const symbols: Record<string, string> = {
-    USD: '$',
-    EUR: '€',
-    GBP: '£',
-    CAD: 'C$',
-    AUD: 'A$'
-  }
-  return symbols[currency] || '$'
+  return getCurrencySymbolFromDB(currency)
 }
 
 export function formatCurrency(value: number, currency?: string): string {
-  const settings = getSettings()
+  const settings = getSettingsSync()
   const currencyCode = currency || settings.currency
   const symbol = getCurrencySymbol(currencyCode)
   
@@ -52,10 +75,10 @@ export function formatCurrency(value: number, currency?: string): string {
   }).format(value).replace(/[A-Z]{3}/, symbol)
 }
 
-export function getFinancialYearDates(year: number): { startDate: Date; endDate: Date } {
-  const settings = getSettings()
-  const [startMonth, startDay] = settings.financialYearStart.split('-').map(Number)
-  const [endMonth, endDay] = settings.financialYearEnd.split('-').map(Number)
+export function getFinancialYearDates(year: number, settings?: AppSettings): { startDate: Date; endDate: Date } {
+  const appSettings = settings || getSettingsSync()
+  const [startMonth, startDay] = appSettings.financialYearStart.split('-').map(Number)
+  const [endMonth, endDay] = appSettings.financialYearEnd.split('-').map(Number)
   
   let startYear = year
   let endYear = year
@@ -83,6 +106,12 @@ export function getPreviousYearDateRange(currentStartDate: Date, currentEndDate:
 }
 
 export function getInitialTimeframe(): string {
-  const settings = getSettings()
+  const settings = getSettingsSync()
   return settings.defaultDateRange
+}
+
+// Clear cache when settings are updated
+export function clearSettingsCache(): void {
+  settingsCache = null
+  cacheTimestamp = 0
 }
