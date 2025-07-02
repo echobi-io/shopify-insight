@@ -14,11 +14,12 @@ RETURNS TABLE (
   last_order_date TIMESTAMP WITH TIME ZONE
 ) 
 LANGUAGE plpgsql
+SECURITY DEFINER
 AS $$
 BEGIN
   RETURN QUERY
   SELECT 
-    c.shopify_customer_id::TEXT as customer_id,
+    c.id::TEXT as customer_id,
     COALESCE(c.first_name || ' ' || c.last_name, 'Unknown Customer') as customer_name,
     COALESCE(c.email, 'No email') as customer_email,
     COALESCE(SUM(o.total_price), 0) as total_spent,
@@ -29,13 +30,16 @@ BEGIN
     END as avg_order_value,
     MAX(o.created_at) as last_order_date
   FROM customers c
-  LEFT JOIN orders o ON c.shopify_customer_id = o.customer_id
+  LEFT JOIN orders o ON c.id = o.customer_id
   WHERE o.created_at >= start_date 
     AND o.created_at <= end_date
-    AND o.financial_status = 'paid'
-  GROUP BY c.shopify_customer_id, c.first_name, c.last_name, c.email
+    AND o.status IN ('confirmed', 'shipped', 'delivered')
+  GROUP BY c.id, c.first_name, c.last_name, c.email
   HAVING COUNT(o.id) > 0
   ORDER BY total_spent DESC
   LIMIT limit_count;
 END;
 $$;
+
+-- Grant execute permissions to authenticated users
+GRANT EXECUTE ON FUNCTION get_top_customers(DATE, DATE, INTEGER) TO authenticated;
