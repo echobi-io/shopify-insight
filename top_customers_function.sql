@@ -11,7 +11,7 @@ RETURNS TABLE (
   total_spent NUMERIC,
   order_count BIGINT,
   avg_order_value NUMERIC,
-  last_order_date TIMESTAMP WITH TIME ZONE
+  last_order_date TIMESTAMP WITHOUT TIME ZONE
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
