@@ -30,7 +30,7 @@ interface AppSettings {
 const DEFAULT_SETTINGS: AppSettings = {
   financialYearStart: '01-01', // MM-DD format
   financialYearEnd: '12-31',   // MM-DD format
-  defaultDateRange: '2023',
+  defaultDateRange: 'financial_current',
   timezone: 'UTC',
   currency: 'USD',
   churnPeriodDays: 180 // Default: 180 days without purchase = churned
@@ -294,13 +294,17 @@ const SettingsPage: React.FC = () => {
                       onChange={(e) => handleInputChange('defaultDateRange', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md font-light focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="all">All Time</option>
-                      <option value="30d">Last 30 Days</option>
-                      <option value="3m">Last 3 Months</option>
-                      <option value="12m">Last 12 Months</option>
-                      <option value="ytd">Year to Date</option>
-                      <option value="2023">2023 Data</option>
-                      <option value="2024">2024 Data</option>
+                      <option value="last_7_days">Last 7 Days</option>
+                      <option value="last_30_days">Last 30 Days</option>
+                      <option value="last_90_days">Last 90 Days</option>
+                      <option value="last_6_months">Last 6 Months</option>
+                      <option value="last_year">Last Year (365 days)</option>
+                      <option value="this_month">This Calendar Month</option>
+                      <option value="this_year">This Calendar Year</option>
+                      <option value="calendar_2024">Calendar Year 2024</option>
+                      <option value="calendar_2023">Calendar Year 2023</option>
+                      <option value="financial_current">Current Financial Year</option>
+                      <option value="financial_previous">Previous Financial Year</option>
                     </select>
                     <p className="text-xs text-gray-500 font-light">
                       Default date range when loading dashboards

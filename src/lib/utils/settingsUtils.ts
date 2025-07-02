@@ -10,7 +10,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   financialYearStart: '01-01', // MM-DD format
   financialYearEnd: '12-31',   // MM-DD format
-  defaultDateRange: '2023',
+  defaultDateRange: 'financial_current',
   timezone: 'UTC',
   currency: 'USD',
   churnPeriodDays: 180 // Default: 180 days without purchase = churned
