@@ -1,8 +1,8 @@
--- Drop existing function first (if it exists)
-DROP FUNCTION IF EXISTS get_top_customers(DATE, DATE, INTEGER);
+-- Step 1: Drop the existing function (run this first)
+DROP FUNCTION get_top_customers(DATE, DATE, INTEGER);
 
--- Function to get top customers by total spent within a date range
-CREATE OR REPLACE FUNCTION get_top_customers(
+-- Step 2: Create the new function with correct return type (run this after step 1)
+CREATE FUNCTION get_top_customers(
   start_date DATE,
   end_date DATE,
   limit_count INTEGER DEFAULT 10
@@ -43,5 +43,5 @@ BEGIN
 END;
 $$;
 
--- Grant execute permissions to authenticated users
+-- Step 3: Grant permissions (run this after step 2)
 GRANT EXECUTE ON FUNCTION get_top_customers(DATE, DATE, INTEGER) TO authenticated;
