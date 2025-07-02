@@ -98,65 +98,72 @@ export async function getOrdersByProduct(merchant_id: string, filters: FilterSta
   try {
     console.log('📦 Fetching orders by product for merchant:', merchant_id, 'with filters:', filters);
 
-    // Get orders with line items to calculate product-level metrics
-    let ordersQuery = supabase
-      .from('orders')
+    // Get order items with product information
+    let orderItemsQuery = supabase
+      .from('order_items')
       .select(`
-        id,
-        total_price,
-        created_at,
-        line_items (
-          product_id,
-          quantity,
-          price,
-          products (
-            name
-          )
+        order_id,
+        product_id,
+        quantity,
+        price,
+        total,
+        products (
+          name
+        ),
+        orders (
+          created_at,
+          total_price
         )
       `)
       .eq('merchant_id', merchant_id);
 
-    if (filters.startDate) {
-      ordersQuery = ordersQuery.gte('created_at', filters.startDate + 'T00:00:00.000Z');
-    }
-    if (filters.endDate) {
-      ordersQuery = ordersQuery.lte('created_at', filters.endDate + 'T23:59:59.999Z');
-    }
-
-    const { data: orders, error } = await ordersQuery;
+    const { data: orderItems, error } = await orderItemsQuery;
 
     if (error) {
-      console.error('❌ Error fetching orders by product:', error);
+      console.error('❌ Error fetching order items:', error);
       return [];
     }
 
-    if (!orders || orders.length === 0) {
-      console.log('📭 No orders by product data found');
+    if (!orderItems || orderItems.length === 0) {
+      console.log('📭 No order items data found');
       return [];
     }
+
+    // Filter by date range
+    const filteredItems = orderItems.filter(item => {
+      if (!item.orders || !item.orders.created_at) return false;
+      
+      const itemDate = item.orders.created_at;
+      let includeItem = true;
+      
+      if (filters.startDate) {
+        includeItem = includeItem && itemDate >= filters.startDate;
+      }
+      if (filters.endDate) {
+        includeItem = includeItem && itemDate <= filters.endDate;
+      }
+      
+      return includeItem;
+    });
+
+    console.log('📊 Filtered order items:', { total: orderItems.length, filtered: filteredItems.length });
 
     // Calculate product metrics
     const productMetrics: Record<string, { orders: Set<string>; revenue: number; quantity: number }> = {};
     let totalRevenue = 0;
 
-    orders.forEach(order => {
-      const orderRevenue = parseFloat(order.total_price) || 0;
-      totalRevenue += orderRevenue;
-
-      if (order.line_items && order.line_items.length > 0) {
-        order.line_items.forEach((lineItem: any) => {
-          const productName = lineItem.products?.name || 'Unknown Product';
-          const itemRevenue = parseFloat(lineItem.price) * parseInt(lineItem.quantity);
-          
-          if (!productMetrics[productName]) {
-            productMetrics[productName] = { orders: new Set(), revenue: 0, quantity: 0 };
-          }
-          
-          productMetrics[productName].orders.add(order.id);
-          productMetrics[productName].revenue += itemRevenue;
-          productMetrics[productName].quantity += parseInt(lineItem.quantity);
-        });
+    filteredItems.forEach(item => {
+      const productName = item.products?.name || 'Unknown Product';
+      const itemRevenue = parseFloat(item.total) || 0;
+      
+      if (!productMetrics[productName]) {
+        productMetrics[productName] = { orders: new Set(), revenue: 0, quantity: 0 };
       }
+      
+      productMetrics[productName].orders.add(item.order_id);
+      productMetrics[productName].revenue += itemRevenue;
+      productMetrics[productName].quantity += parseInt(item.quantity) || 0;
+      totalRevenue += itemRevenue;
     });
 
     const result = Object.entries(productMetrics).map(([productName, metrics]) => ({
@@ -167,7 +174,7 @@ export async function getOrdersByProduct(merchant_id: string, filters: FilterSta
       percentage_of_total: totalRevenue > 0 ? (metrics.revenue / totalRevenue) * 100 : 0
     })).sort((a, b) => b.revenue - a.revenue);
 
-    console.log('✅ Orders by product result:', { count: result.length });
+    console.log('✅ Orders by product result:', { count: result.length, totalRevenue });
     return result;
 
   } catch (error) {
