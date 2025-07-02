@@ -779,7 +779,6 @@ export async function getChurnedCustomerProductData(
       .eq('merchant_id', merchantId)
       .gte('orders.created_at', filters.startDate)
       .lte('orders.created_at', filters.endDate)
-      .order('orders.created_at', { ascending: true })
 
     if (error) {
       console.error('Error fetching churned customer product data:', error)
