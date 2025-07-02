@@ -39,6 +39,14 @@ export async function getDailyRevenueBreakdown(merchant_id: string, filters: Fil
   try {
     console.log('📊 Fetching daily revenue breakdown for merchant:', merchant_id, 'with filters:', filters);
 
+    // First, let's check if there are any orders at all for this merchant
+    const { data: allOrders, error: countError } = await supabase
+      .from('orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('merchant_id', merchant_id);
+
+    console.log('📊 Total orders for merchant:', { count: allOrders, error: countError });
+
     let query = supabase
       .from('orders')
       .select('created_at, total_price')
@@ -53,13 +61,19 @@ export async function getDailyRevenueBreakdown(merchant_id: string, filters: Fil
 
     const { data, error } = await query.order('created_at');
 
+    console.log('📊 Daily revenue query result:', { 
+      dataCount: data?.length || 0, 
+      error: error?.message,
+      sampleData: data?.slice(0, 3)
+    });
+
     if (error) {
       console.error('❌ Error fetching daily revenue data:', error);
       return [];
     }
 
     if (!data || data.length === 0) {
-      console.log('📭 No daily revenue data found');
+      console.log('📭 No daily revenue data found for date range');
       return [];
     }
 
@@ -98,6 +112,14 @@ export async function getOrdersByProduct(merchant_id: string, filters: FilterSta
   try {
     console.log('📦 Fetching orders by product for merchant:', merchant_id, 'with filters:', filters);
 
+    // First check if order_items table exists and has data
+    const { data: allOrderItems, error: countError } = await supabase
+      .from('order_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('merchant_id', merchant_id);
+
+    console.log('📦 Total order items for merchant:', { count: allOrderItems, error: countError });
+
     // Get order items with product information
     let orderItemsQuery = supabase
       .from('order_items')
@@ -118,6 +140,12 @@ export async function getOrdersByProduct(merchant_id: string, filters: FilterSta
       .eq('merchant_id', merchant_id);
 
     const { data: orderItems, error } = await orderItemsQuery;
+
+    console.log('📦 Order items query result:', { 
+      dataCount: orderItems?.length || 0, 
+      error: error?.message,
+      sampleData: orderItems?.slice(0, 2)
+    });
 
     if (error) {
       console.error('❌ Error fetching order items:', error);
