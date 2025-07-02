@@ -25,13 +25,15 @@ import {
   type OrderTimingData
 } from '@/lib/fetchers/getDashboardChartsData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
-import { formatCurrency, getInitialTimeframe } from '@/lib/utils/settingsUtils'
+import { formatCurrency, getInitialTimeframe, getSettings } from '@/lib/utils/settingsUtils'
+import { getTopCustomersData, TopCustomer } from '@/lib/fetchers/getTopCustomersData'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import DetailedKPICard from '@/components/DetailedKPICard'
 import DateRangeSelector from '@/components/DateRangeSelector'
 import HelpSection, { getDashboardHelpItems } from '@/components/HelpSection'
+import { TopCustomersSection } from '@/components/TopCustomersSection'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -72,6 +74,10 @@ const DashboardPage: React.FC = () => {
   const [newCustomersData, setNewCustomersData] = useState<NewCustomerData[]>([])
   const [aovStatsData, setAovStatsData] = useState<AOVStatsData[]>([])
   
+  // Top customers state
+  const [topCustomersData, setTopCustomersData] = useState<TopCustomer[]>([])
+  const [currency, setCurrency] = useState('GBP')
+  
   // Custom date range state
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
@@ -98,7 +104,9 @@ const DashboardPage: React.FC = () => {
         dailyRevenue,
         ordersByProduct,
         newCustomers,
-        aovStats
+        aovStats,
+        topCustomers,
+        settings
       ] = await Promise.all([
         getKPIs(filters, MERCHANT_ID).catch(err => {
           console.error('❌ Error loading current KPIs:', err)
@@ -130,6 +138,14 @@ const DashboardPage: React.FC = () => {
         getAOVStats(MERCHANT_ID, filters).catch(err => {
           console.error('❌ Error loading AOV stats data:', err)
           return []
+        }),
+        getTopCustomersData(filters.startDate, filters.endDate).catch(err => {
+          console.error('❌ Error loading top customers data:', err)
+          return []
+        }),
+        getSettings().catch(err => {
+          console.error('❌ Error loading settings:', err)
+          return { currency: 'GBP' }
         })
       ])
 
@@ -147,6 +163,8 @@ const DashboardPage: React.FC = () => {
       setOrdersByProductData(ordersByProduct)
       setNewCustomersData(newCustomers)
       setAovStatsData(aovStats)
+      setTopCustomersData(topCustomers)
+      setCurrency(settings.currency || 'GBP')
       setLastUpdated(new Date())
     } catch (error) {
       console.error('❌ Error loading dashboard data:', error)
@@ -444,51 +462,63 @@ const DashboardPage: React.FC = () => {
             </Card>
           )}
 
-          {/* Top Products */}
-          <Card className="card-minimal mb-8">
-            <CardHeader>
-              <CardTitle className="text-lg font-medium text-black">Top Products</CardTitle>
-              <CardDescription className="font-light text-gray-600">
-                Best performing products by revenue
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {productData.length > 0 ? (
-                <div className="space-y-4">
-                  {productData.slice(0, 5).map((product, index) => (
-                    <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-8 h-8 bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
-                          {index + 1}
+          {/* Top Products and Top Customers */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            {/* Top Products */}
+            <Card className="card-minimal">
+              <CardHeader>
+                <CardTitle className="text-lg font-medium text-black">Top Products</CardTitle>
+                <CardDescription className="font-light text-gray-600">
+                  Best performing products by revenue
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {productData.length > 0 ? (
+                  <div className="space-y-4">
+                    {productData.slice(0, 5).map((product, index) => (
+                      <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-8 h-8 bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium text-black">{product.product}</p>
+                            <p className="text-sm font-light text-gray-600">
+                              {formatNumber(product.unitsSold)} units sold
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-black">{product.product}</p>
+                        <div className="text-right">
+                          <p className="font-medium text-black">
+                            {formatCurrency(product.revenue)}
+                          </p>
                           <p className="text-sm font-light text-gray-600">
-                            {formatNumber(product.unitsSold)} units sold
+                            {formatCurrency(product.aov)} AOV
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-black">
-                          {formatCurrency(product.revenue)}
-                        </p>
-                        <p className="text-sm font-light text-gray-600">
-                          {formatCurrency(product.aov)} AOV
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-center">
-                    <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm font-light text-gray-500">No product data available</p>
+                    ))}
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                ) : (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm font-light text-gray-500">No product data available</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Top Customers */}
+            <div className="card-minimal">
+              <TopCustomersSection
+                customers={topCustomersData}
+                isLoading={loading}
+                currency={currency}
+              />
+            </div>
+          </div>
 
           {/* Help Section */}
           <HelpSection 
