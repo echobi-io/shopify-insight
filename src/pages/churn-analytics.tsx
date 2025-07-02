@@ -37,6 +37,7 @@ const ChurnAnalyticsPage: React.FC = () => {
   const [churnedProductData, setChurnedProductData] = useState<ChurnedCustomerProductData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [churnPeriodDays, setChurnPeriodDays] = useState(180) // Default value
   
   // Filter states
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())
@@ -48,7 +49,18 @@ const ChurnAnalyticsPage: React.FC = () => {
 
   useEffect(() => {
     loadData()
+    loadChurnPeriod()
   }, [timeframe, customStartDate, customEndDate])
+
+  const loadChurnPeriod = async () => {
+    try {
+      const settings = await getSettings()
+      setChurnPeriodDays(settings.churnPeriodDays)
+    } catch (error) {
+      console.error('Error loading churn period:', error)
+      // Keep default value of 180
+    }
+  }
 
   const loadData = async () => {
     try {
@@ -119,8 +131,10 @@ const ChurnAnalyticsPage: React.FC = () => {
     if (!data?.customers || data.customers.length === 0) return []
     
     const customers = data.customers
-    const settings = getSettings()
-    const churnPeriodDays = settings.churnPeriodDays
+    // Use the churn period from the badge display which shows the current setting
+    const churnPeriodElement = document.querySelector('[data-churn-period]')
+    const churnPeriodDays = churnPeriodElement ? 
+      parseInt(churnPeriodElement.getAttribute('data-churn-period') || '180') : 180
     const mediumRiskThreshold = Math.floor(churnPeriodDays * 0.67)
     const lowRiskThreshold = Math.floor(churnPeriodDays * 0.33)
     
@@ -315,7 +329,7 @@ const ChurnAnalyticsPage: React.FC = () => {
                 <p className="text-gray-600 font-light">Comprehensive customer retention analysis and churn risk assessment</p>
                 <div className="mt-2 flex items-center space-x-2">
                   <Badge variant="outline" className="text-xs">
-                    Churn Period: {getSettings().churnPeriodDays} days
+                    Churn Period: {churnPeriodDays} days
                   </Badge>
                   <span className="text-xs text-gray-500">
                     (Configure in Settings)

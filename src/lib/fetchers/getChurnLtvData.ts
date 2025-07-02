@@ -149,7 +149,7 @@ export async function getChurnLtvData(
     console.log('📊 Found customers:', customers?.length || 0)
 
     // Calculate churn analytics from customer behavior
-    const analytics = calculateChurnAnalytics(customers || [], filters)
+    const analytics = await calculateChurnAnalytics(customers || [], filters)
     
     return analytics
   } catch (error) {
@@ -181,10 +181,10 @@ function generateEmptyChurnData(): ChurnAnalyticsData {
   }
 }
 
-function calculateChurnAnalytics(customers: any[], filters: { startDate: string; endDate: string }): ChurnAnalyticsData {
+async function calculateChurnAnalytics(customers: any[], filters: { startDate: string; endDate: string }): Promise<ChurnAnalyticsData> {
   const endDate = new Date(filters.endDate)
   const startDate = new Date(filters.startDate)
-  const settings = getSettings()
+  const settings = await getSettings()
   const churnPeriodDays = settings.churnPeriodDays
   
   console.log('📊 Calculating churn analytics for date range:', { 
@@ -749,7 +749,7 @@ export async function getChurnedCustomerProductData(
   try {
     console.log('🔄 Fetching churned customer product data for merchant:', merchantId, 'with filters:', filters)
     
-    const settings = getSettings()
+    const settings = await getSettings()
     const churnPeriodDays = settings.churnPeriodDays
     const endDate = new Date(filters.endDate)
     const startDate = new Date(filters.startDate)
