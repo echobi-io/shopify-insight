@@ -53,12 +53,10 @@ export async function getDailyRevenueBreakdown(merchant_id: string, filters: Fil
       .eq('merchant_id', merchant_id);
 
     if (filters.startDate) {
-      const startDateTime = filters.startDate.includes('T') ? filters.startDate : filters.startDate + 'T00:00:00.000Z';
-      query = query.gte('created_at', startDateTime);
+      query = query.gte('created_at', filters.startDate);
     }
     if (filters.endDate) {
-      const endDateTime = filters.endDate.includes('T') ? filters.endDate : filters.endDate + 'T23:59:59.999Z';
-      query = query.lte('created_at', endDateTime);
+      query = query.lte('created_at', filters.endDate);
     }
 
     const { data, error } = await query.order('created_at');
@@ -229,12 +227,10 @@ export async function getNewCustomersDetail(merchant_id: string, filters: Filter
       .eq('merchant_id', merchant_id);
 
     if (filters.startDate) {
-      const startDateTime = filters.startDate.includes('T') ? filters.startDate : filters.startDate + 'T00:00:00.000Z';
-      customersQuery = customersQuery.gte('created_at', startDateTime);
+      customersQuery = customersQuery.gte('created_at', filters.startDate);
     }
     if (filters.endDate) {
-      const endDateTime = filters.endDate.includes('T') ? filters.endDate : filters.endDate + 'T23:59:59.999Z';
-      customersQuery = customersQuery.lte('created_at', endDateTime);
+      customersQuery = customersQuery.lte('created_at', filters.endDate);
     }
 
     const { data: customers, error: customersError } = await customersQuery.order('created_at', { ascending: false });
@@ -328,12 +324,10 @@ export async function getAOVStats(merchant_id: string, filters: FilterState): Pr
       .eq('merchant_id', merchant_id);
 
     if (filters.startDate) {
-      const startDateTime = filters.startDate.includes('T') ? filters.startDate : filters.startDate + 'T00:00:00.000Z';
-      query = query.gte('created_at', startDateTime);
+      query = query.gte('created_at', filters.startDate);
     }
     if (filters.endDate) {
-      const endDateTime = filters.endDate.includes('T') ? filters.endDate : filters.endDate + 'T23:59:59.999Z';
-      query = query.lte('created_at', endDateTime);
+      query = query.lte('created_at', filters.endDate);
     }
 
     const { data, error } = await query.order('created_at');

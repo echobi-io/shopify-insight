@@ -770,7 +770,7 @@ export async function getChurnedCustomerProductData(
             price,
             products!inner (
               id,
-              title,
+              name,
               shopify_product_id
             )
           )
@@ -807,7 +807,7 @@ export async function getChurnedCustomerProductData(
         for (const item of order.order_items || []) {
           if (item.products) {
             allProducts.push({
-              productTitle: item.products.title,
+              productTitle: item.products.name,
               productId: item.products.id,
               orderDate: new Date(order.created_at),
               quantity: item.quantity,
