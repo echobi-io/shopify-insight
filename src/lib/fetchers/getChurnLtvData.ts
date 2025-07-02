@@ -751,8 +751,21 @@ export async function getChurnedCustomerProductData(
     
     const settings = getSettings()
     const churnPeriodDays = settings.churnPeriodDays
+    const endDate = new Date(filters.endDate)
+    const startDate = new Date(filters.startDate)
     
-    // Get customers with their order history and products
+    // Calculate churn threshold from the end of the selected date range
+    const churnThreshold = new Date(endDate.getTime() - (churnPeriodDays * 24 * 60 * 60 * 1000))
+    
+    console.log('📅 Date analysis:', {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      churnThreshold: churnThreshold.toISOString(),
+      churnPeriodDays
+    })
+    
+    // Get ALL customers with their complete order history (not just within date range)
+    // We need complete history to determine first/last products and churn status
     const { data: customers, error } = await supabase
       .from('customers')
       .select(`
@@ -760,15 +773,15 @@ export async function getChurnedCustomerProductData(
         email,
         first_name,
         last_name,
-        orders!inner (
+        orders (
           id,
           created_at,
-          order_items!inner (
+          order_items (
             id,
             product_id,
             quantity,
             price,
-            products!inner (
+            products (
               id,
               name,
               shopify_product_id
@@ -777,8 +790,6 @@ export async function getChurnedCustomerProductData(
         )
       `)
       .eq('merchant_id', merchantId)
-      .gte('orders.created_at', filters.startDate)
-      .lte('orders.created_at', filters.endDate)
 
     if (error) {
       console.error('Error fetching churned customer product data:', error)
@@ -787,25 +798,42 @@ export async function getChurnedCustomerProductData(
 
     console.log('📊 Found customers with orders:', customers?.length || 0)
 
-    // Process data to find churned customers and their first/last products
-    const now = new Date()
-    const churnThreshold = new Date(now.getTime() - (churnPeriodDays * 24 * 60 * 60 * 1000))
-    
     const churnedCustomerProducts = []
     
     for (const customer of customers || []) {
-      const orders = customer.orders || []
-      if (orders.length === 0) continue
+      const allOrders = customer.orders || []
+      if (allOrders.length === 0) continue
       
-      // Check if customer is churned (last order before churn threshold)
-      const lastOrderDate = new Date(orders[orders.length - 1].created_at)
-      if (lastOrderDate > churnThreshold) continue
+      // Filter orders to only include those within the selected date range
+      const ordersInRange = allOrders.filter(order => {
+        const orderDate = new Date(order.created_at)
+        return orderDate >= startDate && orderDate <= endDate
+      })
       
-      // Get all products from all orders, sorted by order date
+      if (ordersInRange.length === 0) continue
+      
+      // Find the last order within the date range
+      const lastOrderInRange = ordersInRange.reduce((latest, order) => {
+        const orderDate = new Date(order.created_at)
+        const latestDate = new Date(latest.created_at)
+        return orderDate > latestDate ? order : latest
+      })
+      
+      const lastOrderDate = new Date(lastOrderInRange.created_at)
+      
+      // Check if customer is churned (last order in range + churn period < end date)
+      const daysSinceLastOrder = Math.floor((endDate.getTime() - lastOrderDate.getTime()) / (1000 * 60 * 60 * 24))
+      
+      if (daysSinceLastOrder < churnPeriodDays) {
+        // Customer is not churned yet
+        continue
+      }
+      
+      // Get all products from orders within the date range, sorted by order date
       const allProducts = []
-      for (const order of orders) {
+      for (const order of ordersInRange) {
         for (const item of order.order_items || []) {
-          if (item.products) {
+          if (item.products && item.products.name) {
             allProducts.push({
               productTitle: item.products.name,
               productId: item.products.id,
@@ -825,8 +853,8 @@ export async function getChurnedCustomerProductData(
       const firstProduct = allProducts[0]
       const lastProduct = allProducts[allProducts.length - 1]
       
-      // Only include if first and last products are different
-      if (firstProduct.productTitle !== lastProduct.productTitle) {
+      // Only include if first and last products are different and customer has multiple orders
+      if (firstProduct.productTitle !== lastProduct.productTitle && ordersInRange.length > 1) {
         churnedCustomerProducts.push({
           customerId: customer.id,
           customerName: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || customer.email,
@@ -834,12 +862,25 @@ export async function getChurnedCustomerProductData(
           lastProduct: lastProduct.productTitle,
           firstProductId: firstProduct.productId,
           lastProductId: lastProduct.productId,
-          daysBetween: Math.floor((lastProduct.orderDate.getTime() - firstProduct.orderDate.getTime()) / (1000 * 60 * 60 * 24))
+          daysBetween: Math.floor((lastProduct.orderDate.getTime() - firstProduct.orderDate.getTime()) / (1000 * 60 * 60 * 24)),
+          daysSinceLastOrder,
+          totalOrders: ordersInRange.length
         })
       }
     }
     
     console.log('📈 Found churned customers with different first/last products:', churnedCustomerProducts.length)
+    
+    // Log some examples for debugging
+    if (churnedCustomerProducts.length > 0) {
+      console.log('📋 Sample churned customer products:', churnedCustomerProducts.slice(0, 3).map(c => ({
+        customer: c.customerName,
+        firstProduct: c.firstProduct,
+        lastProduct: c.lastProduct,
+        daysSinceLastOrder: c.daysSinceLastOrder,
+        totalOrders: c.totalOrders
+      })))
+    }
     
     // Aggregate data by product combinations
     const productCombinations: { [key: string]: ChurnedCustomerProductData } = {}
@@ -865,6 +906,8 @@ export async function getChurnedCustomerProductData(
       .slice(0, 15) // Top 15 combinations for better chart readability
     
     console.log('📊 Top product combinations for churned customers:', result.length)
+    console.log('🔍 Product combinations found:', result.map(r => ({ combination: r.combination, count: r.count })))
+    
     return result
     
   } catch (error) {
