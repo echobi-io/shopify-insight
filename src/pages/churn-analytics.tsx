@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
-import { getChurnLtvData, type ChurnAnalyticsData, type ChurnTrend, type RiskSegment, type ChurnCustomer, type ChurnRiskFactor } from '@/lib/fetchers/getChurnLtvData'
+import { getChurnLtvData, getChurnedCustomerProductData, type ChurnAnalyticsData, type ChurnTrend, type RiskSegment, type ChurnCustomer, type ChurnRiskFactor, type ChurnedCustomerProductData } from '@/lib/fetchers/getChurnLtvData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency, getSettings, getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
@@ -34,6 +34,7 @@ const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 const ChurnAnalyticsPage: React.FC = () => {
   const [data, setData] = useState<ChurnAnalyticsData | null>(null)
+  const [churnedProductData, setChurnedProductData] = useState<ChurnedCustomerProductData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -62,8 +63,14 @@ const ChurnAnalyticsPage: React.FC = () => {
 
       console.log('🔄 Loading churn analytics data with filters:', filters)
       
-      const result = await getChurnLtvData(HARDCODED_MERCHANT_ID, filters)
+      // Load both churn analytics and churned customer product data in parallel
+      const [result, productData] = await Promise.all([
+        getChurnLtvData(HARDCODED_MERCHANT_ID, filters),
+        getChurnedCustomerProductData(HARDCODED_MERCHANT_ID, filters)
+      ])
+      
       setData(result)
+      setChurnedProductData(productData)
     } catch (err) {
       console.error('Error loading churn analytics data:', err)
       setError('Failed to load churn analytics data')
@@ -540,6 +547,59 @@ const ChurnAnalyticsPage: React.FC = () => {
                     <div className="text-center">
                       <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                       <p className="text-sm font-light text-gray-500">No revenue data available</p>
+                    </div>
+                  </div>
+                )}
+              </ExpandableTile>
+
+              {/* Churned Customer Product Journey */}
+              <ExpandableTile
+                title="Churned Customer Product Journey"
+                description="First and last products purchased by customers before churning"
+                data={churnedProductData}
+                filename="churned-customer-products"
+              >
+                {churnedProductData.length > 0 ? (
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={churnedProductData} layout="horizontal" margin={{ top: 5, right: 30, left: 200, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis type="number" fontSize={12} stroke="#666" />
+                        <YAxis 
+                          dataKey="combination" 
+                          type="category" 
+                          fontSize={10} 
+                          stroke="#666" 
+                          width={190}
+                          tickFormatter={(value) => {
+                            // Truncate long product names for better display
+                            const parts = value.split(' → ')
+                            const first = parts[0].length > 15 ? parts[0].substring(0, 15) + '...' : parts[0]
+                            const last = parts[1].length > 15 ? parts[1].substring(0, 15) + '...' : parts[1]
+                            return `${first} → ${last}`
+                          }}
+                        />
+                        <Tooltip 
+                          formatter={(value: any) => [`${value} customers`, 'Churned Customers']}
+                          labelFormatter={(label) => `Product Journey: ${label}`}
+                          contentStyle={{ 
+                            backgroundColor: '#fff', 
+                            border: '1px solid #e5e7eb', 
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            maxWidth: '300px'
+                          }}
+                        />
+                        <Bar dataKey="count" fill="#8b5cf6" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-80 flex items-center justify-center">
+                    <div className="text-center">
+                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm font-light text-gray-500">No churned customer product data available</p>
+                      <p className="text-xs text-gray-400 mt-1">This chart shows customers who purchased different first and last products before churning</p>
                     </div>
                   </div>
                 )}
