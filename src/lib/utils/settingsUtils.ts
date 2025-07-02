@@ -65,7 +65,7 @@ export function getCurrencySymbol(currency: string): string {
 
 export function formatCurrency(value: number, currency?: string): string {
   const settings = getSettingsSync()
-  const currencyCode = currency || settings.currency
+  const currencyCode = currency || settings.currency || DEFAULT_SETTINGS.currency
   const symbol = getCurrencySymbol(currencyCode)
   
   return new Intl.NumberFormat('en-US', {
@@ -77,8 +77,13 @@ export function formatCurrency(value: number, currency?: string): string {
 
 export function getFinancialYearDates(year: number, settings?: AppSettings): { startDate: Date; endDate: Date } {
   const appSettings = settings || getSettingsSync()
-  const [startMonth, startDay] = appSettings.financialYearStart.split('-').map(Number)
-  const [endMonth, endDay] = appSettings.financialYearEnd.split('-').map(Number)
+  
+  // Provide fallback values if financialYearStart or financialYearEnd are undefined
+  const financialYearStart = appSettings.financialYearStart || DEFAULT_SETTINGS.financialYearStart
+  const financialYearEnd = appSettings.financialYearEnd || DEFAULT_SETTINGS.financialYearEnd
+  
+  const [startMonth, startDay] = financialYearStart.split('-').map(Number)
+  const [endMonth, endDay] = financialYearEnd.split('-').map(Number)
   
   let startYear = year
   let endYear = year
@@ -107,7 +112,7 @@ export function getPreviousYearDateRange(currentStartDate: Date, currentEndDate:
 
 export function getInitialTimeframe(): string {
   const settings = getSettingsSync()
-  return settings.defaultDateRange
+  return settings.defaultDateRange || DEFAULT_SETTINGS.defaultDateRange
 }
 
 // Clear cache when settings are updated
