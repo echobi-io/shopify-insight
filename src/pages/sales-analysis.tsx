@@ -96,7 +96,7 @@ const SalesAnalysisPage: React.FC = () => {
   const [selectedCustomerForEnhanced, setSelectedCustomerForEnhanced] = useState<TopCustomer | null>(null)
   
   // Filter states
-  const [timeframe, setTimeframe] = useState(getInitialTimeframe())
+  const [timeframe, setTimeframe] = useState(getInitialTimeframe() || 'financial_current')
   const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>('daily')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')

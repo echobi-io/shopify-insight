@@ -9,6 +9,17 @@ export function getDateRangeFromTimeframe(timeframe: string, customStartDate?: s
   const endDate = new Date();
   const startDate = new Date();
 
+  // Handle undefined or null timeframe
+  if (!timeframe) {
+    // Default to current financial year
+    const currentYear = new Date().getFullYear();
+    const financialYear = getFinancialYearDates(currentYear);
+    return { 
+      startDate: new Date(financialYear.startDate), 
+      endDate: new Date(financialYear.endDate) 
+    };
+  }
+
   // Handle custom date ranges
   if (timeframe.startsWith('custom_')) {
     const parts = timeframe.split('_');
@@ -127,6 +138,11 @@ export function formatDateForSQL(date: Date): string {
 }
 
 export function getPreviousDateRange(timeframe: string): DateRange {
+  // Handle undefined or null timeframe
+  if (!timeframe) {
+    timeframe = 'financial_current'; // Default fallback
+  }
+  
   const currentRange = getDateRangeFromTimeframe(timeframe);
   const duration = currentRange.endDate.getTime() - currentRange.startDate.getTime();
   

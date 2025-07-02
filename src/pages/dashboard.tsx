@@ -48,7 +48,7 @@ interface ProductData {
 
 
 const DashboardPage: React.FC = () => {
-  const [timeframe, setTimeframe] = useState(getInitialTimeframe())
+  const [timeframe, setTimeframe] = useState(getInitialTimeframe() || 'financial_current')
   const [loading, setLoading] = useState(true)
   const [kpiData, setKpiData] = useState<KPIData | null>(null)
   const [previousYearKpiData, setPreviousYearKpiData] = useState<KPIData | null>(null)
