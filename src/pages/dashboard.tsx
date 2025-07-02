@@ -7,12 +7,22 @@ import { getKPIs, getPreviousYearKPIs, calculateKPIChanges, type KPIData, type F
 import { getRevenueByDate, type RevenueByDateData } from '@/lib/fetchers/getRevenueByDate'
 import { getProductData } from '@/lib/fetchers/getProductData'
 import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type CustomerSegmentData, type AICommentaryData } from '@/lib/fetchers/getDashboardData'
+import { 
+  getDailyRevenueBreakdown, 
+  getOrdersByProduct, 
+  getNewCustomersDetail, 
+  getAOVStats,
+  type DailyRevenueData,
+  type OrdersByProductData,
+  type NewCustomerData,
+  type AOVStatsData
+} from '@/lib/fetchers/getDetailedKPIData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency, getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import EnhancedKPICard from '@/components/EnhancedKPICard'
+import DetailedKPICard from '@/components/DetailedKPICard'
 import DateRangeSelector from '@/components/DateRangeSelector'
 import HelpSection, { getDashboardHelpItems } from '@/components/HelpSection'
 
@@ -45,6 +55,12 @@ const DashboardPage: React.FC = () => {
   const [segmentData, setSegmentData] = useState<CustomerSegmentData[]>([])
   const [aiCommentary, setAiCommentary] = useState<AICommentaryData | null>(null)
   
+  // Detailed KPI data state
+  const [dailyRevenueData, setDailyRevenueData] = useState<DailyRevenueData[]>([])
+  const [ordersByProductData, setOrdersByProductData] = useState<OrdersByProductData[]>([])
+  const [newCustomersData, setNewCustomersData] = useState<NewCustomerData[]>([])
+  const [aovStatsData, setAovStatsData] = useState<AOVStatsData[]>([])
+  
   // Custom date range state
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
@@ -61,7 +77,17 @@ const DashboardPage: React.FC = () => {
       }
 
       // Load all data in parallel
-      const [currentKpis, previousYearKpis, revenue, products, dashboardData] = await Promise.all([
+      const [
+        currentKpis, 
+        previousYearKpis, 
+        revenue, 
+        products, 
+        dashboardData,
+        dailyRevenue,
+        ordersByProduct,
+        newCustomers,
+        aovStats
+      ] = await Promise.all([
         getKPIs(filters, MERCHANT_ID).catch(err => {
           console.error('❌ Error loading current KPIs:', err)
           return null
@@ -72,7 +98,23 @@ const DashboardPage: React.FC = () => {
         }),
         getRevenueByDate(filters, MERCHANT_ID),
         getProductData(filters, MERCHANT_ID),
-        getAllDashboardData(MERCHANT_ID, filters)
+        getAllDashboardData(MERCHANT_ID, filters),
+        getDailyRevenueBreakdown(MERCHANT_ID, filters).catch(err => {
+          console.error('❌ Error loading daily revenue data:', err)
+          return []
+        }),
+        getOrdersByProduct(MERCHANT_ID, filters).catch(err => {
+          console.error('❌ Error loading orders by product data:', err)
+          return []
+        }),
+        getNewCustomersDetail(MERCHANT_ID, filters).catch(err => {
+          console.error('❌ Error loading new customers data:', err)
+          return []
+        }),
+        getAOVStats(MERCHANT_ID, filters).catch(err => {
+          console.error('❌ Error loading AOV stats data:', err)
+          return []
+        })
       ])
 
       setKpiData(currentKpis)
@@ -83,6 +125,10 @@ const DashboardPage: React.FC = () => {
       setDashboardTrendData(dashboardData.trendData)
       setSegmentData(dashboardData.segmentData)
       setAiCommentary(dashboardData.aiCommentary)
+      setDailyRevenueData(dailyRevenue)
+      setOrdersByProductData(ordersByProduct)
+      setNewCustomersData(newCustomers)
+      setAovStatsData(aovStats)
       setLastUpdated(new Date())
     } catch (error) {
       console.error('❌ Error loading dashboard data:', error)
@@ -158,33 +204,45 @@ const DashboardPage: React.FC = () => {
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <EnhancedKPICard
+            <DetailedKPICard
               title="Total Revenue"
               value={kpiData?.totalRevenue || 0}
               previousValue={previousYearKpiData?.totalRevenue}
               icon={<DollarSign className="w-5 h-5" />}
               isMonetary={true}
+              kpiType="revenue"
+              detailedData={dailyRevenueData}
+              filename="total-revenue"
             />
-            <EnhancedKPICard
+            <DetailedKPICard
               title="Total Orders"
               value={kpiData?.totalOrders || 0}
               previousValue={previousYearKpiData?.totalOrders}
               icon={<ShoppingCart className="w-5 h-5" />}
               isMonetary={false}
+              kpiType="orders"
+              detailedData={ordersByProductData}
+              filename="total-orders"
             />
-            <EnhancedKPICard
+            <DetailedKPICard
               title="New Customers"
               value={kpiData?.newCustomers || 0}
               previousValue={previousYearKpiData?.newCustomers}
               icon={<Users className="w-5 h-5" />}
               isMonetary={false}
+              kpiType="customers"
+              detailedData={newCustomersData}
+              filename="new-customers"
             />
-            <EnhancedKPICard
+            <DetailedKPICard
               title="Average Order Value"
               value={kpiData?.avgOrderValue || 0}
               previousValue={previousYearKpiData?.avgOrderValue}
               icon={<DollarSign className="w-5 h-5" />}
               isMonetary={true}
+              kpiType="aov"
+              detailedData={aovStatsData}
+              filename="average-order-value"
             />
           </div>
 
