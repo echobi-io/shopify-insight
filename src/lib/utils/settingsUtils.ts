@@ -81,3 +81,8 @@ export function getPreviousYearDateRange(currentStartDate: Date, currentEndDate:
     endDate: previousEndDate 
   }
 }
+
+export function getInitialTimeframe(): string {
+  const settings = getSettings()
+  return settings.defaultDateRange
+}

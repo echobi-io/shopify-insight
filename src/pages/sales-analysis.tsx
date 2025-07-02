@@ -66,6 +66,7 @@ import {
 import { getEnhancedCustomerData, EnhancedCustomerData } from '@/lib/fetchers/getEnhancedCustomerData'
 import { getKPIs, getPreviousYearKPIs, type KPIData, type FilterState } from '@/lib/fetchers/getKpis'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
+import { getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import DataDebugPanel from '@/components/DataDebugPanel'
 
@@ -95,7 +96,7 @@ const SalesAnalysisPage: React.FC = () => {
   const [selectedCustomerForEnhanced, setSelectedCustomerForEnhanced] = useState<TopCustomer | null>(null)
   
   // Filter states
-  const [timeframe, setTimeframe] = useState('financial_current')
+  const [timeframe, setTimeframe] = useState(getInitialTimeframe())
   const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>('daily')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')

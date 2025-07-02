@@ -10,7 +10,7 @@ import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package, Star, Refr
 import { getProductPerformanceData, type ProductPerformanceData, type ProductMetrics, type ProductTrend } from '@/lib/fetchers/getProductPerformanceData'
 import { getReturnedProductsData, type ReturnedProductsData } from '@/lib/fetchers/getReturnedProductsData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
-import { formatCurrency } from '@/lib/utils/settingsUtils'
+import { formatCurrency, getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -28,7 +28,7 @@ const ProductInsightsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   
   // Filter states
-  const [timeframe, setTimeframe] = useState('financial_current')
+  const [timeframe, setTimeframe] = useState(getInitialTimeframe())
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
   const [searchTerm, setSearchTerm] = useState('')

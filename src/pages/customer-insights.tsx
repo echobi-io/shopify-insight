@@ -12,7 +12,7 @@ import { getCustomerInsightsData, getCustomerDetails, CustomerInsightsData, Chur
 import { getKPIs, getPreviousYearKPIs, type KPIData } from '@/lib/fetchers/getKpis'
 import { exportToCSV } from '@/lib/utils/exportUtils'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
-import { formatCurrency } from '@/lib/utils/settingsUtils'
+import { formatCurrency, getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -59,7 +59,7 @@ const CustomerInsightsPage: React.FC = () => {
   };
   
   // Date filter states
-  const [dateRange, setDateRange] = useState('financial_current')
+  const [dateRange, setDateRange] = useState(getInitialTimeframe())
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
 

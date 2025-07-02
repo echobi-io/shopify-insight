@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Progress } from '@/components/ui/progress'
 import { getChurnLtvData, type ChurnAnalyticsData, type ChurnTrend, type RiskSegment, type ChurnCustomer, type ChurnRiskFactor } from '@/lib/fetchers/getChurnLtvData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
-import { formatCurrency, getSettings } from '@/lib/utils/settingsUtils'
+import { formatCurrency, getSettings, getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -38,7 +38,7 @@ const ChurnAnalyticsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   
   // Filter states
-  const [timeframe, setTimeframe] = useState('financial_current')
+  const [timeframe, setTimeframe] = useState(getInitialTimeframe())
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
   const [riskFilter, setRiskFilter] = useState('all')

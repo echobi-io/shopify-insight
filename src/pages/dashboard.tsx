@@ -8,7 +8,7 @@ import { getRevenueByDate, type RevenueByDateData } from '@/lib/fetchers/getReve
 import { getProductData } from '@/lib/fetchers/getProductData'
 import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type CustomerSegmentData, type AICommentaryData } from '@/lib/fetchers/getDashboardData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
-import { formatCurrency } from '@/lib/utils/settingsUtils'
+import { formatCurrency, getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -31,7 +31,7 @@ interface ProductData {
 
 
 const DashboardPage: React.FC = () => {
-  const [timeframe, setTimeframe] = useState('financial_current')
+  const [timeframe, setTimeframe] = useState(getInitialTimeframe())
   const [loading, setLoading] = useState(true)
   const [kpiData, setKpiData] = useState<KPIData | null>(null)
   const [previousYearKpiData, setPreviousYearKpiData] = useState<KPIData | null>(null)

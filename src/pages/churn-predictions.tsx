@@ -14,7 +14,7 @@ import { Brain, TrendingUp, TrendingDown, AlertTriangle, Users, DollarSign, Refr
 import { getCustomerInsightsData, type ChurnPrediction } from '@/lib/fetchers/getCustomerInsightsData'
 import { getChurnLtvData, type ChurnAnalyticsData } from '@/lib/fetchers/getChurnLtvData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
-import { formatCurrency, getSettings } from '@/lib/utils/settingsUtils'
+import { formatCurrency, getSettings, getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -45,7 +45,7 @@ const ChurnPredictionsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   
   // Filter states
-  const [timeframe, setTimeframe] = useState('financial_current')
+  const [timeframe, setTimeframe] = useState(getInitialTimeframe())
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
