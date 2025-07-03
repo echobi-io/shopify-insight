@@ -34,6 +34,7 @@ import DetailedKPICard from '@/components/DetailedKPICard'
 import DateRangeSelector from '@/components/DateRangeSelector'
 import HelpSection, { getDashboardHelpItems } from '@/components/HelpSection'
 import { TopCustomersSection } from '@/components/TopCustomersSection'
+import { SupabaseDiagnostic } from '@/components/SupabaseDiagnostic'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -518,6 +519,11 @@ const DashboardPage: React.FC = () => {
                 currency={currency}
               />
             </div>
+          </div>
+
+          {/* Supabase Diagnostic - Temporary */}
+          <div className="mb-8">
+            <SupabaseDiagnostic />
           </div>
 
           {/* Help Section */}
