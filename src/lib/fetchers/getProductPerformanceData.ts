@@ -92,21 +92,130 @@ export async function getProductPerformanceData(
       }
     }
 
-    // Transform products data with placeholder metrics
-    const productMetrics: ProductMetrics[] = products.map((product: any, index: number) => ({
-      id: product.id,
-      name: product.name || 'Unknown Product',
-      sku: product.shopify_product_id || product.id,
-      category: product.category || 'General',
-      totalRevenue: (product.price || 0) * (10 + index), // Placeholder calculation
-      unitsSold: 10 + index, // Placeholder
-      avgPrice: product.price || 0,
-      profitMargin: (product.price || 0) * 0.3, // 30% margin
-      growthRate: Math.random() * 20 - 10, // Random growth between -10% and +10%
-      performanceScore: 50 + Math.random() * 40 // Random score between 50-90
-    }))
+    // Get real sales data for these products
+    console.log('🔄 Fetching real sales data for products...')
+    
+    const productIds = products.map(p => p.id)
+    
+    // Get order items for these products within the date range
+    const { data: orderItems, error: orderItemsError } = await supabase
+      .from('order_items')
+      .select(`
+        product_id,
+        quantity,
+        price,
+        orders!inner(
+          id,
+          merchant_id,
+          created_at
+        )
+      `)
+      .in('product_id', productIds)
+      .gte('orders.created_at', filters.startDate)
+      .lte('orders.created_at', filters.endDate)
+      .eq('orders.merchant_id', merchantId)
 
-    console.log('✅ Generated product metrics:', productMetrics.length, 'products')
+    console.log('📊 Order items query result:', { count: orderItems?.length, error: orderItemsError })
+
+    // Create a map of product sales data
+    const salesMap = new Map<string, { revenue: number; units: number; prices: number[] }>()
+    
+    if (orderItems && !orderItemsError) {
+      orderItems.forEach((item: any) => {
+        const productId = item.product_id
+        const revenue = (item.price || 0) * (item.quantity || 0)
+        const existing = salesMap.get(productId) || { revenue: 0, units: 0, prices: [] }
+        
+        salesMap.set(productId, {
+          revenue: existing.revenue + revenue,
+          units: existing.units + (item.quantity || 0),
+          prices: [...existing.prices, item.price || 0]
+        })
+      })
+    }
+
+    // Get previous period data for growth calculations
+    const startDate = new Date(filters.startDate)
+    const endDate = new Date(filters.endDate)
+    const periodLength = endDate.getTime() - startDate.getTime()
+    const previousStartDate = new Date(startDate.getTime() - periodLength)
+    const previousEndDate = new Date(startDate.getTime())
+
+    const { data: previousOrderItems, error: previousOrderItemsError } = await supabase
+      .from('order_items')
+      .select(`
+        product_id,
+        quantity,
+        price,
+        orders!inner(
+          id,
+          merchant_id,
+          created_at
+        )
+      `)
+      .in('product_id', productIds)
+      .gte('orders.created_at', previousStartDate.toISOString())
+      .lte('orders.created_at', previousEndDate.toISOString())
+      .eq('orders.merchant_id', merchantId)
+
+    // Create previous period sales map
+    const previousSalesMap = new Map<string, { revenue: number; units: number }>()
+    
+    if (previousOrderItems && !previousOrderItemsError) {
+      previousOrderItems.forEach((item: any) => {
+        const productId = item.product_id
+        const revenue = (item.price || 0) * (item.quantity || 0)
+        const existing = previousSalesMap.get(productId) || { revenue: 0, units: 0 }
+        
+        previousSalesMap.set(productId, {
+          revenue: existing.revenue + revenue,
+          units: existing.units + (item.quantity || 0)
+        })
+      })
+    }
+
+    // Transform products data with real sales metrics
+    const productMetrics: ProductMetrics[] = products.map((product: any) => {
+      const salesData = salesMap.get(product.id) || { revenue: 0, units: 0, prices: [] }
+      const previousSalesData = previousSalesMap.get(product.id) || { revenue: 0, units: 0 }
+      
+      // Calculate average price from actual sales
+      const avgPrice = salesData.prices.length > 0 
+        ? salesData.prices.reduce((sum, price) => sum + price, 0) / salesData.prices.length
+        : (product.price || 0)
+      
+      // Calculate growth rate
+      let growthRate = 0
+      if (previousSalesData.revenue > 0) {
+        growthRate = ((salesData.revenue - previousSalesData.revenue) / previousSalesData.revenue) * 100
+      } else if (salesData.revenue > 0) {
+        growthRate = 100 // New product with sales
+      }
+      
+      // Calculate performance score based on revenue and units
+      const maxRevenue = Math.max(...Array.from(salesMap.values()).map(s => s.revenue))
+      const performanceScore = maxRevenue > 0 
+        ? Math.min(100, (salesData.revenue / maxRevenue) * 100)
+        : 0
+
+      return {
+        id: product.id,
+        name: product.name || 'Unknown Product',
+        sku: product.shopify_product_id || product.id,
+        category: product.category || 'General',
+        totalRevenue: salesData.revenue,
+        unitsSold: salesData.units,
+        avgPrice: avgPrice,
+        profitMargin: avgPrice * 0.3, // Assume 30% margin
+        growthRate,
+        performanceScore
+      }
+    })
+
+    // Sort by total revenue descending
+    productMetrics.sort((a, b) => b.totalRevenue - a.totalRevenue)
+
+    console.log('✅ Generated real product metrics:', productMetrics.length, 'products')
 
     // Calculate category performance
     const categoryMap = new Map<string, { revenue: number; units: number }>()
@@ -129,32 +238,75 @@ export async function getProductPerformanceData(
       percentage: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0
     }))
 
-    // Generate placeholder trend data
-    const topProductsTrend: ProductTrend[] = []
-    const startDate = new Date(filters.startDate)
-    const endDate = new Date(filters.endDate)
-    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+    // Get real trend data for top 5 products
+    const topProductIds = productMetrics.slice(0, 5).map(p => p.id)
+    let topProductsTrend: ProductTrend[] = []
     
-    for (let i = 0; i < Math.min(daysDiff, 30); i++) {
-      const date = new Date(startDate)
-      date.setDate(date.getDate() + i)
-      topProductsTrend.push({
-        date: date.toISOString().split('T')[0],
-        revenue: Math.random() * 1000 + 500,
-        units: Math.floor(Math.random() * 50) + 10
-      })
+    if (topProductIds.length > 0) {
+      console.log('🔄 Fetching trend data for top products...')
+      
+      const { data: trendData, error: trendError } = await supabase
+        .from('order_items')
+        .select(`
+          quantity,
+          price,
+          orders!inner(
+            created_at,
+            merchant_id
+          )
+        `)
+        .in('product_id', topProductIds)
+        .gte('orders.created_at', filters.startDate)
+        .lte('orders.created_at', filters.endDate)
+        .eq('orders.merchant_id', merchantId)
+        .order('orders.created_at')
+
+      if (trendData && !trendError) {
+        // Group by date
+        const trendMap = new Map<string, { revenue: number; units: number }>()
+        
+        trendData.forEach((item: any) => {
+          const date = new Date(item.orders.created_at).toISOString().split('T')[0]
+          const revenue = (item.price || 0) * (item.quantity || 0)
+          const existing = trendMap.get(date) || { revenue: 0, units: 0 }
+          
+          trendMap.set(date, {
+            revenue: existing.revenue + revenue,
+            units: existing.units + (item.quantity || 0)
+          })
+        })
+
+        topProductsTrend = Array.from(trendMap.entries())
+          .map(([date, data]) => ({
+            date,
+            revenue: data.revenue,
+            units: data.units
+          }))
+          .sort((a, b) => a.date.localeCompare(b.date))
+      }
     }
 
-    // Calculate summary metrics
-    const summary: ProductSummary = {
+    // Calculate real summary metrics with previous period comparison
+    const currentSummary = {
       totalProducts: productMetrics.length,
       totalRevenue: productMetrics.reduce((sum, p) => sum + p.totalRevenue, 0),
       totalUnitsSold: productMetrics.reduce((sum, p) => sum + p.unitsSold, 0),
-      avgProfitMargin: productMetrics.length > 0 ? productMetrics.reduce((sum, p) => sum + p.profitMargin, 0) / productMetrics.length : 0,
-      previousTotalProducts: Math.floor(productMetrics.length * 0.9), // Placeholder
-      previousTotalRevenue: productMetrics.reduce((sum, p) => sum + p.totalRevenue, 0) * 0.85, // Placeholder
-      previousTotalUnitsSold: productMetrics.reduce((sum, p) => sum + p.unitsSold, 0) * 0.9, // Placeholder
-      previousAvgProfitMargin: productMetrics.length > 0 ? productMetrics.reduce((sum, p) => sum + p.profitMargin, 0) / productMetrics.length * 0.95 : 0 // Placeholder
+      avgProfitMargin: productMetrics.length > 0 ? productMetrics.reduce((sum, p) => sum + p.profitMargin, 0) / productMetrics.length : 0
+    }
+
+    const previousSummary = {
+      totalProducts: products.length, // All products existed in previous period
+      totalRevenue: Array.from(previousSalesMap.values()).reduce((sum, data) => sum + data.revenue, 0),
+      totalUnitsSold: Array.from(previousSalesMap.values()).reduce((sum, data) => sum + data.units, 0),
+      avgProfitMargin: currentSummary.avgProfitMargin * 0.95 // Assume slightly lower margin in previous period
+    }
+
+    const summary: ProductSummary = {
+      ...currentSummary,
+      previousTotalProducts: previousSummary.totalProducts,
+      previousTotalRevenue: previousSummary.totalRevenue,
+      previousTotalUnitsSold: previousSummary.totalUnitsSold,
+      previousAvgProfitMargin: previousSummary.avgProfitMargin
     }
 
     console.log('✅ Product performance data loaded successfully')
