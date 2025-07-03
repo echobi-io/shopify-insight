@@ -5,7 +5,7 @@
 DROP FUNCTION IF EXISTS get_product_performance(UUID, TIMESTAMP, TIMESTAMP);
 DROP FUNCTION IF EXISTS get_product_trend(UUID, UUID[], TIMESTAMP, TIMESTAMP);
 
--- Ultra-simplified function to get basic product data
+-- Minimal function to test basic functionality
 CREATE OR REPLACE FUNCTION get_product_performance(
   merchant_id UUID,
   start_date TIMESTAMP,
@@ -26,23 +26,21 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  -- Return basic product data without complex joins
+  -- Minimal query to test if basic product access works
   RETURN QUERY
   SELECT 
     p.id,
-    p.name,
+    COALESCE(p.name, 'Unknown Product') as name,
     COALESCE(p.shopify_product_id, p.id::text) as sku,
-    COALESCE(p.category, 'Uncategorized') as category,
-    COALESCE(p.price, 0) as total_revenue, -- Use product price as placeholder
-    1::BIGINT as units_sold, -- Placeholder
-    COALESCE(p.price, 0) as avg_price,
-    COALESCE(p.price * 0.3, 30.0) as profit_margin,
-    50.0 as performance_score -- Static score for now
+    'General' as category,
+    100.0::NUMERIC as total_revenue,
+    5::BIGINT as units_sold,
+    20.0::NUMERIC as avg_price,
+    30.0::NUMERIC as profit_margin,
+    75.0::NUMERIC as performance_score
   FROM products p
   WHERE p.merchant_id = get_product_performance.merchant_id
-    AND p.is_active = true
-  ORDER BY p.price DESC NULLS LAST
-  LIMIT 20;
+  LIMIT 10;
 END;
 $$;
 
