@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { getCohortAnalysisData, getCohortRetentionData, CohortAnalysisResult } from '@/lib/fetchers/getCohortAnalysisData';
-import { getSettingsData } from '@/lib/fetchers/getSettingsData';
+import { getSettings } from '@/lib/utils/settingsUtils';
 import { Loader2, TrendingUp, Users, DollarSign, Calendar } from 'lucide-react';
 
 interface CohortRetentionData {
@@ -40,7 +40,7 @@ const CohortAnalysis: React.FC = () => {
         setError(null);
 
         // Get merchant ID from settings
-        const settings = await getSettingsData(user.id);
+        const settings = await getSettings();
         const currentMerchantId = settings?.merchant_id || '';
         setMerchantId(currentMerchantId);
 
