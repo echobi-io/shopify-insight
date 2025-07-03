@@ -42,6 +42,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
       href: '/churn-predictions'
     },
     {
+      id: 'cohort-analysis',
+      label: 'Cohort Analysis',
+      href: '/cohort-analysis'
+    },
+    {
       id: 'settings',
       label: 'Settings',
       href: '/settings'
@@ -60,6 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
     if (path === '/product-insights') return 'product-insights'
     if (path === '/churn-analytics') return 'churn-analytics'
     if (path === '/churn-predictions') return 'churn-predictions'
+    if (path === '/cohort-analysis') return 'cohort-analysis'
     if (path === '/settings') return 'settings'
     return 'dashboard'
   }
