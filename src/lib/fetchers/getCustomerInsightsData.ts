@@ -22,13 +22,15 @@ export interface LtvPrediction {
   id: string
   customer_id: string
   predicted_ltv: number
-  confidence: number
+  confidence_score: number
+  ltv_segment: string
   predicted_at: string
   current_spend?: number
   customer?: {
     first_name: string
     last_name: string
     email: string
+    total_spent: number
   }
 }
 
@@ -52,11 +54,15 @@ export interface CustomerSegment {
 }
 
 export interface CustomerCluster {
+  cluster_id: string
   cluster_label: string
-  customers_count: number
+  customer_count: number
+  total_spent: number
   avg_ltv: number
+  orders_count: number
   avg_orders: number
   avg_order_value: number
+  cluster_description: string
   description: string
 }
 
@@ -186,18 +192,18 @@ export async function getCustomerInsightsData(merchantId: string, dateFilters?: 
     // Generate cohort analysis
     const cohortAnalysis = await generateCohortAnalysis(merchantId, dateFilters)
 
-    // Calculate KPIs
+    // Calculate KPIs - only use real data, no fallbacks
     const totalActiveCustomers = await getTotalActiveCustomers(merchantId, dateFilters)
-    const customersAtHighRisk = churnData?.filter(c => c.churn_band === 'High').length || 0
-    const revenueAtRisk = churnData?.reduce((sum, c) => {
+    const customersAtHighRisk = churnData.length > 0 ? churnData.filter(c => c.churn_band === 'High').length : 0
+    const revenueAtRisk = churnData.length > 0 ? churnData.reduce((sum, c) => {
       return sum + (c.churn_band === 'High' || c.churn_band === 'Medium' ? c.revenue_at_risk : 0)
-    }, 0) || 0
-    const averageLtv = ltvData?.length ? ltvData.reduce((sum, l) => sum + l.predicted_ltv, 0) / ltvData.length : 0
-    const lifetimeValuePotential = ltvData?.reduce((sum, l) => sum + l.predicted_ltv, 0) || 0
+    }, 0) : 0
+    const averageLtv = ltvData.length > 0 ? ltvData.reduce((sum, l) => sum + l.predicted_ltv, 0) / ltvData.length : 0
+    const lifetimeValuePotential = ltvData.length > 0 ? ltvData.reduce((sum, l) => sum + l.predicted_ltv, 0) : 0
 
-    // Generate trend and distribution data
-    const churnTrendData = await generateChurnTrendData(merchantId, dateFilters)
-    const ltvDistribution = generateLtvDistribution(ltvData || [])
+    // Generate trend and distribution data - only if we have churn data
+    const churnTrendData = churnData.length > 0 ? await generateChurnTrendData(merchantId, dateFilters) : []
+    const ltvDistribution = ltvData.length > 0 ? generateLtvDistribution(ltvData) : []
 
     console.log('📊 Customer insights KPIs:', {
       totalActiveCustomers,
@@ -447,17 +453,22 @@ async function getCustomerClusters(merchantId: string, dateFilters?: { startDate
       }
     }
 
-    return Object.entries(clusterMetrics).map(([label, metrics]) => {
+    return Object.entries(clusterMetrics).map(([label, metrics], index) => {
       const avgLtv = metrics.ltv.reduce((sum, val) => sum + val, 0) / metrics.ltv.length
       const avgOrders = metrics.orders.reduce((sum, val) => sum + val, 0) / metrics.orders.length
       const avgAov = metrics.aov.reduce((sum, val) => sum + val, 0) / metrics.aov.length
+      const totalSpent = metrics.ltv.reduce((sum, val) => sum + val, 0)
 
       return {
+        cluster_id: `cluster_${index + 1}`,
         cluster_label: label,
-        customers_count: metrics.customers.length,
+        customer_count: metrics.customers.length,
+        total_spent: totalSpent,
         avg_ltv: avgLtv,
+        orders_count: avgOrders,
         avg_orders: avgOrders,
         avg_order_value: avgAov,
+        cluster_description: generateClusterDescription(avgLtv, avgOrders, avgAov),
         description: generateClusterDescription(avgLtv, avgOrders, avgAov)
       }
     })

@@ -316,16 +316,16 @@ const CustomerInsightsPage: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Revenue Trend */}
-            <Card className="card-minimal">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium text-black">Revenue at Risk Trend</CardTitle>
-                <CardDescription className="font-light text-gray-600">
-                  Potential revenue loss from at-risk customers
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {data.churnTrendData.length > 0 ? (
+            {/* Revenue Trend - Only show if we have churn data */}
+            {data.churnPredictions.length > 0 && data.churnTrendData.length > 0 ? (
+              <Card className="card-minimal">
+                <CardHeader>
+                  <CardTitle className="text-lg font-medium text-black">Revenue at Risk Trend</CardTitle>
+                  <CardDescription className="font-light text-gray-600">
+                    Potential revenue loss from at-risk customers
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={data.churnTrendData}>
@@ -351,16 +351,27 @@ const CustomerInsightsPage: React.FC = () => {
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
-                ) : (
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="card-minimal">
+                <CardHeader>
+                  <CardTitle className="text-lg font-medium text-black">Revenue at Risk Trend</CardTitle>
+                  <CardDescription className="font-light text-gray-600">
+                    Potential revenue loss from at-risk customers
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                   <div className="h-64 flex items-center justify-center">
                     <div className="text-center">
                       <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm font-light text-gray-500">No trend data available</p>
+                      <p className="text-sm font-light text-gray-500">No churn prediction data available</p>
+                      <p className="text-xs font-light text-gray-400 mt-1">Revenue at risk trends require churn prediction data</p>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Customer Segments Summary */}
