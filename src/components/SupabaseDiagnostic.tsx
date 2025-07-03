@@ -98,7 +98,7 @@ export const SupabaseDiagnostic: React.FC = () => {
       });
     }
 
-    // Test 5: RPC Function
+    // Test 5: RPC Function - Top Customers
     try {
       const { data, error } = await supabase.rpc('get_top_customers', {
         start_date: '2024-01-01',
@@ -123,7 +123,32 @@ export const SupabaseDiagnostic: React.FC = () => {
       });
     }
 
-    // Test 6: Network/Latency
+    // Test 6: Product Performance RPC Function
+    try {
+      const { data, error } = await supabase.rpc('get_product_performance', {
+        merchant_id: '11111111-1111-1111-1111-111111111111',
+        start_date: '2024-01-01T00:00:00Z',
+        end_date: '2024-12-31T23:59:59Z'
+      });
+      
+      diagnosticResults.push({
+        test: 'get_product_performance RPC',
+        status: error ? 'error' : 'success',
+        message: error 
+          ? `Product RPC error: ${error.message}` 
+          : `Product RPC working, returned ${data?.length || 0} products`,
+        details: error || { resultCount: data?.length, sampleData: data?.[0] }
+      });
+    } catch (err) {
+      diagnosticResults.push({
+        test: 'get_product_performance RPC',
+        status: 'error',
+        message: `Product RPC error: ${err}`,
+        details: err
+      });
+    }
+
+    // Test 7: Network/Latency
     const startTime = Date.now();
     try {
       await supabase.from('customers').select('id').limit(1);
