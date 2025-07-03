@@ -34,12 +34,15 @@ export const SupabaseDiagnostic: React.FC = () => {
 
     // Test 2: Basic Connection
     try {
-      const { data, error } = await supabase.from('customers').select('count(*)').limit(1);
+      const { data, error, count } = await supabase
+        .from('customers')
+        .select('id', { count: 'exact', head: true });
+      
       diagnosticResults.push({
         test: 'Basic Connection',
         status: error ? 'error' : 'success',
         message: error ? `Connection failed: ${error.message}` : 'Successfully connected to Supabase',
-        details: error || data
+        details: error || { count }
       });
     } catch (err) {
       diagnosticResults.push({
@@ -52,18 +55,17 @@ export const SupabaseDiagnostic: React.FC = () => {
 
     // Test 3: Customers Table
     try {
-      const { data, error } = await supabase
+      const { data, error, count } = await supabase
         .from('customers')
-        .select('count(*)')
-        .single();
+        .select('id', { count: 'exact', head: true });
       
       diagnosticResults.push({
         test: 'Customers Table',
-        status: error ? 'error' : (data?.count > 0 ? 'success' : 'warning'),
+        status: error ? 'error' : (count && count > 0 ? 'success' : 'warning'),
         message: error 
           ? `Error accessing customers table: ${error.message}` 
-          : `Found ${data?.count || 0} customers`,
-        details: error || data
+          : `Found ${count || 0} customers`,
+        details: error || { count }
       });
     } catch (err) {
       diagnosticResults.push({
@@ -76,18 +78,17 @@ export const SupabaseDiagnostic: React.FC = () => {
 
     // Test 4: Orders Table
     try {
-      const { data, error } = await supabase
+      const { data, error, count } = await supabase
         .from('orders')
-        .select('count(*)')
-        .single();
+        .select('id', { count: 'exact', head: true });
       
       diagnosticResults.push({
         test: 'Orders Table',
-        status: error ? 'error' : (data?.count > 0 ? 'success' : 'warning'),
+        status: error ? 'error' : (count && count > 0 ? 'success' : 'warning'),
         message: error 
           ? `Error accessing orders table: ${error.message}` 
-          : `Found ${data?.count || 0} orders`,
-        details: error || data
+          : `Found ${count || 0} orders`,
+        details: error || { count }
       });
     } catch (err) {
       diagnosticResults.push({
