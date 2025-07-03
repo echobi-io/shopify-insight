@@ -26,7 +26,7 @@ BEGIN
   SELECT 
     p.id,
     p.name,
-    COALESCE(p.sku, p.id::text) as sku,
+    COALESCE(p.shopify_product_id, p.id::text) as sku,
     p.category,
     COALESCE(SUM(oi.price * oi.quantity), 0) as total_revenue,
     COALESCE(SUM(oi.quantity), 0) as units_sold,
@@ -49,14 +49,13 @@ BEGIN
     END as performance_score
   FROM products p
   LEFT JOIN order_items oi ON p.id = oi.product_id
-  LEFT JOIN orders o ON oi.order_id = o.id
-  WHERE o.merchant_id = get_product_performance.merchant_id
-    AND o.created_at >= get_product_performance.start_date
-    AND o.created_at <= get_product_performance.end_date
-    AND o.status IN ('confirmed', 'shipped', 'delivered')
-    AND p.active = true
-  GROUP BY p.id, p.name, p.sku, p.category, p.cost, p.price
-  ORDER BY total_revenue DESC;
+  LEFT JOIN orders o ON oi.order_id = o.id AND o.merchant_id = get_product_performance.merchant_id
+  WHERE p.merchant_id = get_product_performance.merchant_id
+    AND p.is_active = true
+    AND (o.id IS NULL OR (o.created_at >= get_product_performance.start_date AND o.created_at <= get_product_performance.end_date))
+  GROUP BY p.id, p.name, p.shopify_product_id, p.category, p.cost, p.price
+  ORDER BY total_revenue DESC
+  LIMIT 100;
 END;
 $$;
 
@@ -87,7 +86,6 @@ BEGIN
     AND oi.product_id = ANY(get_product_trend.product_ids)
     AND o.created_at >= get_product_trend.start_date
     AND o.created_at <= get_product_trend.end_date
-    AND o.status IN ('confirmed', 'shipped', 'delivered')
   GROUP BY DATE(o.created_at)
   ORDER BY date;
 END;

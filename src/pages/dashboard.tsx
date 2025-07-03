@@ -442,7 +442,11 @@ const DashboardPage: React.FC = () => {
                   <div>
                     <h4 className="font-medium text-black mb-3">😴 Quietest Hours</h4>
                     <div className="space-y-2">
-                      {getBusiestHours(orderTimingData, 3).reverse().map((data, index) => (
+                      {orderTimingData
+                        .filter(data => data.order_count > 0)
+                        .sort((a, b) => a.order_count - b.order_count)
+                        .slice(0, 3)
+                        .map((data, index) => (
                         <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-blue-50 rounded-lg">
                           <div className="flex items-center space-x-3">
                             <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
