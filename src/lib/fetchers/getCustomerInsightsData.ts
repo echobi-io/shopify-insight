@@ -99,111 +99,68 @@ export async function getCustomerInsightsData(merchantId: string, dateFilters?: 
   try {
     console.log('🔄 Fetching customer insights data for merchant:', merchantId, 'with filters:', dateFilters)
 
-    // Get customer retention summary (base metrics)
-    const { data: customerSegments, error: segmentError } = await supabase
-      .from('customer_retention_summary')
-      .select('*')
+    // Get all customers with their order data
+    const { data: customers, error: customersError } = await supabase
+      .from('customers')
+      .select('id, first_name, last_name, email, total_spent, orders_count, created_at')
       .eq('merchant_id', merchantId)
 
-    if (segmentError) {
-      console.error('❌ Error fetching customer segments:', segmentError)
-    } else {
-      console.log('✅ Customer segments found:', customerSegments?.length || 0)
+    if (customersError) {
+      console.error('❌ Error fetching customers:', customersError)
+      throw customersError
     }
 
-    // Try to get churn predictions - handle gracefully if table is empty or doesn't exist
-    let churnData: ChurnPrediction[] = []
-    try {
-      let churnQuery = supabase
-        .from('churn_predictions')
-        .select(`
-          *,
-          customers!inner(
-            first_name,
-            last_name,
-            email,
-            total_spent
-          )
-        `)
-        .eq('merchant_id', merchantId)
+    console.log('✅ Customers found:', customers?.length || 0)
 
-      if (dateFilters) {
-        churnQuery = churnQuery
-          .gte('predicted_at', dateFilters.startDate)
-          .lte('predicted_at', dateFilters.endDate)
-      }
+    // Get all orders with customer data
+    let ordersQuery = supabase
+      .from('orders')
+      .select('id, customer_id, total_price, created_at')
+      .eq('merchant_id', merchantId)
+      .not('customer_id', 'is', null)
 
-      const { data, error } = await churnQuery.order('churn_probability', { ascending: false })
-
-      if (error) {
-        console.log('⚠️ Churn predictions not available:', error.message)
-      } else {
-        churnData = data?.map(item => ({
-          ...item,
-          customer: item.customers
-        })) || []
-        console.log('✅ Churn predictions found:', churnData.length)
-      }
-    } catch (error) {
-      console.log('⚠️ Churn predictions table not available or empty')
+    if (dateFilters) {
+      ordersQuery = ordersQuery
+        .gte('created_at', dateFilters.startDate)
+        .lte('created_at', dateFilters.endDate)
     }
 
-    // Try to get LTV predictions - handle gracefully if table is empty or doesn't exist
-    let ltvData: LtvPrediction[] = []
-    try {
-      let ltvQuery = supabase
-        .from('ltv_predictions')
-        .select(`
-          *,
-          customers!inner(
-            first_name,
-            last_name,
-            email,
-            total_spent
-          )
-        `)
-        .eq('merchant_id', merchantId)
+    const { data: orders, error: ordersError } = await ordersQuery.order('created_at', { ascending: true })
 
-      if (dateFilters) {
-        ltvQuery = ltvQuery
-          .gte('predicted_at', dateFilters.startDate)
-          .lte('predicted_at', dateFilters.endDate)
-      }
-
-      const { data, error } = await ltvQuery.order('predicted_ltv', { ascending: false })
-
-      if (error) {
-        console.log('⚠️ LTV predictions not available:', error.message)
-      } else {
-        ltvData = data?.map(item => ({
-          ...item,
-          customer: item.customers,
-          current_spend: item.customers?.total_spent || 0
-        })) || []
-        console.log('✅ LTV predictions found:', ltvData.length)
-      }
-    } catch (error) {
-      console.log('⚠️ LTV predictions table not available or empty')
+    if (ordersError) {
+      console.error('❌ Error fetching orders:', ordersError)
+      throw ordersError
     }
 
-    // Get customer clusters
-    const customerClusters = await getCustomerClusters(merchantId, dateFilters)
+    console.log('✅ Orders found:', orders?.length || 0)
 
-    // Generate cohort analysis
-    const cohortAnalysis = await generateCohortAnalysis(merchantId, dateFilters)
+    // Calculate customer segments from actual data
+    const customerSegments = await calculateCustomerSegments(customers || [], orders || [])
+    
+    // Generate cohort analysis from orders
+    const cohortAnalysis = await generateCohortAnalysisFromOrders(orders || [])
+    
+    // Calculate churn predictions based on customer behavior
+    const churnPredictions = await calculateChurnPredictions(customers || [], orders || [])
+    
+    // Calculate LTV predictions
+    const ltvPredictions = await calculateLtvPredictions(customers || [], orders || [])
+    
+    // Generate customer clusters based on behavior
+    const customerClusters = await generateCustomerClusters(customers || [], orders || [])
 
-    // Calculate KPIs - only use real data, no fallbacks
+    // Calculate KPIs
     const totalActiveCustomers = await getTotalActiveCustomers(merchantId, dateFilters)
-    const customersAtHighRisk = churnData.length > 0 ? churnData.filter(c => c.churn_band === 'High').length : 0
-    const revenueAtRisk = churnData.length > 0 ? churnData.reduce((sum, c) => {
+    const customersAtHighRisk = churnPredictions.filter(c => c.churn_band === 'High').length
+    const revenueAtRisk = churnPredictions.reduce((sum, c) => {
       return sum + (c.churn_band === 'High' || c.churn_band === 'Medium' ? c.revenue_at_risk : 0)
-    }, 0) : 0
-    const averageLtv = ltvData.length > 0 ? ltvData.reduce((sum, l) => sum + l.predicted_ltv, 0) / ltvData.length : 0
-    const lifetimeValuePotential = ltvData.length > 0 ? ltvData.reduce((sum, l) => sum + l.predicted_ltv, 0) : 0
+    }, 0)
+    const averageLtv = ltvPredictions.length > 0 ? ltvPredictions.reduce((sum, l) => sum + l.predicted_ltv, 0) / ltvPredictions.length : 0
+    const lifetimeValuePotential = ltvPredictions.reduce((sum, l) => sum + l.predicted_ltv, 0)
 
-    // Generate trend and distribution data - only if we have churn data
-    const churnTrendData = churnData.length > 0 ? await generateChurnTrendData(merchantId, dateFilters) : []
-    const ltvDistribution = ltvData.length > 0 ? generateLtvDistribution(ltvData) : []
+    // Generate trend data
+    const churnTrendData = generateChurnTrendData(churnPredictions, dateFilters)
+    const ltvDistribution = generateLtvDistribution(ltvPredictions)
 
     console.log('📊 Customer insights KPIs:', {
       totalActiveCustomers,
@@ -221,10 +178,10 @@ export async function getCustomerInsightsData(merchantId: string, dateFilters?: 
         averageLtv,
         lifetimeValuePotential
       },
-      churnPredictions: churnData || [],
-      ltvPredictions: ltvData || [],
+      churnPredictions,
+      ltvPredictions,
       cohortAnalysis,
-      customerSegments: customerSegments || [],
+      customerSegments,
       customerClusters,
       churnTrendData,
       ltvDistribution
@@ -237,7 +194,6 @@ export async function getCustomerInsightsData(merchantId: string, dateFilters?: 
 
 async function getTotalActiveCustomers(merchantId: string, dateFilters?: { startDate: string; endDate: string }): Promise<number> {
   try {
-    // Count unique customers who have made orders in the specified period
     let query = supabase
       .from('orders')
       .select('customer_id')
@@ -265,7 +221,6 @@ async function getTotalActiveCustomers(merchantId: string, dateFilters?: { start
       return 0
     }
 
-    // Get unique customer count from orders in the specified period
     const uniqueCustomerIds = new Set(orders.map(order => order.customer_id))
     const uniqueCount = uniqueCustomerIds.size
     
@@ -277,31 +232,114 @@ async function getTotalActiveCustomers(merchantId: string, dateFilters?: { start
   }
 }
 
-async function generateCohortAnalysis(merchantId: string, dateFilters?: { startDate: string; endDate: string }): Promise<CohortData[]> {
+async function calculateCustomerSegments(customers: any[], orders: any[]): Promise<CustomerSegment[]> {
   try {
-    // Generate cohort analysis from orders data
-    let query = supabase
-      .from('orders')
-      .select('customer_id, created_at, total_price')
-      .eq('merchant_id', merchantId)
-      .not('customer_id', 'is', null)
-
-    if (dateFilters) {
-      query = query
-        .gte('created_at', dateFilters.startDate)
-        .lte('created_at', dateFilters.endDate)
-    } else {
-      // Default: last year
-      query = query.gte('created_at', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString())
-    }
-
-    const { data: orders, error } = await query.order('created_at', { ascending: true })
-
-    if (error) {
-      console.error('❌ Error fetching orders for cohort analysis:', error)
+    if (!customers || customers.length === 0 || !orders || orders.length === 0) {
+      console.log('⚠️ No customers or orders data for segmentation')
       return []
     }
 
+    // Group orders by customer
+    const customerOrderMap: { [customerId: string]: any[] } = {}
+    orders.forEach(order => {
+      if (order.customer_id) {
+        if (!customerOrderMap[order.customer_id]) {
+          customerOrderMap[order.customer_id] = []
+        }
+        customerOrderMap[order.customer_id].push(order)
+      }
+    })
+
+    // Calculate customer metrics and segment them
+    const customerMetrics = customers.map(customer => {
+      const customerOrders = customerOrderMap[customer.id] || []
+      const totalSpent = customerOrders.reduce((sum, order) => sum + (order.total_price || 0), 0)
+      const orderCount = customerOrders.length
+      const avgOrderValue = orderCount > 0 ? totalSpent / orderCount : 0
+      
+      // Calculate recency (days since last order)
+      const lastOrderDate = customerOrders.length > 0 
+        ? Math.max(...customerOrders.map(o => new Date(o.created_at).getTime()))
+        : 0
+      const daysSinceLastOrder = lastOrderDate > 0 
+        ? Math.floor((Date.now() - lastOrderDate) / (1000 * 60 * 60 * 24))
+        : 999
+
+      // Calculate frequency (orders per month since first order)
+      const firstOrderDate = customerOrders.length > 0 
+        ? Math.min(...customerOrders.map(o => new Date(o.created_at).getTime()))
+        : Date.now()
+      const monthsSinceFirst = Math.max(1, Math.floor((Date.now() - firstOrderDate) / (1000 * 60 * 60 * 24 * 30)))
+      const frequency = orderCount / monthsSinceFirst
+
+      // Segment customers based on RFM analysis
+      let segment = 'new_customer'
+      
+      if (orderCount === 0) {
+        segment = 'inactive'
+      } else if (orderCount === 1) {
+        segment = daysSinceLastOrder <= 30 ? 'new_customer' : 'one_time_buyer'
+      } else if (daysSinceLastOrder <= 30 && frequency >= 1) {
+        segment = totalSpent >= 500 ? 'vip_customer' : 'loyal_customer'
+      } else if (daysSinceLastOrder <= 60) {
+        segment = totalSpent >= 300 ? 'potential_loyalist' : 'regular_customer'
+      } else if (daysSinceLastOrder <= 180) {
+        segment = 'at_risk'
+      } else {
+        segment = 'churned'
+      }
+
+      return {
+        ...customer,
+        totalSpent,
+        orderCount,
+        avgOrderValue,
+        daysSinceLastOrder,
+        frequency,
+        segment,
+        isActive30Days: daysSinceLastOrder <= 30,
+        isActive60Days: daysSinceLastOrder <= 60
+      }
+    })
+
+    // Group by segment and calculate aggregates
+    const segmentGroups: { [segment: string]: any[] } = {}
+    customerMetrics.forEach(customer => {
+      if (!segmentGroups[customer.segment]) {
+        segmentGroups[customer.segment] = []
+      }
+      segmentGroups[customer.segment].push(customer)
+    })
+
+    const segments: CustomerSegment[] = Object.entries(segmentGroups).map(([segment, customers]) => {
+      const totalCustomers = customers.length
+      const avgOrders = customers.reduce((sum, c) => sum + c.orderCount, 0) / totalCustomers
+      const avgLtv = customers.reduce((sum, c) => sum + c.totalSpent, 0) / totalCustomers
+      const avgOrderValue = customers.reduce((sum, c) => sum + c.avgOrderValue, 0) / totalCustomers
+      const active30Days = customers.filter(c => c.isActive30Days).length
+      const active60Days = customers.filter(c => c.isActive60Days).length
+
+      return {
+        calculated_segment: segment,
+        customers_count: totalCustomers,
+        avg_orders_per_customer: avgOrders,
+        avg_customer_ltv: avgLtv,
+        avg_order_value: avgOrderValue,
+        active_last_30_days: active30Days,
+        active_last_60_days: active60Days
+      }
+    })
+
+    console.log('✅ Customer segments calculated:', segments.length)
+    return segments
+  } catch (error) {
+    console.error('❌ Error calculating customer segments:', error)
+    return []
+  }
+}
+
+async function generateCohortAnalysisFromOrders(orders: any[]): Promise<CohortData[]> {
+  try {
     if (!orders || orders.length === 0) {
       console.log('⚠️ No orders found for cohort analysis')
       return []
@@ -321,12 +359,12 @@ async function generateCohortAnalysis(merchantId: string, dateFilters?: { startD
 
     const cohortData: { [cohortMonth: string]: { [period: number]: { customers: Set<string>, revenue: number } } } = {}
 
-    // Second pass: calculate metrics for each cohort period
+    // Calculate metrics for each cohort period
     orders.forEach(order => {
-      if (!order.customer_id) return;
+      if (!order.customer_id) return
       const customerId = order.customer_id
       const cohortMonth = customerCohorts[customerId]
-      if (!cohortMonth) return;
+      if (!cohortMonth) return
 
       const orderDate = new Date(order.created_at)
       const cohortDate = new Date(cohortMonth + '-01')
@@ -346,7 +384,7 @@ async function generateCohortAnalysis(merchantId: string, dateFilters?: { startD
       }
       
       cohortData[cohortMonth][period].customers.add(customerId)
-      cohortData[cohortMonth][period].revenue += order.total_price
+      cohortData[cohortMonth][period].revenue += order.total_price || 0
     })
 
     // Convert to final format
@@ -354,21 +392,20 @@ async function generateCohortAnalysis(merchantId: string, dateFilters?: { startD
     
     Object.entries(cohortData).forEach(([cohortMonth, periods]) => {
       const cohortSize = periods[0]?.customers.size || 0
-      if (cohortSize === 0) return; // Skip cohorts with no customers in period 0
+      if (cohortSize === 0) return
 
       let cumulativeRevenue = 0
-
-      const maxPeriod = Math.max(...Object.keys(periods).map(p => parseInt(p, 10)));
+      const maxPeriod = Math.max(...Object.keys(periods).map(p => parseInt(p, 10)))
 
       for (let p = 0; p <= maxPeriod; p++) {
-        const periodData = periods[p];
+        const periodData = periods[p]
         
-        const customersRemaining = periodData?.customers.size || 0;
-        const retentionRate = cohortSize > 0 ? (customersRemaining / cohortSize) * 100 : 0;
-        const periodRevenue = periodData?.revenue || 0;
-        cumulativeRevenue += periodRevenue;
+        const customersRemaining = periodData?.customers.size || 0
+        const retentionRate = cohortSize > 0 ? (customersRemaining / cohortSize) * 100 : 0
+        const periodRevenue = periodData?.revenue || 0
+        cumulativeRevenue += periodRevenue
         
-        const avgRevenuePerCustomer = cohortSize > 0 ? cumulativeRevenue / cohortSize : 0;
+        const avgRevenuePerCustomer = cohortSize > 0 ? cumulativeRevenue / cohortSize : 0
         
         result.push({
           cohort_month: cohortMonth,
@@ -393,172 +430,335 @@ async function generateCohortAnalysis(merchantId: string, dateFilters?: { startD
   }
 }
 
-async function getCustomerClusters(merchantId: string, dateFilters?: { startDate: string; endDate: string }): Promise<CustomerCluster[]> {
+async function calculateChurnPredictions(customers: any[], orders: any[]): Promise<ChurnPrediction[]> {
   try {
-    // Check if customer_clusters table exists and has data
-    const { data: clusters, error } = await supabase
-      .from('customer_clusters')
-      .select(`
-        cluster_label,
-        customers!inner(
-          total_spent,
-          orders_count
-        )
-      `)
-      .eq('merchant_id', merchantId)
-
-    if (error) {
-      console.log('⚠️ Customer clusters not available yet:', error.message)
+    if (!customers || customers.length === 0 || !orders || orders.length === 0) {
+      console.log('⚠️ No customers or orders data for churn predictions')
       return []
     }
 
-    if (!clusters || clusters.length === 0) {
-      console.log('⚠️ No customer clusters found')
-      return []
-    }
-
-    console.log('✅ Customer clusters found:', clusters.length)
-
-    // Group by cluster and calculate metrics
-    const clusterMetrics: { [label: string]: { customers: any[], ltv: number[], orders: number[], aov: number[] } } = {}
-    
-    clusters.forEach(cluster => {
-      const label = cluster.cluster_label
-      if (!clusterMetrics[label]) {
-        clusterMetrics[label] = { customers: [], ltv: [], orders: [], aov: [] }
+    // Group orders by customer
+    const customerOrderMap: { [customerId: string]: any[] } = {}
+    orders.forEach(order => {
+      if (order.customer_id) {
+        if (!customerOrderMap[order.customer_id]) {
+          customerOrderMap[order.customer_id] = []
+        }
+        customerOrderMap[order.customer_id].push(order)
       }
-      
-      clusterMetrics[label].customers.push(cluster.customers)
-      clusterMetrics[label].ltv.push(cluster.customers.total_spent || 0)
-      clusterMetrics[label].orders.push(cluster.customers.orders_count || 0)
-      
-      const aov = cluster.customers.orders_count > 0 
-        ? (cluster.customers.total_spent || 0) / cluster.customers.orders_count 
-        : 0
-      clusterMetrics[label].aov.push(aov)
     })
 
-    // Generate cluster descriptions based on metrics
-    const generateClusterDescription = (avgLtv: number, avgOrders: number, avgAov: number): string => {
-      if (avgLtv > 1000 && avgOrders > 5) {
-        return "High-value loyal customers with frequent purchases and high lifetime value"
-      } else if (avgLtv > 500 && avgOrders <= 3) {
-        return "High-spending customers with low frequency - potential for retention campaigns"
-      } else if (avgOrders > 5 && avgAov < 50) {
-        return "Frequent buyers with small baskets - perfect for upselling and bundles"
-      } else if (avgLtv < 200 && avgOrders <= 2) {
-        return "New or low-engagement customers - focus on activation and onboarding"
-      } else {
-        return "Moderate engagement customers with balanced spending patterns"
-      }
-    }
+    const predictions: ChurnPrediction[] = customers.map((customer, index) => {
+      const customerOrders = customerOrderMap[customer.id] || []
+      
+      // Calculate churn probability based on recency and frequency
+      const lastOrderDate = customerOrders.length > 0 
+        ? Math.max(...customerOrders.map(o => new Date(o.created_at).getTime()))
+        : 0
+      const daysSinceLastOrder = lastOrderDate > 0 
+        ? Math.floor((Date.now() - lastOrderDate) / (1000 * 60 * 60 * 24))
+        : 999
 
-    return Object.entries(clusterMetrics).map(([label, metrics], index) => {
-      const avgLtv = metrics.ltv.reduce((sum, val) => sum + val, 0) / metrics.ltv.length
-      const avgOrders = metrics.orders.reduce((sum, val) => sum + val, 0) / metrics.orders.length
-      const avgAov = metrics.aov.reduce((sum, val) => sum + val, 0) / metrics.aov.length
-      const totalSpent = metrics.ltv.reduce((sum, val) => sum + val, 0)
+      const orderCount = customerOrders.length
+      const totalSpent = customerOrders.reduce((sum, order) => sum + (order.total_price || 0), 0)
+
+      // Simple churn probability calculation
+      let churnProbability = 0
+      if (orderCount === 0) {
+        churnProbability = 0.9
+      } else if (daysSinceLastOrder > 180) {
+        churnProbability = 0.8
+      } else if (daysSinceLastOrder > 90) {
+        churnProbability = 0.6
+      } else if (daysSinceLastOrder > 60) {
+        churnProbability = 0.4
+      } else if (daysSinceLastOrder > 30) {
+        churnProbability = 0.2
+      } else {
+        churnProbability = 0.1
+      }
+
+      // Adjust based on order frequency
+      if (orderCount > 5) churnProbability *= 0.7
+      else if (orderCount > 2) churnProbability *= 0.8
+
+      const churnBand = churnProbability > 0.6 ? 'High' : churnProbability > 0.3 ? 'Medium' : 'Low'
+      const revenueAtRisk = totalSpent * churnProbability
 
       return {
-        cluster_id: `cluster_${index + 1}`,
-        cluster_label: label,
-        customer_count: metrics.customers.length,
-        total_spent: totalSpent,
-        avg_ltv: avgLtv,
-        orders_count: avgOrders,
-        avg_orders: avgOrders,
-        avg_order_value: avgAov,
-        cluster_description: generateClusterDescription(avgLtv, avgOrders, avgAov),
-        description: generateClusterDescription(avgLtv, avgOrders, avgAov)
-      }
-    })
-  } catch (error) {
-    console.error('Error fetching customer clusters:', error)
-    return []
-  }
-}
-
-async function generateChurnTrendData(merchantId: string, dateFilters?: { startDate: string; endDate: string }) {
-  try {
-    // Try to get historical churn data by aggregating by date
-    let query = supabase
-      .from('churn_predictions')
-      .select('churn_band, revenue_at_risk, predicted_at')
-      .eq('merchant_id', merchantId)
-
-    if (dateFilters) {
-      query = query
-        .gte('predicted_at', dateFilters.startDate)
-        .lte('predicted_at', dateFilters.endDate)
-    } else {
-      // Default: last 30 days
-      query = query.gte('predicted_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-    }
-
-    const { data, error } = await query.order('predicted_at', { ascending: true })
-
-    if (error) {
-      console.log('⚠️ Churn trend data not available:', error.message)
-      return []
-    }
-
-    if (!data || data.length === 0) {
-      console.log('⚠️ No churn trend data found')
-      return []
-    }
-
-    console.log('✅ Churn trend data found:', data.length)
-
-    // Group by date
-    const groupedData: { [key: string]: any } = {}
-    
-    data.forEach(item => {
-      const date = new Date(item.predicted_at).toISOString().split('T')[0]
-      if (!groupedData[date]) {
-        groupedData[date] = {
-          date,
-          high_risk_count: 0,
-          medium_risk_count: 0,
-          low_risk_count: 0,
-          total_revenue_at_risk: 0
+        id: `churn_${customer.id}`,
+        customer_id: customer.id,
+        churn_probability: churnProbability,
+        churn_band: churnBand as 'High' | 'Medium' | 'Low',
+        revenue_at_risk: revenueAtRisk,
+        predicted_at: new Date().toISOString(),
+        customer: {
+          first_name: customer.first_name || '',
+          last_name: customer.last_name || '',
+          email: customer.email || '',
+          total_spent: totalSpent,
+          last_order_date: lastOrderDate > 0 ? new Date(lastOrderDate).toISOString() : ''
         }
       }
-      
-      if (item.churn_band === 'High') groupedData[date].high_risk_count++
-      else if (item.churn_band === 'Medium') groupedData[date].medium_risk_count++
-      else if (item.churn_band === 'Low') groupedData[date].low_risk_count++
-      
-      groupedData[date].total_revenue_at_risk += item.revenue_at_risk
-    })
+    }).filter(prediction => prediction.customer_id) // Only include customers with valid IDs
 
-    return Object.values(groupedData)
+    console.log('✅ Churn predictions calculated:', predictions.length)
+    return predictions
   } catch (error) {
-    console.error('Error generating churn trend data:', error)
+    console.error('❌ Error calculating churn predictions:', error)
     return []
   }
 }
 
-function generateLtvDistribution(ltvData: LtvPrediction[]) {
-  const ranges = [
-    { min: 0, max: 500, label: '£0 - £500' },
-    { min: 500, max: 1000, label: '£500 - £1,000' },
-    { min: 1000, max: 2000, label: '£1,000 - £2,000' },
-    { min: 2000, max: 3000, label: '£2,000 - £3,000' },
-    { min: 3000, max: 5000, label: '£3,000 - £5,000' },
-    { min: 5000, max: Infinity, label: '£5,000+' }
-  ]
-
-  return ranges.map(range => {
-    const customersInRange = ltvData.filter(
-      ltv => ltv.predicted_ltv >= range.min && ltv.predicted_ltv < range.max
-    )
-    
-    return {
-      ltv_range: range.label,
-      customer_count: customersInRange.length,
-      total_ltv: customersInRange.reduce((sum, ltv) => sum + ltv.predicted_ltv, 0)
+async function calculateLtvPredictions(customers: any[], orders: any[]): Promise<LtvPrediction[]> {
+  try {
+    if (!customers || customers.length === 0 || !orders || orders.length === 0) {
+      console.log('⚠️ No customers or orders data for LTV predictions')
+      return []
     }
-  }).filter(range => range.customer_count > 0)
+
+    // Group orders by customer
+    const customerOrderMap: { [customerId: string]: any[] } = {}
+    orders.forEach(order => {
+      if (order.customer_id) {
+        if (!customerOrderMap[order.customer_id]) {
+          customerOrderMap[order.customer_id] = []
+        }
+        customerOrderMap[order.customer_id].push(order)
+      }
+    })
+
+    const predictions: LtvPrediction[] = customers.map((customer, index) => {
+      const customerOrders = customerOrderMap[customer.id] || []
+      const totalSpent = customerOrders.reduce((sum, order) => sum + (order.total_price || 0), 0)
+      const orderCount = customerOrders.length
+      const avgOrderValue = orderCount > 0 ? totalSpent / orderCount : 0
+
+      // Simple LTV prediction based on current behavior
+      let predictedLtv = totalSpent
+      if (orderCount > 0) {
+        // Predict future orders based on frequency
+        const firstOrderDate = Math.min(...customerOrders.map(o => new Date(o.created_at).getTime()))
+        const monthsSinceFirst = Math.max(1, Math.floor((Date.now() - firstOrderDate) / (1000 * 60 * 60 * 24 * 30)))
+        const ordersPerMonth = orderCount / monthsSinceFirst
+        
+        // Predict 12 more months of activity
+        const predictedFutureOrders = ordersPerMonth * 12
+        predictedLtv = totalSpent + (predictedFutureOrders * avgOrderValue)
+      }
+
+      // Confidence based on order history
+      let confidenceScore = 0.5
+      if (orderCount >= 5) confidenceScore = 0.9
+      else if (orderCount >= 3) confidenceScore = 0.7
+      else if (orderCount >= 1) confidenceScore = 0.6
+
+      const ltvSegment = predictedLtv > 1000 ? 'High Value' : 
+                        predictedLtv > 500 ? 'Medium Value' : 'Low Value'
+
+      return {
+        id: `ltv_${customer.id}`,
+        customer_id: customer.id,
+        predicted_ltv: predictedLtv,
+        confidence_score: confidenceScore,
+        ltv_segment: ltvSegment,
+        predicted_at: new Date().toISOString(),
+        current_spend: totalSpent,
+        customer: {
+          first_name: customer.first_name || '',
+          last_name: customer.last_name || '',
+          email: customer.email || '',
+          total_spent: totalSpent
+        }
+      }
+    }).filter(prediction => prediction.customer_id)
+
+    console.log('✅ LTV predictions calculated:', predictions.length)
+    return predictions
+  } catch (error) {
+    console.error('❌ Error calculating LTV predictions:', error)
+    return []
+  }
+}
+
+async function generateCustomerClusters(customers: any[], orders: any[]): Promise<CustomerCluster[]> {
+  try {
+    if (!customers || customers.length === 0 || !orders || orders.length === 0) {
+      console.log('⚠️ No customers or orders data for clustering')
+      return []
+    }
+
+    // Group orders by customer and calculate metrics
+    const customerOrderMap: { [customerId: string]: any[] } = {}
+    orders.forEach(order => {
+      if (order.customer_id) {
+        if (!customerOrderMap[order.customer_id]) {
+          customerOrderMap[order.customer_id] = []
+        }
+        customerOrderMap[order.customer_id].push(order)
+      }
+    })
+
+    const customerMetrics = customers.map(customer => {
+      const customerOrders = customerOrderMap[customer.id] || []
+      const totalSpent = customerOrders.reduce((sum, order) => sum + (order.total_price || 0), 0)
+      const orderCount = customerOrders.length
+      const avgOrderValue = orderCount > 0 ? totalSpent / orderCount : 0
+
+      return {
+        customer_id: customer.id,
+        total_spent: totalSpent,
+        orders_count: orderCount,
+        avg_order_value: avgOrderValue
+      }
+    }).filter(m => m.orders_count > 0) // Only customers with orders
+
+    // Simple clustering based on spending and frequency
+    const clusters: { [clusterId: string]: any[] } = {
+      'high_value_frequent': [],
+      'high_value_infrequent': [],
+      'medium_value_frequent': [],
+      'medium_value_infrequent': [],
+      'low_value_frequent': [],
+      'low_value_infrequent': []
+    }
+
+    customerMetrics.forEach(customer => {
+      const isHighValue = customer.total_spent > 500
+      const isMediumValue = customer.total_spent > 200 && customer.total_spent <= 500
+      const isFrequent = customer.orders_count > 3
+
+      let clusterId = 'low_value_infrequent'
+      if (isHighValue) {
+        clusterId = isFrequent ? 'high_value_frequent' : 'high_value_infrequent'
+      } else if (isMediumValue) {
+        clusterId = isFrequent ? 'medium_value_frequent' : 'medium_value_infrequent'
+      } else {
+        clusterId = isFrequent ? 'low_value_frequent' : 'low_value_infrequent'
+      }
+
+      clusters[clusterId].push(customer)
+    })
+
+    // Generate cluster summaries
+    const clusterSummaries: CustomerCluster[] = Object.entries(clusters)
+      .filter(([_, customers]) => customers.length > 0)
+      .map(([clusterId, customers], index) => {
+        const totalSpent = customers.reduce((sum, c) => sum + c.total_spent, 0)
+        const avgSpent = totalSpent / customers.length
+        const avgOrders = customers.reduce((sum, c) => sum + c.orders_count, 0) / customers.length
+        const avgOrderValue = customers.reduce((sum, c) => sum + c.avg_order_value, 0) / customers.length
+
+        const descriptions: { [key: string]: string } = {
+          'high_value_frequent': 'VIP customers with high spending and frequent purchases',
+          'high_value_infrequent': 'High-value customers who purchase infrequently',
+          'medium_value_frequent': 'Regular customers with moderate spending and good frequency',
+          'medium_value_infrequent': 'Occasional customers with moderate spending',
+          'low_value_frequent': 'Frequent buyers with small basket sizes',
+          'low_value_infrequent': 'Infrequent, low-value customers'
+        }
+
+        return {
+          cluster_id: `cluster_${index + 1}`,
+          cluster_label: clusterId,
+          customer_count: customers.length,
+          total_spent: totalSpent,
+          avg_ltv: avgSpent,
+          orders_count: avgOrders,
+          avg_orders: avgOrders,
+          avg_order_value: avgOrderValue,
+          cluster_description: descriptions[clusterId] || 'Customer group',
+          description: descriptions[clusterId] || 'Customer group'
+        }
+      })
+
+    console.log('✅ Customer clusters generated:', clusterSummaries.length)
+    return clusterSummaries
+  } catch (error) {
+    console.error('❌ Error generating customer clusters:', error)
+    return []
+  }
+}
+
+function generateChurnTrendData(churnPredictions: ChurnPrediction[], dateFilters?: { startDate: string; endDate: string }) {
+  try {
+    if (!churnPredictions || churnPredictions.length === 0) {
+      console.log('⚠️ No churn predictions for trend data')
+      return []
+    }
+
+    // Generate trend data for the last 30 days
+    const endDate = dateFilters ? new Date(dateFilters.endDate) : new Date()
+    const startDate = dateFilters ? new Date(dateFilters.startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    
+    const trendData = []
+    const currentDate = new Date(startDate)
+    
+    while (currentDate <= endDate) {
+      const dateStr = currentDate.toISOString().split('T')[0]
+      
+      // For simplicity, distribute predictions across the date range
+      const dayIndex = Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+      const totalDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      
+      const highRiskCount = Math.floor(churnPredictions.filter(p => p.churn_band === 'High').length / totalDays)
+      const mediumRiskCount = Math.floor(churnPredictions.filter(p => p.churn_band === 'Medium').length / totalDays)
+      const lowRiskCount = Math.floor(churnPredictions.filter(p => p.churn_band === 'Low').length / totalDays)
+      const totalRevenueAtRisk = churnPredictions.reduce((sum, p) => sum + p.revenue_at_risk, 0) / totalDays
+      
+      trendData.push({
+        date: dateStr,
+        high_risk_count: highRiskCount,
+        medium_risk_count: mediumRiskCount,
+        low_risk_count: lowRiskCount,
+        total_revenue_at_risk: totalRevenueAtRisk
+      })
+      
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+
+    console.log('✅ Churn trend data generated:', trendData.length, 'data points')
+    return trendData
+  } catch (error) {
+    console.error('❌ Error generating churn trend data:', error)
+    return []
+  }
+}
+
+function generateLtvDistribution(ltvPredictions: LtvPrediction[]) {
+  try {
+    if (!ltvPredictions || ltvPredictions.length === 0) {
+      console.log('⚠️ No LTV predictions for distribution')
+      return []
+    }
+
+    const ranges = [
+      { min: 0, max: 500, label: '£0 - £500' },
+      { min: 500, max: 1000, label: '£500 - £1,000' },
+      { min: 1000, max: 2000, label: '£1,000 - £2,000' },
+      { min: 2000, max: 3000, label: '£2,000 - £3,000' },
+      { min: 3000, max: 5000, label: '£3,000 - £5,000' },
+      { min: 5000, max: Infinity, label: '£5,000+' }
+    ]
+
+    const distribution = ranges.map(range => {
+      const customersInRange = ltvPredictions.filter(
+        ltv => ltv.predicted_ltv >= range.min && ltv.predicted_ltv < range.max
+      )
+      
+      return {
+        ltv_range: range.label,
+        customer_count: customersInRange.length,
+        total_ltv: customersInRange.reduce((sum, ltv) => sum + ltv.predicted_ltv, 0)
+      }
+    }).filter(range => range.customer_count > 0)
+
+    console.log('✅ LTV distribution generated:', distribution.length, 'ranges')
+    return distribution
+  } catch (error) {
+    console.error('❌ Error generating LTV distribution:', error)
+    return []
+  }
 }
 
 export async function getCustomerDetails(customerId: string) {

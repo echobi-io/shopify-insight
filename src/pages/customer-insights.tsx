@@ -19,7 +19,6 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import DateRangeSelector from '@/components/DateRangeSelector'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection, { getCustomerInsightsHelpItems } from '@/components/HelpSection'
-import { CustomerInsightsDiagnostic } from '@/components/CustomerInsightsDiagnostic'
 import { RefreshCw, AlertCircle, Users, TrendingDown, DollarSign, Target, AlertTriangle, Calendar, Mail, Phone, Star, Shield } from 'lucide-react'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
@@ -896,11 +895,6 @@ const CustomerInsightsPage: React.FC = () => {
           </div>
 
           {pageContent}
-          
-          {/* Diagnostic Section - Temporary for debugging */}
-          <div className="mt-8">
-            <CustomerInsightsDiagnostic />
-          </div>
           
           {/* Help Section */}
           <HelpSection 
