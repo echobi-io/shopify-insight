@@ -881,12 +881,16 @@ export async function getChurnedCustomerProductData(
       // Get all products from orders within the date range, sorted by order date
       const allProducts = []
       for (const order of ordersInRange) {
+        if (!order.created_at) continue
+        const orderDate = new Date(order.created_at)
+        if (isNaN(orderDate.getTime())) continue
+        
         for (const item of order.order_items || []) {
           if (item.products && item.products.name) {
             allProducts.push({
               productTitle: item.products.name,
               productId: item.products.id,
-              orderDate: new Date(order.created_at),
+              orderDate: orderDate,
               quantity: item.quantity,
               price: item.price
             })
@@ -897,7 +901,12 @@ export async function getChurnedCustomerProductData(
       if (allProducts.length === 0) continue
       
       // Sort products by order date to get chronological order
-      allProducts.sort((a, b) => a.orderDate.getTime() - b.orderDate.getTime())
+      allProducts.sort((a, b) => {
+        const aTime = a.orderDate.getTime()
+        const bTime = b.orderDate.getTime()
+        if (isNaN(aTime) || isNaN(bTime)) return 0
+        return aTime - bTime
+      })
       
       const firstProduct = allProducts[0]
       const lastProduct = allProducts[allProducts.length - 1]
