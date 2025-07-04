@@ -19,7 +19,7 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import DateRangeSelector from '@/components/DateRangeSelector'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection, { getCustomerInsightsHelpItems } from '@/components/HelpSection'
-import { RefreshCw, AlertCircle, Users, TrendingDown, DollarSign, Target, AlertTriangle, Calendar, Mail, Phone, Star, Shield } from 'lucide-react'
+import { RefreshCw, AlertCircle, Users, TrendingDown, DollarSign, Target, AlertTriangle, Calendar, Mail, Phone, Star, Shield, Search, Eye, EyeOff, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
