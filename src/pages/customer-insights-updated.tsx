@@ -155,7 +155,7 @@ const CustomerInsightsPage: React.FC = () => {
       'Avg Revenue per Customer': formatCurrency(cohort.avg_revenue_per_customer)
     }))
     
-    exportToCSV(exportData, 'cohort-analysis')
+    exportToCSV(exportData, 'churn-predictions')
   }
 
   const getRiskBadgeColor = (band: string) => {
