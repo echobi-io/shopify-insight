@@ -198,17 +198,23 @@ export async function getProductPerformanceData(
         ? Math.min(100, (salesData.revenue / maxRevenue) * 100)
         : 0
 
+      // Ensure all numeric values are properly defined
+      const safeAvgPrice = Number(avgPrice) || 0
+      const safeProfitMargin = safeAvgPrice > 0 ? safeAvgPrice * 0.3 : 0 // Assume 30% margin
+      const safeGrowthRate = Number(growthRate) || 0
+      const safePerformanceScore = Number(performanceScore) || 0
+
       return {
         id: product.id,
         name: product.name || 'Unknown Product',
         sku: product.shopify_product_id || product.id,
         category: product.category || 'General',
-        totalRevenue: salesData.revenue,
-        unitsSold: salesData.units,
-        avgPrice: avgPrice,
-        profitMargin: avgPrice * 0.3, // Assume 30% margin
-        growthRate,
-        performanceScore
+        totalRevenue: Number(salesData.revenue) || 0,
+        unitsSold: Number(salesData.units) || 0,
+        avgPrice: safeAvgPrice,
+        profitMargin: safeProfitMargin,
+        growthRate: safeGrowthRate,
+        performanceScore: safePerformanceScore
       }
     })
 

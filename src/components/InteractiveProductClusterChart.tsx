@@ -121,10 +121,10 @@ const InteractiveProductClusterChart: React.FC<InteractiveProductClusterChartPro
     ]
 
     // Calculate percentiles for clustering
-    const revenues = products.map(p => p.totalRevenue).sort((a, b) => b - a)
-    const units = products.map(p => p.unitsSold).sort((a, b) => b - a)
-    const margins = products.map(p => p.profitMargin).sort((a, b) => b - a)
-    const growthRates = products.map(p => p.growthRate).sort((a, b) => b - a)
+    const revenues = products.map(p => p.totalRevenue || 0).sort((a, b) => b - a)
+    const units = products.map(p => p.unitsSold || 0).sort((a, b) => b - a)
+    const margins = products.map(p => p.profitMargin || 0).sort((a, b) => b - a)
+    const growthRates = products.map(p => p.growthRate || 0).sort((a, b) => b - a)
 
     const revenueP75 = revenues[Math.floor(revenues.length * 0.25)] || 0
     const revenueP50 = revenues[Math.floor(revenues.length * 0.5)] || 0
@@ -138,23 +138,28 @@ const InteractiveProductClusterChart: React.FC<InteractiveProductClusterChartPro
       let clusterId = 'underperformers'
       let clusterLabel = 'Underperformers'
 
+      const safeRevenue = product.totalRevenue || 0
+      const safeUnits = product.unitsSold || 0
+      const safeMargin = product.profitMargin || 0
+      const safeGrowth = product.growthRate || 0
+
       // High Performers: High revenue AND high units
-      if (product.totalRevenue >= revenueP75 && product.unitsSold >= unitsP75) {
+      if (safeRevenue >= revenueP75 && safeUnits >= unitsP75) {
         clusterId = 'high_performers'
         clusterLabel = 'High Performers'
       }
       // Volume Sellers: High units but moderate revenue
-      else if (product.unitsSold >= unitsP75 && product.totalRevenue >= revenueP50 && product.totalRevenue < revenueP75) {
+      else if (safeUnits >= unitsP75 && safeRevenue >= revenueP50 && safeRevenue < revenueP75) {
         clusterId = 'volume_sellers'
         clusterLabel = 'Volume Sellers'
       }
       // Premium Products: High margin and decent revenue but lower volume
-      else if (product.profitMargin >= marginP75 && product.totalRevenue >= revenueP50 && product.unitsSold < unitsP50) {
+      else if (safeMargin >= marginP75 && safeRevenue >= revenueP50 && safeUnits < unitsP50) {
         clusterId = 'premium_products'
         clusterLabel = 'Premium Products'
       }
       // Emerging Products: Good growth rate or moderate performance
-      else if (product.growthRate >= growthP50 || (product.totalRevenue >= revenueP50 && product.unitsSold >= unitsP50)) {
+      else if (safeGrowth >= growthP50 || (safeRevenue >= revenueP50 && safeUnits >= unitsP50)) {
         clusterId = 'emerging_products'
         clusterLabel = 'Emerging Products'
       }
@@ -172,10 +177,10 @@ const InteractiveProductClusterChart: React.FC<InteractiveProductClusterChartPro
       const clusterProducts = productPoints.filter(p => p.cluster_id === cluster.cluster_id)
       
       if (clusterProducts.length > 0) {
-        const avgRevenue = clusterProducts.reduce((sum, p) => sum + p.totalRevenue, 0) / clusterProducts.length
-        const avgUnits = clusterProducts.reduce((sum, p) => sum + p.unitsSold, 0) / clusterProducts.length
-        const avgMargin = clusterProducts.reduce((sum, p) => sum + p.profitMargin, 0) / clusterProducts.length
-        const totalRevenue = clusterProducts.reduce((sum, p) => sum + p.totalRevenue, 0)
+        const avgRevenue = clusterProducts.reduce((sum, p) => sum + (p.totalRevenue || 0), 0) / clusterProducts.length
+        const avgUnits = clusterProducts.reduce((sum, p) => sum + (p.unitsSold || 0), 0) / clusterProducts.length
+        const avgMargin = clusterProducts.reduce((sum, p) => sum + (p.profitMargin || 0), 0) / clusterProducts.length
+        const totalRevenue = clusterProducts.reduce((sum, p) => sum + (p.totalRevenue || 0), 0)
 
         clusterSummaries.push({
           cluster_id: cluster.cluster_id,
@@ -377,10 +382,10 @@ const InteractiveProductClusterChart: React.FC<InteractiveProductClusterChartPro
                                  onClick={() => handleProductPointClick(data)}>
                               <p className="font-medium">{data.name}</p>
                               <p className="text-sm text-gray-600">SKU: {data.sku}</p>
-                              <p className="text-sm">Revenue: {formatCurrency(data.totalRevenue)}</p>
-                              <p className="text-sm">Units Sold: {data.unitsSold.toLocaleString()}</p>
-                              <p className="text-sm">Avg Price: {formatCurrency(data.avgPrice)}</p>
-                              <p className="text-sm">Margin: {data.profitMargin.toFixed(1)}%</p>
+                              <p className="text-sm">Revenue: {formatCurrency(data.totalRevenue || 0)}</p>
+                              <p className="text-sm">Units Sold: {(data.unitsSold || 0).toLocaleString()}</p>
+                              <p className="text-sm">Avg Price: {formatCurrency(data.avgPrice || 0)}</p>
+                              <p className="text-sm">Margin: {(data.profitMargin || 0).toFixed(1)}%</p>
                               <p className="text-sm capitalize">Cluster: {data.cluster_label}</p>
                               <p className="text-xs text-blue-600 mt-1">Click for details</p>
                             </div>
@@ -464,11 +469,11 @@ const InteractiveProductClusterChart: React.FC<InteractiveProductClusterChartPro
                   </div>
                   <div>
                     <p className="font-medium">Avg Units</p>
-                    <p className="text-gray-600">{selectedClusterStats.summary?.avg_units.toFixed(1)}</p>
+                    <p className="text-gray-600">{(selectedClusterStats.summary?.avg_units || 0).toFixed(1)}</p>
                   </div>
                   <div>
                     <p className="font-medium">Avg Margin</p>
-                    <p className="text-gray-600">{selectedClusterStats.summary?.avg_margin.toFixed(1)}%</p>
+                    <p className="text-gray-600">{(selectedClusterStats.summary?.avg_margin || 0).toFixed(1)}%</p>
                   </div>
                 </div>
                 
@@ -564,33 +569,33 @@ const InteractiveProductClusterChart: React.FC<InteractiveProductClusterChartPro
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-light">
-                        {formatCurrency(product.totalRevenue)}
+                        {formatCurrency(product.totalRevenue || 0)}
                       </TableCell>
                       <TableCell className="text-right font-light">
-                        {product.unitsSold.toLocaleString()}
+                        {(product.unitsSold || 0).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right font-light">
-                        {formatCurrency(product.avgPrice)}
+                        {formatCurrency(product.avgPrice || 0)}
                       </TableCell>
                       <TableCell className="text-right font-light">
                         <span className={`${
-                          product.profitMargin >= 20 ? 'text-green-600' :
-                          product.profitMargin >= 10 ? 'text-yellow-600' :
+                          (product.profitMargin || 0) >= 20 ? 'text-green-600' :
+                          (product.profitMargin || 0) >= 10 ? 'text-yellow-600' :
                           'text-red-600'
                         }`}>
-                          {product.profitMargin.toFixed(1)}%
+                          {(product.profitMargin || 0).toFixed(1)}%
                         </span>
                       </TableCell>
                       <TableCell className="text-right font-light">
                         <span className={`flex items-center justify-end ${
-                          product.growthRate >= 0 ? 'text-green-600' : 'text-red-600'
+                          (product.growthRate || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                         }`}>
-                          {product.growthRate >= 0 ? (
+                          {(product.growthRate || 0) >= 0 ? (
                             <TrendingUp className="w-4 h-4 mr-1" />
                           ) : (
                             <TrendingDown className="w-4 h-4 mr-1" />
                           )}
-                          {Math.abs(product.growthRate).toFixed(1)}%
+                          {Math.abs(product.growthRate || 0).toFixed(1)}%
                         </span>
                       </TableCell>
                       <TableCell>
@@ -633,18 +638,18 @@ const InteractiveProductClusterChart: React.FC<InteractiveProductClusterChartPro
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="font-medium mb-2">Product Information</h3>
-                  <p className="font-light"><strong>Name:</strong> {selectedProductPoint.name}</p>
-                  <p className="font-light"><strong>SKU:</strong> {selectedProductPoint.sku}</p>
-                  <p className="font-light"><strong>Category:</strong> {selectedProductPoint.category}</p>
-                  <p className="font-light"><strong>Revenue:</strong> {formatCurrency(selectedProductPoint.totalRevenue)}</p>
-                  <p className="font-light"><strong>Units Sold:</strong> {selectedProductPoint.unitsSold.toLocaleString()}</p>
+                  <p className="font-light"><strong>Name:</strong> {selectedProductPoint.name || 'Unknown'}</p>
+                  <p className="font-light"><strong>SKU:</strong> {selectedProductPoint.sku || 'N/A'}</p>
+                  <p className="font-light"><strong>Category:</strong> {selectedProductPoint.category || 'Uncategorized'}</p>
+                  <p className="font-light"><strong>Revenue:</strong> {formatCurrency(selectedProductPoint.totalRevenue || 0)}</p>
+                  <p className="font-light"><strong>Units Sold:</strong> {(selectedProductPoint.unitsSold || 0).toLocaleString()}</p>
                 </div>
                 <div>
                   <h3 className="font-medium mb-2">Performance Metrics</h3>
-                  <p className="font-light"><strong>Avg Price:</strong> {formatCurrency(selectedProductPoint.avgPrice)}</p>
-                  <p className="font-light"><strong>Profit Margin:</strong> {selectedProductPoint.profitMargin.toFixed(1)}%</p>
-                  <p className="font-light"><strong>Growth Rate:</strong> {selectedProductPoint.growthRate.toFixed(1)}%</p>
-                  <p className="font-light"><strong>Performance Score:</strong> {selectedProductPoint.performanceScore.toFixed(0)}</p>
+                  <p className="font-light"><strong>Avg Price:</strong> {formatCurrency(selectedProductPoint.avgPrice || 0)}</p>
+                  <p className="font-light"><strong>Profit Margin:</strong> {(selectedProductPoint.profitMargin || 0).toFixed(1)}%</p>
+                  <p className="font-light"><strong>Growth Rate:</strong> {(selectedProductPoint.growthRate || 0).toFixed(1)}%</p>
+                  <p className="font-light"><strong>Performance Score:</strong> {(selectedProductPoint.performanceScore || 0).toFixed(0)}</p>
                   <div className="mt-2">
                     <Badge 
                       variant="outline"

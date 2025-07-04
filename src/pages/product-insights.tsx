@@ -98,32 +98,32 @@ const ProductInsightsPage: React.FC = () => {
   // Filter and sort products
   const filteredProducts = data?.products.filter(product => {
     const matchesSearch = searchTerm === '' || 
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category?.toLowerCase().includes(searchTerm.toLowerCase())
+      (product.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.category || '').toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter
     return matchesSearch && matchesCategory
   }).sort((a, b) => {
     let aValue: number, bValue: number
     switch (sortBy) {
       case 'revenue':
-        aValue = a.totalRevenue
-        bValue = b.totalRevenue
+        aValue = a.totalRevenue || 0
+        bValue = b.totalRevenue || 0
         break
       case 'units':
-        aValue = a.unitsSold
-        bValue = b.unitsSold
+        aValue = a.unitsSold || 0
+        bValue = b.unitsSold || 0
         break
       case 'margin':
-        aValue = a.profitMargin
-        bValue = b.profitMargin
+        aValue = a.profitMargin || 0
+        bValue = b.profitMargin || 0
         break
       case 'growth':
-        aValue = a.growthRate
-        bValue = b.growthRate
+        aValue = a.growthRate || 0
+        bValue = b.growthRate || 0
         break
       default:
-        aValue = a.totalRevenue
-        bValue = b.totalRevenue
+        aValue = a.totalRevenue || 0
+        bValue = b.totalRevenue || 0
     }
     return sortOrder === 'desc' ? bValue - aValue : aValue - bValue
   }) || []
@@ -456,33 +456,33 @@ const ProductInsightsPage: React.FC = () => {
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right font-light">
-                                {formatCurrency(product.totalRevenue)}
+                                {formatCurrency(product.totalRevenue || 0)}
                               </TableCell>
                               <TableCell className="text-right font-light">
-                                {product.unitsSold.toLocaleString()}
+                                {(product.unitsSold || 0).toLocaleString()}
                               </TableCell>
                               <TableCell className="text-right font-light">
-                                {formatCurrency(product.avgPrice)}
+                                {formatCurrency(product.avgPrice || 0)}
                               </TableCell>
                               <TableCell className="text-right font-light">
                                 <span className={`${
-                                  product.profitMargin >= 20 ? 'text-green-600' :
-                                  product.profitMargin >= 10 ? 'text-yellow-600' :
+                                  (product.profitMargin || 0) >= 20 ? 'text-green-600' :
+                                  (product.profitMargin || 0) >= 10 ? 'text-yellow-600' :
                                   'text-red-600'
                                 }`}>
-                                  {product.profitMargin.toFixed(1)}%
+                                  {(product.profitMargin || 0).toFixed(1)}%
                                 </span>
                               </TableCell>
                               <TableCell className="text-right font-light">
                                 <span className={`flex items-center justify-end ${
-                                  product.growthRate >= 0 ? 'text-green-600' : 'text-red-600'
+                                  (product.growthRate || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                                 }`}>
-                                  {product.growthRate >= 0 ? (
+                                  {(product.growthRate || 0) >= 0 ? (
                                     <TrendingUp className="w-4 h-4 mr-1" />
                                   ) : (
                                     <TrendingDown className="w-4 h-4 mr-1" />
                                   )}
-                                  {Math.abs(product.growthRate).toFixed(1)}%
+                                  {Math.abs(product.growthRate || 0).toFixed(1)}%
                                 </span>
                               </TableCell>
                               <TableCell>
@@ -491,14 +491,14 @@ const ProductInsightsPage: React.FC = () => {
                                     <Star
                                       key={i}
                                       className={`w-4 h-4 ${
-                                        i < Math.floor(product.performanceScore / 20)
+                                        i < Math.floor((product.performanceScore || 0) / 20)
                                           ? 'text-yellow-400 fill-current'
                                           : 'text-gray-300'
                                       }`}
                                     />
                                   ))}
                                   <span className="ml-2 text-sm font-light text-gray-600">
-                                    {product.performanceScore.toFixed(0)}
+                                    {(product.performanceScore || 0).toFixed(0)}
                                   </span>
                                 </div>
                               </TableCell>
