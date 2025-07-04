@@ -184,6 +184,13 @@ function generateEmptyChurnData(): ChurnAnalyticsData {
 async function calculateChurnAnalytics(customers: any[], filters: { startDate: string; endDate: string }): Promise<ChurnAnalyticsData> {
   const endDate = new Date(filters.endDate)
   const startDate = new Date(filters.startDate)
+  
+  // Validate dates
+  if (isNaN(endDate.getTime()) || isNaN(startDate.getTime())) {
+    console.error('Invalid date values in calculateChurnAnalytics:', { startDate: filters.startDate, endDate: filters.endDate })
+    return generateEmptyChurnData()
+  }
+  
   const settings = await getSettings()
   const churnPeriodDays = settings.churnPeriodDays
   
@@ -199,13 +206,17 @@ async function calculateChurnAnalytics(customers: any[], filters: { startDate: s
     
     // Filter orders to only include those within the selected date range
     const ordersInRange = orders.filter((order: any) => {
+      if (!order.created_at) return false
       const orderDate = new Date(order.created_at)
-      return orderDate >= startDate && orderDate <= endDate
+      return !isNaN(orderDate.getTime()) && orderDate >= startDate && orderDate <= endDate
     })
     
     // Find the last order within the date range
     const lastOrderInRange = ordersInRange.length > 0 ? 
-      new Date(Math.max(...ordersInRange.map((o: any) => new Date(o.created_at).getTime()))) : null
+      new Date(Math.max(...ordersInRange.map((o: any) => {
+        const date = new Date(o.created_at)
+        return isNaN(date.getTime()) ? 0 : date.getTime()
+      }))) : null
     
     // Calculate days since last order from the END of the selected date range
     const daysSinceLastOrder = lastOrderInRange ? 
@@ -350,6 +361,13 @@ async function calculateChurnAnalytics(customers: any[], filters: { startDate: s
 
 function generateChurnTrendForDateRange(customers: any[], startDate: Date, endDate: Date, churnPeriodDays: number): ChurnTrend[] {
   const churnTrend: ChurnTrend[] = []
+  
+  // Validate input dates
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    console.error('Invalid dates in generateChurnTrendForDateRange')
+    return []
+  }
+  
   const totalDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
   
   // If date range is less than 6 months, show monthly data
@@ -366,8 +384,9 @@ function generateChurnTrendForDateRange(customers: any[], startDate: Date, endDa
     const customersInInterval = customers.filter((customer: any) => {
       const orders = customer.orders || []
       const ordersInInterval = orders.filter((order: any) => {
+        if (!order.created_at) return false
         const orderDate = new Date(order.created_at)
-        return orderDate >= intervalStart && orderDate <= intervalEnd
+        return !isNaN(orderDate.getTime()) && orderDate >= intervalStart && orderDate <= intervalEnd
       })
       return ordersInInterval.length > 0
     })
@@ -376,18 +395,20 @@ function generateChurnTrendForDateRange(customers: any[], startDate: Date, endDa
     const totalCustomersAtStart = customers.filter((customer: any) => {
       const orders = customer.orders || []
       const hasOrdersBeforeInterval = orders.some((order: any) => {
+        if (!order.created_at) return false
         const orderDate = new Date(order.created_at)
-        return orderDate < intervalStart
+        return !isNaN(orderDate.getTime()) && orderDate < intervalStart
       })
       return hasOrdersBeforeInterval
     }).length
     
     const churnedCustomers = customers.filter((customer: any) => {
       const orders = customer.orders || []
-      const lastOrder = orders.length > 0 ? 
-        new Date(Math.max(...orders.map((o: any) => new Date(o.created_at).getTime()))) : null
+      const validOrders = orders.filter((o: any) => o.created_at && !isNaN(new Date(o.created_at).getTime()))
+      const lastOrder = validOrders.length > 0 ? 
+        new Date(Math.max(...validOrders.map((o: any) => new Date(o.created_at).getTime()))) : null
       
-      if (!lastOrder) return false
+      if (!lastOrder || isNaN(lastOrder.getTime())) return false
       
       // Customer churned if their last order was in this interval and they haven't ordered since
       // Use settings-based churn period instead of hardcoded 90 days
@@ -571,18 +592,33 @@ function calculatePreviousPeriodMetrics(customers: any[], filters: { startDate: 
   const endDate = new Date(filters.endDate)
   const startDate = new Date(filters.startDate)
   
+  // Validate dates
+  if (isNaN(endDate.getTime()) || isNaN(startDate.getTime())) {
+    console.error('Invalid dates in calculatePreviousPeriodMetrics')
+    return {
+      churnRate: 0,
+      customersAtRisk: 0,
+      revenueAtRisk: 0,
+      avgCustomerLTV: 0
+    }
+  }
+  
   // Process customers for the previous period
   const processedCustomers = customers.map((customer: any) => {
     const orders = customer.orders || []
     
     // Filter orders to only include those within the previous period
     const ordersInRange = orders.filter((order: any) => {
+      if (!order.created_at) return false
       const orderDate = new Date(order.created_at)
-      return orderDate >= startDate && orderDate <= endDate
+      return !isNaN(orderDate.getTime()) && orderDate >= startDate && orderDate <= endDate
     })
     
     const lastOrderInRange = ordersInRange.length > 0 ? 
-      new Date(Math.max(...ordersInRange.map((o: any) => new Date(o.created_at).getTime()))) : null
+      new Date(Math.max(...ordersInRange.map((o: any) => {
+        const date = new Date(o.created_at)
+        return isNaN(date.getTime()) ? 0 : date.getTime()
+      }))) : null
     
     const daysSinceLastOrder = lastOrderInRange ? 
       Math.floor((endDate.getTime() - lastOrderInRange.getTime()) / (1000 * 60 * 60 * 24)) : 999
@@ -751,8 +787,16 @@ export async function getChurnedCustomerProductData(
     
     const settings = await getSettings()
     const churnPeriodDays = settings.churnPeriodDays
+    
+    // Validate and create dates safely
     const endDate = new Date(filters.endDate)
     const startDate = new Date(filters.startDate)
+    
+    // Check if dates are valid
+    if (isNaN(endDate.getTime()) || isNaN(startDate.getTime())) {
+      console.error('Invalid date values:', { startDate: filters.startDate, endDate: filters.endDate })
+      return []
+    }
     
     // Calculate churn threshold from the end of the selected date range
     const churnThreshold = new Date(endDate.getTime() - (churnPeriodDays * 24 * 60 * 60 * 1000))
@@ -806,20 +850,25 @@ export async function getChurnedCustomerProductData(
       
       // Filter orders to only include those within the selected date range
       const ordersInRange = allOrders.filter(order => {
+        if (!order.created_at) return false
         const orderDate = new Date(order.created_at)
-        return orderDate >= startDate && orderDate <= endDate
+        return !isNaN(orderDate.getTime()) && orderDate >= startDate && orderDate <= endDate
       })
       
       if (ordersInRange.length === 0) continue
       
       // Find the last order within the date range
       const lastOrderInRange = ordersInRange.reduce((latest, order) => {
+        if (!order.created_at || !latest.created_at) return latest
         const orderDate = new Date(order.created_at)
         const latestDate = new Date(latest.created_at)
+        if (isNaN(orderDate.getTime()) || isNaN(latestDate.getTime())) return latest
         return orderDate > latestDate ? order : latest
       })
       
+      if (!lastOrderInRange.created_at) continue
       const lastOrderDate = new Date(lastOrderInRange.created_at)
+      if (isNaN(lastOrderDate.getTime())) continue
       
       // Check if customer is churned (last order in range + churn period < end date)
       const daysSinceLastOrder = Math.floor((endDate.getTime() - lastOrderDate.getTime()) / (1000 * 60 * 60 * 24))
