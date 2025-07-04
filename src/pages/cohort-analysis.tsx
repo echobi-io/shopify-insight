@@ -71,16 +71,16 @@ const CohortAnalysis: React.FC = () => {
 
   // Prepare data for revenue cohort chart
   const prepareRevenueChartData = () => {
-    const cohortMonths = [...new Set(cohortData.map(d => d.cohortMonth))].sort();
-    const maxMonthIndex = Math.max(...cohortData.map(d => d.monthIndex), 0);
+    const cohortYears = [...new Set(cohortData.map(d => d.cohortMonth))].sort();
+    const maxMonthIndex = Math.max(...cohortData.map(d => d.monthIndex), 1);
     
     const chartData = [];
-    for (let monthIndex = 0; monthIndex <= Math.min(maxMonthIndex, 11); monthIndex++) {
+    for (let monthIndex = 1; monthIndex <= Math.min(maxMonthIndex, 12); monthIndex++) {
       const dataPoint: any = { monthIndex: `Month ${monthIndex}` };
       
-      cohortMonths.forEach(cohortMonth => {
-        const cohortPoint = cohortData.find(d => d.cohortMonth === cohortMonth && d.monthIndex === monthIndex);
-        dataPoint[cohortMonth] = cohortPoint ? cohortPoint.avgIncome : 0;
+      cohortYears.forEach(cohortYear => {
+        const cohortPoint = cohortData.find(d => d.cohortMonth === cohortYear && d.monthIndex === monthIndex);
+        dataPoint[cohortYear] = cohortPoint ? cohortPoint.avgIncome : 0;
       });
       
       chartData.push(dataPoint);
@@ -114,21 +114,21 @@ const CohortAnalysis: React.FC = () => {
     const cohorts = [...new Set(cohortData.map(d => d.cohortMonth))];
     const totalCustomers = retentionData.reduce((sum, cohort) => sum + cohort.cohortSize, 0);
     
-    // Average revenue per customer in first month
+    // Average revenue per customer in first month (now monthIndex === 1)
     const firstMonthRevenue = cohortData
-      .filter(d => d.monthIndex === 0)
+      .filter(d => d.monthIndex === 1)
       .reduce((sum, d) => sum + d.avgIncome, 0) / cohorts.length;
 
-    // Average revenue per customer after 6 months
+    // Average revenue per customer after 6 months (now monthIndex === 6)
     const sixMonthRevenue = cohortData
       .filter(d => d.monthIndex === 6)
       .reduce((sum, d) => sum + d.avgIncome, 0) / cohorts.filter(c => 
         cohortData.some(d => d.cohortMonth === c && d.monthIndex === 6)
       ).length;
 
-    // Average retention rate in month 1
+    // Average retention rate in month 1 (should be 100% now)
     const month1Retention = retentionData.length > 0 
-      ? retentionData.reduce((sum, cohort) => sum + (cohort.retention.month_1 || 0), 0) / retentionData.length
+      ? retentionData.reduce((sum, cohort) => sum + (cohort.retention.month_0 || 0), 0) / retentionData.length
       : 0;
 
     return {
@@ -311,7 +311,7 @@ const CohortAnalysis: React.FC = () => {
                                   <th className="border p-2 bg-gray-50 text-center font-medium">Size</th>
                                   {Array.from({ length: 12 }, (_, i) => (
                                     <th key={i} className="border p-2 bg-gray-50 text-center font-medium text-xs">
-                                      M{i}
+                                      M{i + 1}
                                     </th>
                                   ))}
                                 </tr>

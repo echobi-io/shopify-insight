@@ -1,8 +1,8 @@
 import { supabase } from '../supabaseClient';
 
 export interface CohortAnalysisResult {
-  cohortMonth: string; // e.g. '2023-01'
-  monthIndex: number; // 0 = signup month, 1 = next month, etc.
+  cohortMonth: string; // e.g. '2023' (now grouped by year)
+  monthIndex: number; // 1 = signup month, 2 = next month, etc.
   avgIncome: number;
 }
 
@@ -29,11 +29,11 @@ export async function getCohortAnalysisData(merchantId: string): Promise<CohortA
       return [];
     }
 
-    // 2. Group customers by cohort month
+    // 2. Group customers by cohort year (instead of month)
     const cohorts: Record<string, { customerIds: string[]; signupDate: Date }[]> = {};
     customers.forEach((customer: any) => {
       const signupDate = new Date(customer.created_at);
-      const cohortMonth = `${signupDate.getFullYear()}-${String(signupDate.getMonth() + 1).padStart(2, '0')}`;
+      const cohortMonth = `${signupDate.getFullYear()}`; // Group by year only
       if (!cohorts[cohortMonth]) cohorts[cohortMonth] = [];
       cohorts[cohortMonth].push({ customerIds: [customer.id], signupDate });
     });
@@ -86,7 +86,7 @@ export async function getCohortAnalysisData(merchantId: string): Promise<CohortA
           totalIncome += income;
         });
         const avgIncome = cohortCustomers.length > 0 ? totalIncome / cohortCustomers.length : 0;
-        results.push({ cohortMonth, monthIndex: m, avgIncome: parseFloat(avgIncome.toFixed(2)) });
+        results.push({ cohortMonth, monthIndex: m + 1, avgIncome: parseFloat(avgIncome.toFixed(2)) }); // Change to 1-based indexing
       }
     }
 
@@ -123,11 +123,11 @@ export async function getCohortRetentionData(merchantId: string): Promise<any[]>
       return [];
     }
 
-    // Group customers by cohort month
+    // Group customers by cohort year (instead of month)
     const cohorts: Record<string, string[]> = {};
     customers.forEach((customer: any) => {
       const signupDate = new Date(customer.created_at);
-      const cohortMonth = `${signupDate.getFullYear()}-${String(signupDate.getMonth() + 1).padStart(2, '0')}`;
+      const cohortMonth = `${signupDate.getFullYear()}`; // Group by year only
       if (!cohorts[cohortMonth]) cohorts[cohortMonth] = [];
       cohorts[cohortMonth].push(customer.id);
     });
@@ -156,7 +156,7 @@ export async function getCohortRetentionData(merchantId: string): Promise<any[]>
         customerSignup[c.id] = new Date(c.created_at);
       });
 
-      // Calculate retention for each month
+      // Calculate retention for each month (1-12, with Month 1 always being 100%)
       const maxMonths = 12; // Show up to 12 months
       const retentionData: any = {
         cohortMonth,
@@ -164,21 +164,29 @@ export async function getCohortRetentionData(merchantId: string): Promise<any[]>
         retention: {}
       };
 
-      for (let m = 0; m < maxMonths; m++) {
-        const activeCustomers = new Set();
+      for (let m = 1; m <= maxMonths; m++) {
+        let retentionRate: number;
         
-        orders.forEach((order: any) => {
-          const signup = customerSignup[order.customer_id];
-          const orderDate = new Date(order.created_at);
-          const monthIndex = (orderDate.getFullYear() - signup.getFullYear()) * 12 + (orderDate.getMonth() - signup.getMonth());
+        if (m === 1) {
+          // Month 1 is always 100% since all customers made their first order
+          retentionRate = 100;
+        } else {
+          const activeCustomers = new Set();
           
-          if (monthIndex === m) {
-            activeCustomers.add(order.customer_id);
-          }
-        });
+          orders.forEach((order: any) => {
+            const signup = customerSignup[order.customer_id];
+            const orderDate = new Date(order.created_at);
+            const monthIndex = (orderDate.getFullYear() - signup.getFullYear()) * 12 + (orderDate.getMonth() - signup.getMonth());
+            
+            if (monthIndex === (m - 1)) { // Adjust for 1-based indexing
+              activeCustomers.add(order.customer_id);
+            }
+          });
 
-        const retentionRate = (activeCustomers.size / cohortCustomers.length) * 100;
-        retentionData.retention[`month_${m}`] = parseFloat(retentionRate.toFixed(2));
+          retentionRate = (activeCustomers.size / cohortCustomers.length) * 100;
+        }
+
+        retentionData.retention[`month_${m - 1}`] = parseFloat(retentionRate.toFixed(2)); // Keep internal storage 0-based for compatibility
       }
 
       retentionResults.push(retentionData);
