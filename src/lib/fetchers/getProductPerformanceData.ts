@@ -123,13 +123,13 @@ export async function getProductPerformanceData(
     if (orderItems && !orderItemsError) {
       orderItems.forEach((item: any) => {
         const productId = item.product_id
-        const revenue = (item.price || 0) * (item.quantity || 0)
+        const revenue = item.price * item.quantity
         const existing = salesMap.get(productId) || { revenue: 0, units: 0, prices: [] }
         
         salesMap.set(productId, {
           revenue: existing.revenue + revenue,
-          units: existing.units + (item.quantity || 0),
-          prices: [...existing.prices, item.price || 0]
+          units: existing.units + item.quantity,
+          prices: [...existing.prices, item.price]
         })
       })
     }
@@ -164,12 +164,12 @@ export async function getProductPerformanceData(
     if (previousOrderItems && !previousOrderItemsError) {
       previousOrderItems.forEach((item: any) => {
         const productId = item.product_id
-        const revenue = (item.price || 0) * (item.quantity || 0)
+        const revenue = item.price * item.quantity
         const existing = previousSalesMap.get(productId) || { revenue: 0, units: 0 }
         
         previousSalesMap.set(productId, {
           revenue: existing.revenue + revenue,
-          units: existing.units + (item.quantity || 0)
+          units: existing.units + item.quantity
         })
       })
     }
@@ -182,7 +182,7 @@ export async function getProductPerformanceData(
       // Calculate average price from actual sales
       const avgPrice = salesData.prices.length > 0 
         ? salesData.prices.reduce((sum, price) => sum + price, 0) / salesData.prices.length
-        : (product.price || 0)
+        : product.price
       
       // Calculate growth rate
       let growthRate = 0
@@ -198,23 +198,17 @@ export async function getProductPerformanceData(
         ? Math.min(100, (salesData.revenue / maxRevenue) * 100)
         : 0
 
-      // Ensure all numeric values are properly defined
-      const safeAvgPrice = Number(avgPrice) || 0
-      const safeProfitMargin = safeAvgPrice > 0 ? safeAvgPrice * 0.3 : 0 // Assume 30% margin
-      const safeGrowthRate = Number(growthRate) || 0
-      const safePerformanceScore = Number(performanceScore) || 0
-
       return {
         id: product.id,
-        name: product.name || 'Unknown Product',
-        sku: product.shopify_product_id || product.id,
-        category: product.category || 'General',
-        totalRevenue: Number(salesData.revenue) || 0,
-        unitsSold: Number(salesData.units) || 0,
-        avgPrice: safeAvgPrice,
-        profitMargin: safeProfitMargin,
-        growthRate: safeGrowthRate,
-        performanceScore: safePerformanceScore
+        name: product.name,
+        sku: product.shopify_product_id,
+        category: product.category,
+        totalRevenue: salesData.revenue,
+        unitsSold: salesData.units,
+        avgPrice: avgPrice,
+        profitMargin: avgPrice > 0 ? avgPrice * 0.3 : 0, // Assume 30% margin
+        growthRate: growthRate,
+        performanceScore: performanceScore
       }
     })
 
@@ -228,7 +222,7 @@ export async function getProductPerformanceData(
     let totalRevenue = 0
 
     productMetrics.forEach(product => {
-      const category = product.category || 'Uncategorized'
+      const category = product.category
       const existing = categoryMap.get(category) || { revenue: 0, units: 0 }
       categoryMap.set(category, {
         revenue: existing.revenue + product.totalRevenue,
@@ -273,12 +267,12 @@ export async function getProductPerformanceData(
         
         trendData.forEach((item: any) => {
           const date = new Date(item.orders.created_at).toISOString().split('T')[0]
-          const revenue = (item.price || 0) * (item.quantity || 0)
+          const revenue = item.price * item.quantity
           const existing = trendMap.get(date) || { revenue: 0, units: 0 }
           
           trendMap.set(date, {
             revenue: existing.revenue + revenue,
-            units: existing.units + (item.quantity || 0)
+            units: existing.units + item.quantity
           })
         })
 
