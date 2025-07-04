@@ -87,7 +87,7 @@ export async function getDashboardChartsData(merchant_id: string, filters?: Filt
       hour: parseInt(hour),
       order_count: count,
       percentage: totalOrders > 0 ? (count / totalOrders) * 100 : 0
-    })).sort((a, b) => a.hour - b.hour)
+    })).sort((a, b) => a.hour - b.hour) // Sort by hour (time) not by order count
 
     console.log('✅ Dashboard charts data processed:', {
       dailyDataPoints: dailyData.length,

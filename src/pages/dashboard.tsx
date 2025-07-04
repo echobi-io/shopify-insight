@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Users, RefreshCw, AlertCircle } from 'lucide-react'
 import { getKPIs, getPreviousYearKPIs, calculateKPIChanges, type KPIData, type FilterState } from '@/lib/fetchers/getKpis'
@@ -82,6 +83,9 @@ const DashboardPage: React.FC = () => {
   // Custom date range state
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
+  
+  // Granularity state for charts
+  const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>('daily')
 
   const loadData = async () => {
     try {
@@ -176,7 +180,7 @@ const DashboardPage: React.FC = () => {
 
   useEffect(() => {
     loadData()
-  }, [timeframe, customStartDate, customEndDate])
+  }, [timeframe, customStartDate, customEndDate, granularity])
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-US').format(value)
@@ -225,6 +229,20 @@ const DashboardPage: React.FC = () => {
                   onCustomStartDateChange={setCustomStartDate}
                   onCustomEndDateChange={setCustomEndDate}
                 />
+                
+                <Select value={granularity} onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly') => setGranularity(value)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="yearly">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 <Button 
                   onClick={loadData} 
                   variant="outline" 
