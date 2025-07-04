@@ -102,7 +102,7 @@ export async function getCustomerInsightsData(merchantId: string, dateFilters?: 
     // Get all customers with their order data
     const { data: customers, error: customersError } = await supabase
       .from('customers')
-      .select('id, first_name, last_name, email, total_spent, orders_count, created_at')
+      .select('id, first_name, last_name, email, total_spent, created_at')
       .eq('merchant_id', merchantId)
 
     if (customersError) {
