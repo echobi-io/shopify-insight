@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, AreaChart, Area } from 'recharts'
-import { getCustomerInsightsData, getCustomerDetails, CustomerInsightsData, ChurnPrediction, LtvPrediction, CohortData, CustomerCluster } from '@/lib/fetchers/getCustomerInsightsData'
+import { getCustomerInsightsData, getCustomerDetails, CustomerInsightsData, ChurnPrediction, LtvPrediction, CohortData, CustomerCluster, ClusterAnalysis } from '@/lib/fetchers/getCustomerInsightsData'
 import { getKPIs, getPreviousYearKPIs, type KPIData } from '@/lib/fetchers/getKpis'
 import { exportToCSV } from '@/lib/utils/exportUtils'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
@@ -760,38 +760,109 @@ const CustomerInsightsPage: React.FC = () => {
             <CardHeader>
               <CardTitle className="text-lg font-medium text-black">AI-Generated Customer Clusters</CardTitle>
               <CardDescription className="font-light text-gray-600">
-                Machine learning-based customer clustering analysis
+                Machine learning-based customer clustering analysis with individual customer positions
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {data.customerClusters.length > 0 ? (
+              {data.clusterAnalysis && data.clusterAnalysis.customerPoints.length > 0 ? (
                 <div className="space-y-6">
-                  {/* Cluster Visualization */}
-                  <div className="h-64">
+                  {/* Cluster Visualization with Individual Customers */}
+                  <div className="h-96">
                     <ResponsiveContainer width="100%" height="100%">
-                      <ScatterChart data={data.customerClusters}>
+                      <ScatterChart>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                         <XAxis 
-                          dataKey="avg_order_value" 
+                          type="number"
+                          dataKey="avg_order_value"
+                          domain={['dataMin - 50', 'dataMax + 50']}
                           fontSize={12} 
                           stroke="#666"
                           tickFormatter={(value) => formatCurrency(value)}
+                          name="Avg Order Value"
                         />
                         <YAxis 
-                          dataKey="total_spent" 
+                          type="number"
+                          dataKey="total_spent"
+                          domain={['dataMin - 100', 'dataMax + 100']}
                           fontSize={12} 
                           stroke="#666"
                           tickFormatter={(value) => formatCurrency(value)}
+                          name="Total Spent"
                         />
                         <Tooltip 
-                          formatter={(value: any, name: string) => [
-                            name === 'avg_order_value' ? formatCurrency(value) : formatCurrency(value),
-                            name === 'avg_order_value' ? 'Avg Order Value' : 'Total Spent'
-                          ]}
+                          cursor={{ strokeDasharray: '3 3' }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload
+                              return (
+                                <div className="bg-white p-3 border rounded shadow-lg">
+                                  <p className="font-medium">{data.customer_name || 'Unknown Customer'}</p>
+                                  <p className="text-sm text-gray-600">{data.customer_email}</p>
+                                  <p className="text-sm">Total Spent: {formatCurrency(data.total_spent)}</p>
+                                  <p className="text-sm">Avg Order Value: {formatCurrency(data.avg_order_value)}</p>
+                                  <p className="text-sm">Orders: {data.orders_count}</p>
+                                  <p className="text-sm capitalize">Cluster: {data.cluster_label.replace('_', ' ')}</p>
+                                </div>
+                              )
+                            }
+                            return null
+                          }}
                         />
-                        <Scatter dataKey="total_spent" fill="#3b82f6" />
+                        
+                        {/* Individual Customer Points by Cluster */}
+                        {data.clusterAnalysis.clusterCenters.map((center, index) => {
+                          const clusterCustomers = data.clusterAnalysis.customerPoints.filter(
+                            point => point.cluster_id === center.cluster_id
+                          )
+                          return (
+                            <Scatter
+                              key={`customers-${center.cluster_id}`}
+                              data={clusterCustomers}
+                              fill={center.color}
+                              fillOpacity={0.6}
+                              stroke={center.color}
+                              strokeWidth={1}
+                              r={4}
+                            />
+                          )
+                        })}
+                        
+                        {/* Cluster Centers */}
+                        <Scatter
+                          data={data.clusterAnalysis.clusterCenters.map(center => ({
+                            ...center,
+                            avg_order_value: center.center_avg_order_value,
+                            total_spent: center.center_total_spent
+                          }))}
+                          fill="none"
+                          stroke="#000"
+                          strokeWidth={3}
+                          shape="cross"
+                          r={8}
+                        />
                       </ScatterChart>
                     </ResponsiveContainer>
+                  </div>
+
+                  {/* Legend */}
+                  <div className="flex flex-wrap gap-4 justify-center">
+                    {data.clusterAnalysis.clusterCenters.map((center, index) => (
+                      <div key={center.cluster_id} className="flex items-center gap-2">
+                        <div 
+                          className="w-4 h-4 rounded-full border"
+                          style={{ backgroundColor: center.color, borderColor: center.color }}
+                        />
+                        <span className="text-sm font-light capitalize">
+                          {center.cluster_label.replace('_', ' ')}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 flex items-center justify-center">
+                        <span className="text-black font-bold text-lg">×</span>
+                      </div>
+                      <span className="text-sm font-light">Cluster Centers</span>
+                    </div>
                   </div>
 
                   {/* Cluster Summary Table */}
@@ -808,24 +879,27 @@ const CustomerInsightsPage: React.FC = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {data.customerClusters.map((cluster, index) => (
-                          <TableRow key={cluster.cluster_id}>
-                            <TableCell>
-                              <Badge 
-                                variant="outline" 
-                                className="font-light"
-                                style={{ borderColor: getClusterColor(index), color: getClusterColor(index) }}
-                              >
-                                Cluster {cluster.cluster_id}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right font-light">{cluster.customer_count}</TableCell>
-                            <TableCell className="text-right font-light">{formatCurrency(cluster.total_spent)}</TableCell>
-                            <TableCell className="text-right font-light">{formatCurrency(cluster.avg_order_value)}</TableCell>
-                            <TableCell className="text-right font-light">{cluster.orders_count.toFixed(1)}</TableCell>
-                            <TableCell className="font-light">{cluster.cluster_description || 'Standard customer group'}</TableCell>
-                          </TableRow>
-                        ))}
+                        {data.clusterAnalysis.clusterSummaries.map((cluster, index) => {
+                          const center = data.clusterAnalysis.clusterCenters.find(c => c.cluster_id === cluster.cluster_id)
+                          return (
+                            <TableRow key={cluster.cluster_id}>
+                              <TableCell>
+                                <Badge 
+                                  variant="outline" 
+                                  className="font-light"
+                                  style={{ borderColor: center?.color, color: center?.color }}
+                                >
+                                  {cluster.cluster_label.replace('_', ' ')}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-light">{cluster.customer_count}</TableCell>
+                              <TableCell className="text-right font-light">{formatCurrency(cluster.avg_ltv)}</TableCell>
+                              <TableCell className="text-right font-light">{formatCurrency(cluster.avg_order_value)}</TableCell>
+                              <TableCell className="text-right font-light">{cluster.orders_count.toFixed(1)}</TableCell>
+                              <TableCell className="font-light">{cluster.cluster_description}</TableCell>
+                            </TableRow>
+                          )
+                        })}
                       </TableBody>
                     </Table>
                   </div>
@@ -834,6 +908,9 @@ const CustomerInsightsPage: React.FC = () => {
                 <div className="text-center py-8">
                   <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600 font-light">No cluster data available</p>
+                  <p className="text-sm text-gray-500 font-light mt-2">
+                    Cluster analysis requires customers with order history
+                  </p>
                 </div>
               )}
             </CardContent>

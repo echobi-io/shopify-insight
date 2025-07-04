@@ -66,6 +66,29 @@ export interface CustomerCluster {
   description: string
 }
 
+export interface CustomerClusterPoint {
+  customer_id: string
+  cluster_id: string
+  cluster_label: string
+  total_spent: number
+  avg_order_value: number
+  orders_count: number
+  customer_name: string
+  customer_email: string
+}
+
+export interface ClusterAnalysis {
+  clusterSummaries: CustomerCluster[]
+  customerPoints: CustomerClusterPoint[]
+  clusterCenters: Array<{
+    cluster_id: string
+    cluster_label: string
+    center_total_spent: number
+    center_avg_order_value: number
+    color: string
+  }>
+}
+
 export interface CustomerInsightsKpis {
   totalActiveCustomers: number
   customersAtHighRisk: number
@@ -81,6 +104,7 @@ export interface CustomerInsightsData {
   cohortAnalysis: CohortData[]
   customerSegments: CustomerSegment[]
   customerClusters: CustomerCluster[]
+  clusterAnalysis: ClusterAnalysis
   churnTrendData: Array<{
     date: string
     high_risk_count: number
@@ -148,6 +172,9 @@ export async function getCustomerInsightsData(merchantId: string, dateFilters?: 
     
     // Generate customer clusters based on behavior
     const customerClusters = await generateCustomerClusters(customers || [], orders || [])
+    
+    // Generate detailed cluster analysis with individual customer points
+    const clusterAnalysis = await generateClusterAnalysis(customers || [], orders || [])
 
     // Calculate KPIs
     const totalActiveCustomers = await getTotalActiveCustomers(merchantId, dateFilters)
@@ -183,6 +210,7 @@ export async function getCustomerInsightsData(merchantId: string, dateFilters?: 
       cohortAnalysis,
       customerSegments,
       customerClusters,
+      clusterAnalysis,
       churnTrendData,
       ltvDistribution
     }
@@ -578,6 +606,174 @@ async function calculateLtvPredictions(customers: any[], orders: any[]): Promise
   } catch (error) {
     console.error('❌ Error calculating LTV predictions:', error)
     return []
+  }
+}
+
+async function generateClusterAnalysis(customers: any[], orders: any[]): Promise<ClusterAnalysis> {
+  try {
+    if (!customers || customers.length === 0 || !orders || orders.length === 0) {
+      console.log('⚠️ No customers or orders data for cluster analysis')
+      return {
+        clusterSummaries: [],
+        customerPoints: [],
+        clusterCenters: []
+      }
+    }
+
+    // Group orders by customer and calculate metrics
+    const customerOrderMap: { [customerId: string]: any[] } = {}
+    orders.forEach(order => {
+      if (order.customer_id) {
+        if (!customerOrderMap[order.customer_id]) {
+          customerOrderMap[order.customer_id] = []
+        }
+        customerOrderMap[order.customer_id].push(order)
+      }
+    })
+
+    // Create customer metrics with full customer info
+    const customerMetrics = customers.map(customer => {
+      const customerOrders = customerOrderMap[customer.id] || []
+      const totalSpent = customerOrders.reduce((sum, order) => sum + (order.total_price || 0), 0)
+      const orderCount = customerOrders.length
+      const avgOrderValue = orderCount > 0 ? totalSpent / orderCount : 0
+
+      return {
+        customer_id: customer.id,
+        customer_name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown',
+        customer_email: customer.email || '',
+        total_spent: totalSpent,
+        orders_count: orderCount,
+        avg_order_value: avgOrderValue
+      }
+    }).filter(m => m.orders_count > 0) // Only customers with orders
+
+    // Simple clustering based on spending and frequency
+    const clusters: { [clusterId: string]: any[] } = {
+      'high_value_frequent': [],
+      'high_value_infrequent': [],
+      'medium_value_frequent': [],
+      'medium_value_infrequent': [],
+      'low_value_frequent': [],
+      'low_value_infrequent': []
+    }
+
+    // Assign customers to clusters
+    customerMetrics.forEach(customer => {
+      const isHighValue = customer.total_spent > 500
+      const isMediumValue = customer.total_spent > 200 && customer.total_spent <= 500
+      const isFrequent = customer.orders_count > 3
+
+      let clusterId = 'low_value_infrequent'
+      if (isHighValue) {
+        clusterId = isFrequent ? 'high_value_frequent' : 'high_value_infrequent'
+      } else if (isMediumValue) {
+        clusterId = isFrequent ? 'medium_value_frequent' : 'medium_value_infrequent'
+      } else {
+        clusterId = isFrequent ? 'low_value_frequent' : 'low_value_infrequent'
+      }
+
+      clusters[clusterId].push({
+        ...customer,
+        cluster_label: clusterId
+      })
+    })
+
+    // Define cluster colors
+    const clusterColors = [
+      '#ef4444', // red
+      '#f59e0b', // amber
+      '#10b981', // emerald
+      '#3b82f6', // blue
+      '#8b5cf6', // violet
+      '#ec4899'  // pink
+    ]
+
+    // Generate cluster summaries and centers
+    const clusterSummaries: CustomerCluster[] = []
+    const clusterCenters: Array<{
+      cluster_id: string
+      cluster_label: string
+      center_total_spent: number
+      center_avg_order_value: number
+      color: string
+    }> = []
+    const customerPoints: CustomerClusterPoint[] = []
+
+    Object.entries(clusters)
+      .filter(([_, customers]) => customers.length > 0)
+      .forEach(([clusterId, customers], index) => {
+        const totalSpent = customers.reduce((sum, c) => sum + c.total_spent, 0)
+        const avgSpent = totalSpent / customers.length
+        const avgOrders = customers.reduce((sum, c) => sum + c.orders_count, 0) / customers.length
+        const avgOrderValue = customers.reduce((sum, c) => sum + c.avg_order_value, 0) / customers.length
+        const color = clusterColors[index % clusterColors.length]
+
+        const descriptions: { [key: string]: string } = {
+          'high_value_frequent': 'VIP customers with high spending and frequent purchases',
+          'high_value_infrequent': 'High-value customers who purchase infrequently',
+          'medium_value_frequent': 'Regular customers with moderate spending and good frequency',
+          'medium_value_infrequent': 'Occasional customers with moderate spending',
+          'low_value_frequent': 'Frequent buyers with small basket sizes',
+          'low_value_infrequent': 'Infrequent, low-value customers'
+        }
+
+        // Add cluster summary
+        clusterSummaries.push({
+          cluster_id: `cluster_${index + 1}`,
+          cluster_label: clusterId,
+          customer_count: customers.length,
+          total_spent: totalSpent,
+          avg_ltv: avgSpent,
+          orders_count: avgOrders,
+          avg_orders: avgOrders,
+          avg_order_value: avgOrderValue,
+          cluster_description: descriptions[clusterId] || 'Customer group',
+          description: descriptions[clusterId] || 'Customer group'
+        })
+
+        // Add cluster center
+        clusterCenters.push({
+          cluster_id: `cluster_${index + 1}`,
+          cluster_label: clusterId,
+          center_total_spent: avgSpent,
+          center_avg_order_value: avgOrderValue,
+          color: color
+        })
+
+        // Add individual customer points
+        customers.forEach(customer => {
+          customerPoints.push({
+            customer_id: customer.customer_id,
+            cluster_id: `cluster_${index + 1}`,
+            cluster_label: clusterId,
+            total_spent: customer.total_spent,
+            avg_order_value: customer.avg_order_value,
+            orders_count: customer.orders_count,
+            customer_name: customer.customer_name,
+            customer_email: customer.customer_email
+          })
+        })
+      })
+
+    console.log('✅ Cluster analysis generated:', {
+      summaries: clusterSummaries.length,
+      customerPoints: customerPoints.length,
+      centers: clusterCenters.length
+    })
+
+    return {
+      clusterSummaries,
+      customerPoints,
+      clusterCenters
+    }
+  } catch (error) {
+    console.error('❌ Error generating cluster analysis:', error)
+    return {
+      clusterSummaries: [],
+      customerPoints: [],
+      clusterCenters: []
+    }
   }
 }
 
