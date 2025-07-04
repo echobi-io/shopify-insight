@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts'
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package, Star, RefreshCw, AlertCircle, Search, Filter } from 'lucide-react'
 import { getProductPerformanceData, type ProductPerformanceData, type ProductMetrics, type ProductTrend } from '@/lib/fetchers/getProductPerformanceData'
@@ -18,6 +19,7 @@ import DateRangeSelector from '@/components/DateRangeSelector'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection from '@/components/HelpSection'
 import ReturnedProductsSection from '@/components/ReturnedProductsSection'
+import InteractiveProductClusterChart from '@/components/InteractiveProductClusterChart'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -35,6 +37,7 @@ const ProductInsightsPage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [sortBy, setSortBy] = useState<'revenue' | 'units' | 'margin' | 'growth'>('revenue')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
     loadData()
@@ -253,257 +256,286 @@ const ProductInsightsPage: React.FC = () => {
             />
           </div>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Category Performance */}
-            <Card className="card-minimal">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium text-black">Revenue by Category</CardTitle>
-                <CardDescription className="font-light text-gray-600">
-                  Performance breakdown by product category
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {data.categoryPerformance.length > 0 ? (
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={data.categoryPerformance}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ category, percentage }) => `${category}: ${percentage}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="revenue"
-                        >
-                          {data.categoryPerformance.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={`hsl(${index * 45}, 70%, 60%)`} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: any) => [formatCurrency(value), 'Revenue']} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="h-64 flex items-center justify-center">
-                    <div className="text-center">
-                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm font-light text-gray-500">No category data available</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Tabs for different views */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="clusters">Product Clusters</TabsTrigger>
+            </TabsList>
 
-            {/* Top Products Trend */}
-            <Card className="card-minimal">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium text-black">Top Products Performance</CardTitle>
-                <CardDescription className="font-light text-gray-600">
-                  Revenue trend for top performing products
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {data.topProductsTrend.length > 0 ? (
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={data.topProductsTrend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis 
-                          dataKey="date" 
-                          fontSize={12}
-                          stroke="#666"
-                          tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        />
-                        <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => formatCurrency(value)} />
-                        <Tooltip 
-                          labelFormatter={(value) => new Date(value).toLocaleDateString()}
-                          formatter={(value: any) => [formatCurrency(value), 'Revenue']}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="revenue" 
-                          stroke="#3b82f6" 
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="h-64 flex items-center justify-center">
-                    <div className="text-center">
-                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm font-light text-gray-500">No trend data available</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Returned Products Section */}
-          {returnedProductsData && (
-            <div className="mb-8">
-              <ReturnedProductsSection
-                products={returnedProductsData.products}
-                totalReturns={returnedProductsData.totalReturns}
-                totalReturnValue={returnedProductsData.totalReturnValue}
-                avgReturnRate={returnedProductsData.avgReturnRate}
-              />
-            </div>
-          )}
-
-          {/* Product Table */}
-          <Card className="card-minimal mb-8">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="text-lg font-medium text-black">Product Performance</CardTitle>
-                  <CardDescription className="font-light text-gray-600">
-                    Detailed performance metrics for all products
-                  </CardDescription>
-                </div>
-                
-                {/* Filters */}
-                <div className="flex items-center space-x-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input
-                      placeholder="Search products..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 w-64"
-                    />
-                  </div>
-                  
-                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {categories.map(category => (
-                        <SelectItem key={category} value={category}>{category}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="revenue">Revenue</SelectItem>
-                      <SelectItem value="units">Units</SelectItem>
-                      <SelectItem value="margin">Margin</SelectItem>
-                      <SelectItem value="growth">Growth</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
-                    className="font-light"
-                  >
-                    {sortOrder === 'desc' ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {filteredProducts.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Product</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead className="text-right">Revenue</TableHead>
-                        <TableHead className="text-right">Units Sold</TableHead>
-                        <TableHead className="text-right">Avg Price</TableHead>
-                        <TableHead className="text-right">Profit Margin</TableHead>
-                        <TableHead className="text-right">Growth Rate</TableHead>
-                        <TableHead>Performance</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredProducts.slice(0, 50).map((product) => (
-                        <TableRow key={product.id}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium text-black">{product.name}</div>
-                              <div className="text-sm font-light text-gray-500">SKU: {product.sku}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="font-light">
-                              {product.category || 'Uncategorized'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-light">
-                            {formatCurrency(product.totalRevenue)}
-                          </TableCell>
-                          <TableCell className="text-right font-light">
-                            {product.unitsSold.toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-right font-light">
-                            {formatCurrency(product.avgPrice)}
-                          </TableCell>
-                          <TableCell className="text-right font-light">
-                            <span className={`${
-                              product.profitMargin >= 20 ? 'text-green-600' :
-                              product.profitMargin >= 10 ? 'text-yellow-600' :
-                              'text-red-600'
-                            }`}>
-                              {product.profitMargin.toFixed(1)}%
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right font-light">
-                            <span className={`flex items-center justify-end ${
-                              product.growthRate >= 0 ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              {product.growthRate >= 0 ? (
-                                <TrendingUp className="w-4 h-4 mr-1" />
-                              ) : (
-                                <TrendingDown className="w-4 h-4 mr-1" />
-                              )}
-                              {Math.abs(product.growthRate).toFixed(1)}%
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              {[...Array(5)].map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`w-4 h-4 ${
-                                    i < Math.floor(product.performanceScore / 20)
-                                      ? 'text-yellow-400 fill-current'
-                                      : 'text-gray-300'
-                                  }`}
-                                />
+            <TabsContent value="overview" className="space-y-8">
+              {/* Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Category Performance */}
+                <Card className="card-minimal">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-medium text-black">Revenue by Category</CardTitle>
+                    <CardDescription className="font-light text-gray-600">
+                      Performance breakdown by product category
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {data.categoryPerformance.length > 0 ? (
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={data.categoryPerformance}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ category, percentage }) => `${category}: ${percentage}%`}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="revenue"
+                            >
+                              {data.categoryPerformance.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={`hsl(${index * 45}, 70%, 60%)`} />
                               ))}
-                              <span className="ml-2 text-sm font-light text-gray-600">
-                                {product.performanceScore.toFixed(0)}
-                              </span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 font-light">No products found matching your criteria</p>
+                            </Pie>
+                            <Tooltip formatter={(value: any) => [formatCurrency(value), 'Revenue']} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-64 flex items-center justify-center">
+                        <div className="text-center">
+                          <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm font-light text-gray-500">No category data available</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Top Products Trend */}
+                <Card className="card-minimal">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-medium text-black">Top Products Performance</CardTitle>
+                    <CardDescription className="font-light text-gray-600">
+                      Revenue trend for top performing products
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {data.topProductsTrend.length > 0 ? (
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={data.topProductsTrend}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                            <XAxis 
+                              dataKey="date" 
+                              fontSize={12}
+                              stroke="#666"
+                              tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            />
+                            <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => formatCurrency(value)} />
+                            <Tooltip 
+                              labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                              formatter={(value: any) => [formatCurrency(value), 'Revenue']}
+                            />
+                            <Line 
+                              type="monotone" 
+                              dataKey="revenue" 
+                              stroke="#3b82f6" 
+                              strokeWidth={2}
+                              dot={false}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-64 flex items-center justify-center">
+                        <div className="text-center">
+                          <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm font-light text-gray-500">No trend data available</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Returned Products Section */}
+              {returnedProductsData && (
+                <div>
+                  <ReturnedProductsSection
+                    products={returnedProductsData.products}
+                    totalReturns={returnedProductsData.totalReturns}
+                    totalReturnValue={returnedProductsData.totalReturnValue}
+                    avgReturnRate={returnedProductsData.avgReturnRate}
+                  />
                 </div>
               )}
-            </CardContent>
-          </Card>
+
+              {/* Product Table */}
+              <Card className="card-minimal">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="text-lg font-medium text-black">Product Performance</CardTitle>
+                      <CardDescription className="font-light text-gray-600">
+                        Detailed performance metrics for all products
+                      </CardDescription>
+                    </div>
+                    
+                    {/* Filters */}
+                    <div className="flex items-center space-x-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <Input
+                          placeholder="Search products..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-10 w-64"
+                        />
+                      </div>
+                      
+                      <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Categories</SelectItem>
+                          {categories.map(category => (
+                            <SelectItem key={category} value={category}>{category}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="revenue">Revenue</SelectItem>
+                          <SelectItem value="units">Units</SelectItem>
+                          <SelectItem value="margin">Margin</SelectItem>
+                          <SelectItem value="growth">Growth</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+                        className="font-light"
+                      >
+                        {sortOrder === 'desc' ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {filteredProducts.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead>Category</TableHead>
+                            <TableHead className="text-right">Revenue</TableHead>
+                            <TableHead className="text-right">Units Sold</TableHead>
+                            <TableHead className="text-right">Avg Price</TableHead>
+                            <TableHead className="text-right">Profit Margin</TableHead>
+                            <TableHead className="text-right">Growth Rate</TableHead>
+                            <TableHead>Performance</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredProducts.slice(0, 50).map((product) => (
+                            <TableRow key={product.id}>
+                              <TableCell>
+                                <div>
+                                  <div className="font-medium text-black">{product.name}</div>
+                                  <div className="text-sm font-light text-gray-500">SKU: {product.sku}</div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="font-light">
+                                  {product.category || 'Uncategorized'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-light">
+                                {formatCurrency(product.totalRevenue)}
+                              </TableCell>
+                              <TableCell className="text-right font-light">
+                                {product.unitsSold.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-right font-light">
+                                {formatCurrency(product.avgPrice)}
+                              </TableCell>
+                              <TableCell className="text-right font-light">
+                                <span className={`${
+                                  product.profitMargin >= 20 ? 'text-green-600' :
+                                  product.profitMargin >= 10 ? 'text-yellow-600' :
+                                  'text-red-600'
+                                }`}>
+                                  {product.profitMargin.toFixed(1)}%
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right font-light">
+                                <span className={`flex items-center justify-end ${
+                                  product.growthRate >= 0 ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  {product.growthRate >= 0 ? (
+                                    <TrendingUp className="w-4 h-4 mr-1" />
+                                  ) : (
+                                    <TrendingDown className="w-4 h-4 mr-1" />
+                                  )}
+                                  {Math.abs(product.growthRate).toFixed(1)}%
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center">
+                                  {[...Array(5)].map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      className={`w-4 h-4 ${
+                                        i < Math.floor(product.performanceScore / 20)
+                                          ? 'text-yellow-400 fill-current'
+                                          : 'text-gray-300'
+                                      }`}
+                                    />
+                                  ))}
+                                  <span className="ml-2 text-sm font-light text-gray-600">
+                                    {product.performanceScore.toFixed(0)}
+                                  </span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 font-light">No products found matching your criteria</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="clusters" className="space-y-8">
+              {data.products.length > 0 ? (
+                <InteractiveProductClusterChart
+                  products={data.products}
+                  onProductClick={(productId) => {
+                    console.log('Product clicked:', productId)
+                    // You can add navigation or modal logic here
+                  }}
+                />
+              ) : (
+                <Card className="card-minimal">
+                  <CardContent className="text-center py-12">
+                    <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 font-light">No product data available for clustering</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
 
           {/* Help Section */}
           <HelpSection 
