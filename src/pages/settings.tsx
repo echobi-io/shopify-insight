@@ -236,34 +236,74 @@ const SettingsPage: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="churnPeriodDays" className="text-sm font-medium text-black">
-                    Churn Period (Days)
-                  </Label>
-                  <Input
-                    id="churnPeriodDays"
-                    type="number"
-                    min="30"
-                    max="365"
-                    value={settings.churnPeriodDays}
-                    onChange={(e) => handleInputChange('churnPeriodDays', e.target.value)}
-                    className="font-light"
-                  />
-                  <p className="text-xs text-gray-500 font-light">
-                    Number of days without a purchase before a customer is considered churned (30-365 days)
-                  </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="churnPeriodDays" className="text-sm font-medium text-black">
+                      Churn Period (Days)
+                    </Label>
+                    <Input
+                      id="churnPeriodDays"
+                      type="number"
+                      min="30"
+                      max="365"
+                      value={settings.churnPeriodDays}
+                      onChange={(e) => handleInputChange('churnPeriodDays', e.target.value)}
+                      className="font-light"
+                    />
+                    <p className="text-xs text-gray-500 font-light">
+                      Days without purchase before churned (30-365)
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="costOfAcquisition" className="text-sm font-medium text-black">
+                      Cost of Acquisition ({settings.currency})
+                    </Label>
+                    <Input
+                      id="costOfAcquisition"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={settings.costOfAcquisition}
+                      onChange={(e) => handleInputChange('costOfAcquisition', e.target.value)}
+                      className="font-light"
+                    />
+                    <p className="text-xs text-gray-500 font-light">
+                      Average cost to acquire a new customer
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="grossProfitMargin" className="text-sm font-medium text-black">
+                      Gross Profit Margin (%)
+                    </Label>
+                    <Input
+                      id="grossProfitMargin"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={settings.grossProfitMargin}
+                      onChange={(e) => handleInputChange('grossProfitMargin', e.target.value)}
+                      className="font-light"
+                    />
+                    <p className="text-xs text-gray-500 font-light">
+                      Average gross profit margin percentage
+                    </p>
+                  </div>
                 </div>
                 
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
                   <div className="flex items-start space-x-2">
                     <Users className="w-4 h-4 text-orange-600 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-orange-900">Churn Detection</p>
+                      <p className="text-sm font-medium text-orange-900">Customer Analytics Configuration</p>
                       <p className="text-sm text-orange-700 font-light">
-                        Customers with no purchases in the last {settings.churnPeriodDays} days will be marked as churned and assigned high risk
+                        Customers with no purchases in the last {settings.churnPeriodDays} days will be marked as churned. 
+                        Cost of acquisition and profit margins are used in cohort analysis to show breakeven points.
                       </p>
                       <p className="text-xs text-orange-600 font-light mt-1">
-                        This setting affects customer risk calculations, retention analysis, and churn predictions across all analytics.
+                        These settings affect customer risk calculations, retention analysis, churn predictions, and cohort breakeven analysis.
                       </p>
                     </div>
                   </div>

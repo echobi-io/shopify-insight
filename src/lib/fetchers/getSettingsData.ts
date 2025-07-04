@@ -9,6 +9,8 @@ export interface AppSettings {
   timezone: string
   currency: string
   churnPeriodDays: number
+  costOfAcquisition: number
+  grossProfitMargin: number
   created_at?: string
   updated_at?: string
 }
@@ -19,7 +21,9 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id' | 'merchant_id' | 'created
   defaultDateRange: 'financial_current',
   timezone: 'UTC',
   currency: 'USD',
-  churnPeriodDays: 180 // Default: 180 days without purchase = churned
+  churnPeriodDays: 180, // Default: 180 days without purchase = churned
+  costOfAcquisition: 50, // Default: $50 per customer
+  grossProfitMargin: 30 // Default: 30% gross profit margin
 }
 
 export async function getSettings(merchant_id: string): Promise<AppSettings> {
@@ -72,6 +76,8 @@ export async function saveSettings(settings: AppSettings): Promise<boolean> {
       timezone: settings.timezone,
       currency: settings.currency,
       churnPeriodDays: settings.churnPeriodDays,
+      costOfAcquisition: settings.costOfAcquisition,
+      grossProfitMargin: settings.grossProfitMargin,
       updated_at: new Date().toISOString()
     }
 

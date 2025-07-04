@@ -1,17 +1,23 @@
 import { supabase } from '../supabaseClient';
 
 export interface CohortAnalysisResult {
-  cohortMonth: string; // e.g. '2023' (now grouped by year)
+  cohortMonth: string; // e.g. '2023' or '2023-01' depending on grouping
   monthIndex: number; // 1 = signup month, 2 = next month, etc.
   avgIncome: number;
 }
 
+export interface CohortRetentionData {
+  cohortMonth: string;
+  cohortSize: number;
+  retention: Record<string, number>;
+}
+
 /**
  * Returns cumulative average income per customer by cohort month.
- * Each cohort is a group of customers who signed up in the same month.
+ * Each cohort is a group of customers who signed up in the same period.
  * For each cohort, for each month since signup, calculates the average cumulative income per customer.
  */
-export async function getCohortAnalysisData(merchantId: string): Promise<CohortAnalysisResult[]> {
+export async function getCohortAnalysisData(merchantId: string, groupByYearMonth: boolean = false): Promise<CohortAnalysisResult[]> {
   try {
     // 1. Get all customers with their signup date
     const { data: customers, error: customersError } = await supabase
@@ -29,11 +35,13 @@ export async function getCohortAnalysisData(merchantId: string): Promise<CohortA
       return [];
     }
 
-    // 2. Group customers by cohort year (instead of month)
+    // 2. Group customers by cohort (year or year-month)
     const cohorts: Record<string, { customerIds: string[]; signupDate: Date }[]> = {};
     customers.forEach((customer: any) => {
       const signupDate = new Date(customer.created_at);
-      const cohortMonth = `${signupDate.getFullYear()}`; // Group by year only
+      const cohortMonth = groupByYearMonth 
+        ? `${signupDate.getFullYear()}-${String(signupDate.getMonth() + 1).padStart(2, '0')}`
+        : `${signupDate.getFullYear()}`;
       if (!cohorts[cohortMonth]) cohorts[cohortMonth] = [];
       cohorts[cohortMonth].push({ customerIds: [customer.id], signupDate });
     });
@@ -106,7 +114,7 @@ export async function getCohortAnalysisData(merchantId: string): Promise<CohortA
 /**
  * Get cohort retention data - percentage of customers who made purchases in each month
  */
-export async function getCohortRetentionData(merchantId: string): Promise<any[]> {
+export async function getCohortRetentionData(merchantId: string, groupByYearMonth: boolean = false): Promise<CohortRetentionData[]> {
   try {
     // Get all customers with their signup date
     const { data: customers, error: customersError } = await supabase
@@ -123,16 +131,18 @@ export async function getCohortRetentionData(merchantId: string): Promise<any[]>
       return [];
     }
 
-    // Group customers by cohort year (instead of month)
+    // Group customers by cohort (year or year-month)
     const cohorts: Record<string, string[]> = {};
     customers.forEach((customer: any) => {
       const signupDate = new Date(customer.created_at);
-      const cohortMonth = `${signupDate.getFullYear()}`; // Group by year only
+      const cohortMonth = groupByYearMonth 
+        ? `${signupDate.getFullYear()}-${String(signupDate.getMonth() + 1).padStart(2, '0')}`
+        : `${signupDate.getFullYear()}`;
       if (!cohorts[cohortMonth]) cohorts[cohortMonth] = [];
       cohorts[cohortMonth].push(customer.id);
     });
 
-    const retentionResults: any[] = [];
+    const retentionResults: CohortRetentionData[] = [];
 
     for (const cohortMonth of Object.keys(cohorts)) {
       const cohortCustomers = cohorts[cohortMonth];

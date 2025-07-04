@@ -6,21 +6,22 @@ import Header from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
-import { getCohortAnalysisData, getCohortRetentionData, CohortAnalysisResult } from '@/lib/fetchers/getCohortAnalysisData';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { getCohortAnalysisData, getCohortRetentionData, CohortAnalysisResult, CohortRetentionData } from '@/lib/fetchers/getCohortAnalysisData';
 import { getSettings } from '@/lib/utils/settingsUtils';
-import { Loader2, TrendingUp, Users, DollarSign, Calendar } from 'lucide-react';
-
-interface CohortRetentionData {
-  cohortMonth: string;
-  cohortSize: number;
-  retention: Record<string, number>;
-}
+import { Loader2, TrendingUp, Users, DollarSign, Calendar, ToggleLeft } from 'lucide-react';
 
 interface CohortTableData {
   cohortMonth: string;
   cohortSize: number;
   months: number[];
+}
+
+interface RetentionLineData {
+  monthIndex: string;
+  [key: string]: any; // Dynamic cohort keys
 }
 
 const CohortAnalysis: React.FC = () => {
@@ -30,6 +31,8 @@ const CohortAnalysis: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [merchantId, setMerchantId] = useState<string>('');
+  const [groupByYearMonth, setGroupByYearMonth] = useState(false);
+  const [settings, setSettings] = useState<any>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,9 +42,10 @@ const CohortAnalysis: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        // Get merchant ID from settings
-        const settings = await getSettings();
-        const currentMerchantId = settings?.merchant_id || '';
+        // Get settings and merchant ID
+        const appSettings = await getSettings();
+        setSettings(appSettings);
+        const currentMerchantId = appSettings?.merchant_id || '';
         setMerchantId(currentMerchantId);
 
         if (!currentMerchantId) {
@@ -51,8 +55,8 @@ const CohortAnalysis: React.FC = () => {
 
         // Fetch cohort analysis data
         const [cohortResults, retentionResults] = await Promise.all([
-          getCohortAnalysisData(currentMerchantId),
-          getCohortRetentionData(currentMerchantId)
+          getCohortAnalysisData(currentMerchantId, groupByYearMonth),
+          getCohortRetentionData(currentMerchantId, groupByYearMonth)
         ]);
 
         setCohortData(cohortResults);
@@ -67,9 +71,9 @@ const CohortAnalysis: React.FC = () => {
     };
 
     fetchData();
-  }, [user?.id]);
+  }, [user?.id, groupByYearMonth]);
 
-  // Prepare data for revenue cohort chart
+  // Prepare data for revenue cohort chart with breakeven lines
   const prepareRevenueChartData = () => {
     const cohortYears = [...new Set(cohortData.map(d => d.cohortMonth))].sort();
     const maxMonthIndex = Math.max(...cohortData.map(d => d.monthIndex), 1);
@@ -96,6 +100,25 @@ const CohortAnalysis: React.FC = () => {
       cohortSize: cohort.cohortSize,
       months: Array.from({ length: 12 }, (_, i) => cohort.retention[`month_${i}`] || 0)
     }));
+  };
+
+  // Prepare data for retention line chart (decay curve)
+  const prepareRetentionLineData = (): RetentionLineData[] => {
+    const maxMonths = 12;
+    const lineData: RetentionLineData[] = [];
+    
+    for (let monthIndex = 1; monthIndex <= maxMonths; monthIndex++) {
+      const dataPoint: RetentionLineData = { monthIndex: `M${monthIndex}` };
+      
+      retentionData.forEach(cohort => {
+        const retentionRate = cohort.retention[`month_${monthIndex - 1}`] || 0;
+        dataPoint[cohort.cohortMonth] = retentionRate;
+      });
+      
+      lineData.push(dataPoint);
+    }
+    
+    return lineData;
   };
 
   // Get color for retention rate
@@ -140,9 +163,19 @@ const CohortAnalysis: React.FC = () => {
     };
   };
 
+  // Calculate breakeven point based on cost of acquisition and gross profit margin
+  const calculateBreakevenPoint = () => {
+    if (!settings) return 0;
+    const costOfAcquisition = settings.costOfAcquisition || 50;
+    const grossProfitMargin = (settings.grossProfitMargin || 30) / 100;
+    return costOfAcquisition / grossProfitMargin;
+  };
+
   const summaryMetrics = calculateSummaryMetrics();
   const revenueChartData = prepareRevenueChartData();
   const retentionTableData = prepareRetentionTableData();
+  const retentionLineData = prepareRetentionLineData();
+  const breakevenPoint = calculateBreakevenPoint();
 
   const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', '#ff00ff', '#00ffff', '#ff0000'];
 
@@ -169,11 +202,26 @@ const CohortAnalysis: React.FC = () => {
         <div className="flex-1 ml-[240px]">
           <Header />
           <div className="p-8 space-y-8 overflow-auto">
-            <div>
-              <h1 className="text-3xl font-light text-black mb-2">Cohort Analysis</h1>
-              <p className="text-gray-600">
-                Track customer behavior and revenue patterns across different signup cohorts
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-light text-black mb-2">Cohort Analysis</h1>
+                <p className="text-gray-600">
+                  Track customer behavior and revenue patterns across different signup cohorts
+                </p>
+              </div>
+              
+              {/* Cohort Grouping Toggle */}
+              <div className="flex items-center space-x-3">
+                <Label htmlFor="grouping-toggle" className="text-sm font-medium">
+                  Group by Year-Month
+                </Label>
+                <Switch
+                  id="grouping-toggle"
+                  checked={groupByYearMonth}
+                  onCheckedChange={setGroupByYearMonth}
+                />
+                <ToggleLeft className="h-4 w-4 text-gray-500" />
+              </div>
             </div>
 
             {error && (
@@ -260,7 +308,13 @@ const CohortAnalysis: React.FC = () => {
                       <CardHeader>
                         <CardTitle>Cumulative Revenue per Customer by Cohort</CardTitle>
                         <CardDescription>
-                          Average cumulative revenue generated per customer over time for each signup cohort
+                          Average cumulative revenue generated per customer over time for each signup cohort.
+                          {settings && (
+                            <span className="block mt-2 text-sm">
+                              <strong>Breakeven Point:</strong> ${breakevenPoint.toFixed(2)} 
+                              (Cost of Acquisition: ${settings.costOfAcquisition}, Gross Profit Margin: {settings.grossProfitMargin}%)
+                            </span>
+                          )}
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -272,6 +326,15 @@ const CohortAnalysis: React.FC = () => {
                               <YAxis tickFormatter={(value) => `$${value}`} />
                               <Tooltip formatter={(value: any) => [`$${value}`, 'Avg Revenue']} />
                               <Legend />
+                              {/* Breakeven line */}
+                              {settings && (
+                                <ReferenceLine 
+                                  y={breakevenPoint} 
+                                  stroke="#ef4444" 
+                                  strokeDasharray="5 5" 
+                                  label={{ value: `Breakeven: $${breakevenPoint.toFixed(2)}`, position: "topRight" }}
+                                />
+                              )}
                               {[...new Set(cohortData.map(d => d.cohortMonth))].sort().map((cohortMonth, index) => (
                                 <Line
                                   key={cohortMonth}
@@ -294,6 +357,44 @@ const CohortAnalysis: React.FC = () => {
                   </TabsContent>
 
                   <TabsContent value="retention" className="space-y-6">
+                    {/* Retention Decay Curve */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Retention Decay Curve</CardTitle>
+                        <CardDescription>
+                          Customer retention patterns over time showing the decay curve for each cohort
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {retentionLineData.length > 0 ? (
+                          <ResponsiveContainer width="100%" height={300}>
+                            <LineChart data={retentionLineData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="monthIndex" />
+                              <YAxis tickFormatter={(value) => `${value}%`} />
+                              <Tooltip formatter={(value: any) => [`${value}%`, 'Retention Rate']} />
+                              <Legend />
+                              {retentionData.map((cohort, index) => (
+                                <Line
+                                  key={cohort.cohortMonth}
+                                  type="monotone"
+                                  dataKey={cohort.cohortMonth}
+                                  stroke={colors[index % colors.length]}
+                                  strokeWidth={2}
+                                  dot={{ r: 3 }}
+                                />
+                              ))}
+                            </LineChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="flex items-center justify-center h-64 text-gray-500">
+                            No retention data available
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Retention Heatmap */}
                     <Card>
                       <CardHeader>
                         <CardTitle>Cohort Retention Heatmap</CardTitle>
