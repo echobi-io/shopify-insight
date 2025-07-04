@@ -15,7 +15,11 @@ export interface OrderTimingData {
   percentage: number
 }
 
-export async function getDashboardChartsData(merchant_id: string, filters?: FilterState): Promise<{
+export async function getDashboardChartsData(
+  merchant_id: string, 
+  filters?: FilterState,
+  granularity: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' = 'daily'
+): Promise<{
   dailyData: DashboardChartData[]
   orderTimingData: OrderTimingData[]
 }> {
@@ -47,8 +51,8 @@ export async function getDashboardChartsData(merchant_id: string, filters?: Filt
       return { dailyData: [], orderTimingData: [] }
     }
 
-    // Process daily data (revenue and order count by date)
-    const dailyTotals: Record<string, { revenue: number; orders: number }> = {}
+    // Process data based on granularity
+    const periodTotals: Record<string, { revenue: number; orders: number }> = {}
     
     // Process hourly data (order count by hour of day)
     const hourlyTotals: Record<number, number> = {}
@@ -58,28 +62,78 @@ export async function getDashboardChartsData(merchant_id: string, filters?: Filt
       hourlyTotals[hour] = 0
     }
 
+    // Helper function to get period key based on granularity
+    const getPeriodKey = (date: Date): string => {
+      const year = date.getFullYear()
+      const month = date.getMonth()
+      const day = date.getDate()
+      
+      switch (granularity) {
+        case 'daily':
+          return date.toISOString().split('T')[0]
+        case 'weekly':
+          // Get the Monday of the week
+          const monday = new Date(date)
+          monday.setDate(date.getDate() - date.getDay() + 1)
+          return monday.toISOString().split('T')[0]
+        case 'monthly':
+          return `${year}-${String(month + 1).padStart(2, '0')}`
+        case 'quarterly':
+          const quarter = Math.floor(month / 3) + 1
+          return `${year}-Q${quarter}`
+        case 'yearly':
+          return String(year)
+        default:
+          return date.toISOString().split('T')[0]
+      }
+    }
+
+    // Helper function to get display label
+    const getDisplayLabel = (periodKey: string): string => {
+      switch (granularity) {
+        case 'daily':
+          return periodKey
+        case 'weekly':
+          return `Week of ${periodKey}`
+        case 'monthly':
+          const [year, month] = periodKey.split('-')
+          return `${year}-${month}`
+        case 'quarterly':
+          return periodKey
+        case 'yearly':
+          return periodKey
+        default:
+          return periodKey
+      }
+    }
+
     orders.forEach(order => {
       const orderDate = new Date(order.created_at)
-      const date = orderDate.toISOString().split('T')[0]
+      const periodKey = getPeriodKey(orderDate)
       const hour = orderDate.getHours()
       
-      // Daily totals
-      if (!dailyTotals[date]) {
-        dailyTotals[date] = { revenue: 0, orders: 0 }
+      // Period totals based on granularity
+      if (!periodTotals[periodKey]) {
+        periodTotals[periodKey] = { revenue: 0, orders: 0 }
       }
-      dailyTotals[date].revenue += parseFloat(order.total_price) || 0
-      dailyTotals[date].orders += 1
+      periodTotals[periodKey].revenue += parseFloat(order.total_price) || 0
+      periodTotals[periodKey].orders += 1
       
-      // Hourly totals
+      // Hourly totals (always by hour regardless of granularity)
       hourlyTotals[hour] += 1
     })
 
-    // Convert daily data to array format
-    const dailyData = Object.entries(dailyTotals).map(([date, totals]) => ({
-      date,
+    // Convert period data to array format
+    const dailyData = Object.entries(periodTotals).map(([periodKey, totals]) => ({
+      date: getDisplayLabel(periodKey),
       total_revenue: totals.revenue,
       total_orders: totals.orders
-    })).sort((a, b) => a.date.localeCompare(b.date))
+    })).sort((a, b) => {
+      // Sort by the original period key for proper chronological order
+      const aKey = Object.keys(periodTotals).find(key => getDisplayLabel(key) === a.date) || a.date
+      const bKey = Object.keys(periodTotals).find(key => getDisplayLabel(key) === b.date) || b.date
+      return aKey.localeCompare(bKey)
+    })
 
     // Convert hourly data to array format with percentages
     const totalOrders = orders.length

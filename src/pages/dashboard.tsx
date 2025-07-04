@@ -124,7 +124,7 @@ const DashboardPage: React.FC = () => {
         getRevenueByDate(filters, MERCHANT_ID),
         getProductData(filters, MERCHANT_ID),
         getAllDashboardData(MERCHANT_ID, filters),
-        getDashboardChartsData(MERCHANT_ID, filters).catch(err => {
+        getDashboardChartsData(MERCHANT_ID, filters, granularity).catch(err => {
           console.error('❌ Error loading dashboard charts data:', err)
           return { dailyData: [], orderTimingData: [] }
         }),
@@ -308,7 +308,7 @@ const DashboardPage: React.FC = () => {
               <CardHeader>
                 <CardTitle className="text-lg font-medium text-black">Revenue & Orders Trend</CardTitle>
                 <CardDescription className="font-light text-gray-600">
-                  Daily performance overview
+                  {granularity.charAt(0).toUpperCase() + granularity.slice(1)} performance overview
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -321,12 +321,42 @@ const DashboardPage: React.FC = () => {
                           dataKey="date" 
                           fontSize={12}
                           stroke="#666"
-                          tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          tickFormatter={(value) => {
+                            // Handle different granularity formats
+                            if (granularity === 'daily') {
+                              return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                            } else if (granularity === 'weekly') {
+                              return value.replace('Week of ', '')
+                            } else if (granularity === 'monthly') {
+                              const [year, month] = value.split('-')
+                              return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+                            } else if (granularity === 'quarterly') {
+                              return value
+                            } else if (granularity === 'yearly') {
+                              return value
+                            }
+                            return value
+                          }}
                         />
                         <YAxis yAxisId="revenue" orientation="left" fontSize={12} stroke="#3b82f6" />
                         <YAxis yAxisId="orders" orientation="right" fontSize={12} stroke="#10b981" />
                         <Tooltip 
-                          labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                          labelFormatter={(value) => {
+                            // Handle different granularity formats for tooltip
+                            if (granularity === 'daily') {
+                              return new Date(value).toLocaleDateString()
+                            } else if (granularity === 'weekly') {
+                              return value
+                            } else if (granularity === 'monthly') {
+                              const [year, month] = value.split('-')
+                              return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                            } else if (granularity === 'quarterly') {
+                              return value
+                            } else if (granularity === 'yearly') {
+                              return value
+                            }
+                            return value
+                          }}
                           formatter={(value: any, name: string) => [
                             name === 'total_revenue' ? formatCurrency(value) : formatNumber(value),
                             name === 'total_revenue' ? 'Revenue' : 'Orders'
