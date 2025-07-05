@@ -24,7 +24,7 @@ export async function getDashboardChartsData(
   orderTimingData: OrderTimingData[]
 }> {
   try {
-    console.log('📊 Fetching dashboard charts data for merchant:', merchant_id, 'with filters:', filters)
+    console.log('📊 Fetching dashboard charts data for merchant:', merchant_id, 'with filters:', filters, 'granularity:', granularity)
 
     // Build the base query for orders
     let query = supabase
@@ -50,6 +50,8 @@ export async function getDashboardChartsData(
       console.log('📭 No orders data found for charts')
       return { dailyData: [], orderTimingData: [] }
     }
+
+    console.log('📊 Processing', orders.length, 'orders for charts')
 
     // Process data based on granularity
     const periodTotals: Record<string, { revenue: number; orders: number }> = {}
@@ -107,10 +109,22 @@ export async function getDashboardChartsData(
       }
     }
 
-    orders.forEach(order => {
+    orders.forEach((order, index) => {
       const orderDate = new Date(order.created_at)
+      
+      // Check for invalid dates
+      if (isNaN(orderDate.getTime())) {
+        console.warn(`⚠️ Invalid date found in order ${index}:`, order.created_at)
+        return
+      }
+      
       const periodKey = getPeriodKey(orderDate)
       const hour = orderDate.getHours()
+      
+      // Debug first few orders
+      if (index < 3) {
+        console.log(`📊 Order ${index}: date=${order.created_at}, parsed=${orderDate.toISOString()}, hour=${hour}`)
+      }
       
       // Period totals based on granularity
       if (!periodTotals[periodKey]) {
@@ -123,17 +137,19 @@ export async function getDashboardChartsData(
       hourlyTotals[hour] += 1
     })
 
-    // Convert period data to array format
-    const dailyData = Object.entries(periodTotals).map(([periodKey, totals]) => ({
-      date: getDisplayLabel(periodKey),
-      total_revenue: totals.revenue,
-      total_orders: totals.orders
-    })).sort((a, b) => {
-      // Sort by the original period key for proper chronological order
-      const aKey = Object.keys(periodTotals).find(key => getDisplayLabel(key) === a.date) || a.date
-      const bKey = Object.keys(periodTotals).find(key => getDisplayLabel(key) === b.date) || b.date
-      return aKey.localeCompare(bKey)
-    })
+    // Convert period data to array format and sort properly
+    const dailyData = Object.entries(periodTotals)
+      .map(([periodKey, totals]) => ({
+        date: getDisplayLabel(periodKey),
+        periodKey, // Keep original key for sorting
+        total_revenue: totals.revenue,
+        total_orders: totals.orders
+      }))
+      .sort((a, b) => {
+        // Sort by the original period key for proper chronological order
+        return a.periodKey.localeCompare(b.periodKey)
+      })
+      .map(({ periodKey, ...rest }) => rest) // Remove periodKey from final result
 
     // Convert hourly data to array format with percentages
     const totalOrders = orders.length
@@ -143,10 +159,16 @@ export async function getDashboardChartsData(
       percentage: totalOrders > 0 ? (count / totalOrders) * 100 : 0
     })).sort((a, b) => a.hour - b.hour) // Sort by hour (time) not by order count
 
+    // Debug hourly data
+    console.log('📊 Hourly totals:', hourlyTotals)
+    console.log('📊 Sample order timing data:', orderTimingData.slice(0, 5))
+    console.log('📊 Non-zero hours:', orderTimingData.filter(d => d.order_count > 0).length)
+
     console.log('✅ Dashboard charts data processed:', {
       dailyDataPoints: dailyData.length,
       hourlyDataPoints: orderTimingData.length,
-      totalOrders
+      totalOrders,
+      nonZeroHours: orderTimingData.filter(d => d.order_count > 0).length
     })
 
     return {
