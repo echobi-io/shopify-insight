@@ -1,18 +1,11 @@
-import React, { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import DateRangeSelector from '@/components/DateRangeSelector'
-import HelpSection, { getSalesAnalysisHelpItems } from '@/components/HelpSection'
+import React, { useState } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { 
-  LineChart, 
-  Line, 
   AreaChart, 
   Area, 
-  BarChart, 
-  Bar, 
   ComposedChart,
   XAxis, 
   YAxis, 
@@ -21,40 +14,36 @@ import {
   ResponsiveContainer, 
   PieChart, 
   Pie, 
-  Cell
+  Cell,
+  Line,
+  LineChart,
+  Bar
 } from 'recharts'
 import { 
   TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
   ShoppingCart, 
-  Users, 
   Target,
   AlertTriangle,
-  RefreshCw,
   Package,
   User,
   ArrowRight,
   Calendar,
   Mail,
-  Hash,
   ChevronDown,
   ChevronUp,
   Phone,
   Clock,
   Star,
   Shield,
-  X
+  X,
+  DollarSign,
+  Users
 } from 'lucide-react'
-import ProtectedRoute from '@/components/ProtectedRoute'
-import Sidebar from '@/components/Sidebar'
-import Header from '@/components/Header'
 import { 
   getSalesAnalysisData,
   SalesAnalysisKPIs,
   RevenueTimeSeriesData,
   ChannelRevenueData,
-  SalesInsight,
   TopProduct,
   TopCustomer,
   ProductDrillDown,
@@ -64,18 +53,19 @@ import {
   getCustomerDrillDown
 } from '@/lib/fetchers/getSalesAnalysisData'
 import { getEnhancedCustomerData, EnhancedCustomerData } from '@/lib/fetchers/getEnhancedCustomerData'
-import { getKPIs, getPreviousYearKPIs, type KPIData, type FilterState } from '@/lib/fetchers/getKpis'
-import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
-import { getInitialTimeframe } from '@/lib/utils/settingsUtils'
-import EnhancedKPICard from '@/components/EnhancedKPICard'
+import { getKPIs, getPreviousYearKPIs, type KPIData } from '@/lib/fetchers/getKpis'
+import Layout from '@/components/Layout/AppLayout'
+import PageHeader from '@/components/Layout/PageHeader'
+import PageFilters from '@/components/Layout/PageFilters'
+import KPIGrid from '@/components/Layout/KPIGrid'
+import ChartCard from '@/components/Layout/ChartCard'
+import HelpSection, { getSalesAnalysisHelpItems } from '@/components/HelpSection'
 import DataDebugPanel from '@/components/DataDebugPanel'
+import { usePageState } from '@/hooks/usePageState'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 const SalesAnalysisPage: React.FC = () => {
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
   // Data states
   const [kpis, setKpis] = useState<SalesAnalysisKPIs | null>(null)
   const [enhancedKpis, setEnhancedKpis] = useState<KPIData | null>(null)
@@ -84,9 +74,8 @@ const SalesAnalysisPage: React.FC = () => {
   const [channelData, setChannelData] = useState<ChannelRevenueData[]>([])
   const [topProducts, setTopProducts] = useState<TopProduct[]>([])
   const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([])
-  const [insights, setInsights] = useState<SalesInsight[]>([])
   
-  // Drill-down states
+  // Drill-down states (keeping for complex functionality)
   const [selectedProduct, setSelectedProduct] = useState<ProductDrillDown | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDrillDown | null>(null)
   const [enhancedCustomerData, setEnhancedCustomerData] = useState<EnhancedCustomerData | null>(null)
@@ -95,28 +84,26 @@ const SalesAnalysisPage: React.FC = () => {
   const [showEnhancedCustomerPopover, setShowEnhancedCustomerPopover] = useState(false)
   const [selectedCustomerForEnhanced, setSelectedCustomerForEnhanced] = useState<TopCustomer | null>(null)
   
-  // Filter states
-  const [timeframe, setTimeframe] = useState(getInitialTimeframe() || 'financial_current')
-  const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>('daily')
-  const [customStartDate, setCustomStartDate] = useState('')
-  const [customEndDate, setCustomEndDate] = useState('')
-  
   // Expandable list states
   const [showAllProducts, setShowAllProducts] = useState(false)
   const [showAllCustomers, setShowAllCustomers] = useState(false)
 
-  // Load data
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
-      const filters: FilterState = {
-        startDate: formatDateForSQL(dateRange.startDate),
-        endDate: formatDateForSQL(dateRange.endDate)
-      }
-
+  // Use the page state hook
+  const {
+    timeframe,
+    setTimeframe,
+    granularity,
+    setGranularity,
+    customStartDate,
+    setCustomStartDate,
+    customEndDate,
+    setCustomEndDate,
+    loading,
+    error,
+    setError,
+    loadData
+  } = usePageState({
+    onDataLoad: async (filters, granularityParam) => {
       console.log('🔄 Loading sales analysis data with filters:', filters)
 
       // Load all data in parallel
@@ -130,7 +117,7 @@ const SalesAnalysisPage: React.FC = () => {
           console.error('❌ Error loading previous year KPIs:', err)
           return null
         }),
-        getRevenueTimeSeries(filters, granularity, HARDCODED_MERCHANT_ID)
+        getRevenueTimeSeries(filters, granularityParam as any, HARDCODED_MERCHANT_ID)
       ])
       
       setKpis(data.kpis)
@@ -140,19 +127,8 @@ const SalesAnalysisPage: React.FC = () => {
       setChannelData(data.channelData)
       setTopProducts(data.topProducts)
       setTopCustomers(data.topCustomers)
-      setInsights(data.insights)
-
-    } catch (err) {
-      console.error('❌ Error loading sales analysis data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load sales analysis data')
-    } finally {
-      setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    loadData()
-  }, [timeframe, customStartDate, customEndDate, granularity])
+  })
 
   // Handle product drill-down
   const handleProductClick = async (product: TopProduct) => {
@@ -290,269 +266,172 @@ const SalesAnalysisPage: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      
-      <div className="flex-1 ml-[240px] overflow-auto">
-        <Header />
-        
-        <div className="p-8">
-          {/* Page Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-light text-black mb-2">Sales Analysis</h1>
-                <p className="text-gray-600 font-light">Revenue trends and performance insights</p>
-              </div>
-              
-              {/* Filters */}
-              <div className="flex items-center space-x-4">
-                <DateRangeSelector
-                  value={timeframe}
-                  onChange={setTimeframe}
-                  showCustomInputs={true}
-                  customStartDate={customStartDate}
-                  customEndDate={customEndDate}
-                  onCustomStartDateChange={setCustomStartDate}
-                  onCustomEndDateChange={setCustomEndDate}
+    <Layout loading={loading} loadingMessage="Loading sales analysis...">
+      <PageHeader
+        title="Sales Analysis"
+        description="Revenue trends and performance insights"
+        onRefresh={loadData}
+        loading={loading}
+        actions={
+          <PageFilters
+            timeframe={timeframe}
+            onTimeframeChange={setTimeframe}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomStartDateChange={setCustomStartDate}
+            onCustomEndDateChange={setCustomEndDate}
+            granularity={granularity}
+            onGranularityChange={setGranularity}
+          />
+        }
+      />
+
+      {/* Error Alert */}
+      {error && (
+        <Alert className="mb-6 border-red-200 bg-red-50">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800 font-light">
+            {error}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* KPI Cards */}
+      <KPIGrid
+        currentKpis={enhancedKpis}
+        previousKpis={previousYearKpis}
+        variant="enhanced"
+      />
+
+      {/* Main Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Revenue Over Time */}
+        <ChartCard
+          title="Revenue Over Time"
+          description={`${granularity.charAt(0).toUpperCase() + granularity.slice(1)} revenue trend`}
+          hasData={timeSeriesData.length > 0}
+          noDataMessage="No revenue data available for the selected period"
+          noDataIcon={<TrendingUp className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
+        >
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={timeSeriesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="date" 
+                  fontSize={12}
+                  stroke="#666"
+                  tickFormatter={(value) => formatDateForGranularity(value, granularity)}
                 />
-                
-                <Select value={granularity} onValueChange={(value: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly') => setGranularity(value)}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                    <SelectItem value="yearly">Yearly</SelectItem>
-                  </SelectContent>
-                </Select>
+                <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toLocaleString()}`} />
+                <Tooltip content={<CustomTooltip />} />
+                <Area 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="#3b82f6" 
+                  fill="#3b82f6" 
+                  fillOpacity={0.1}
+                  name="Revenue"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
 
-                <Button 
-                  onClick={loadData} 
-                  variant="outline" 
-                  size="sm"
-                  disabled={loading}
-                  className="font-light"
+        {/* Order Volume vs Revenue */}
+        <ChartCard
+          title="Order Volume vs Revenue"
+          description="Dual-axis view of orders and revenue correlation"
+          hasData={timeSeriesData.length > 0}
+          noDataMessage="No order data available for the selected period"
+          noDataIcon={<ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
+        >
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={timeSeriesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="date" 
+                  fontSize={12}
+                  stroke="#666"
+                  tickFormatter={(value) => formatDateForGranularity(value, granularity)}
+                />
+                <YAxis yAxisId="left" fontSize={12} stroke="#666" tickFormatter={(value) => value.toLocaleString()} />
+                <YAxis yAxisId="right" orientation="right" fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toLocaleString()}`} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar yAxisId="left" dataKey="orders" fill="#10b981" name="Orders" />
+                <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} name="Revenue" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+      </div>
+
+      {/* Secondary Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Average Order Value Trend */}
+        <ChartCard
+          title="Average Order Value Trend"
+          description="Track pricing and bundling effectiveness"
+          hasData={timeSeriesData.length > 0}
+          noDataMessage="No AOV data available for the selected period"
+          noDataIcon={<Target className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
+        >
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={timeSeriesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="date" 
+                  fontSize={12}
+                  stroke="#666"
+                  tickFormatter={(value) => formatDateForGranularity(value, granularity)}
+                />
+                <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toFixed(0)}`} />
+                <Tooltip content={<CustomTooltip />} />
+                <Line 
+                  type="monotone" 
+                  dataKey="avgOrderValue" 
+                  stroke="#10b981" 
+                  strokeWidth={2}
+                  name="AOV"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+
+        {/* Revenue by Channel */}
+        <ChartCard
+          title="Revenue by Channel"
+          description="Channel performance breakdown"
+          hasData={channelData.length > 0}
+          noDataMessage="No channel data available for the selected period"
+          noDataIcon={<User className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
+        >
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={channelData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ channel, percentage }) => `${channel}: ${percentage}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="revenue"
                 >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-              </div>
-            </div>
+                  {channelData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={`hsl(${index * 45}, 70%, 60%)`} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: any) => [`$${value.toLocaleString()}`, 'Revenue']} />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
-
-          {/* Error Alert */}
-          {error && (
-            <Alert className="mb-6 border-red-200 bg-red-50">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800 font-light">
-                {error}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <EnhancedKPICard
-              title="Total Revenue"
-              value={enhancedKpis?.totalRevenue || 0}
-              previousValue={previousYearKpis?.totalRevenue}
-              icon={<DollarSign className="w-5 h-5" />}
-              isMonetary={true}
-            />
-            <EnhancedKPICard
-              title="Total Orders"
-              value={enhancedKpis?.totalOrders || 0}
-              previousValue={previousYearKpis?.totalOrders}
-              icon={<ShoppingCart className="w-5 h-5" />}
-              isMonetary={false}
-            />
-            <EnhancedKPICard
-              title="Average Order Value"
-              value={enhancedKpis?.avgOrderValue || 0}
-              previousValue={previousYearKpis?.avgOrderValue}
-              icon={<Target className="w-5 h-5" />}
-              isMonetary={true}
-            />
-            <EnhancedKPICard
-              title="New Customers"
-              value={enhancedKpis?.newCustomers || 0}
-              previousValue={previousYearKpis?.newCustomers}
-              icon={<Users className="w-5 h-5" />}
-              isMonetary={false}
-            />
-          </div>
-
-          {/* Main Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Revenue Over Time */}
-            <Card className="card-minimal">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium text-black">Revenue Over Time</CardTitle>
-                <CardDescription className="font-light text-gray-600">
-                  {granularity.charAt(0).toUpperCase() + granularity.slice(1)} revenue trend
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {timeSeriesData.length > 0 ? (
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={timeSeriesData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis 
-                          dataKey="date" 
-                          fontSize={12}
-                          stroke="#666"
-                          tickFormatter={(value) => formatDateForGranularity(value, granularity)}
-                        />
-                        <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Area 
-                          type="monotone" 
-                          dataKey="revenue" 
-                          stroke="#3b82f6" 
-                          fill="#3b82f6" 
-                          fillOpacity={0.1}
-                          name="Revenue"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-64 text-gray-500">
-                    <div className="text-center">
-                      <TrendingUp className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p className="font-light">No revenue data available for the selected period</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Order Volume vs Revenue */}
-            <Card className="card-minimal">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium text-black">Order Volume vs Revenue</CardTitle>
-                <CardDescription className="font-light text-gray-600">Dual-axis view of orders and revenue correlation</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {timeSeriesData.length > 0 ? (
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={timeSeriesData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis 
-                          dataKey="date" 
-                          fontSize={12}
-                          stroke="#666"
-                          tickFormatter={(value) => formatDateForGranularity(value, granularity)}
-                        />
-                        <YAxis yAxisId="left" fontSize={12} stroke="#666" tickFormatter={(value) => value.toLocaleString()} />
-                        <YAxis yAxisId="right" orientation="right" fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toLocaleString()}`} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Bar yAxisId="left" dataKey="orders" fill="#10b981" name="Orders" />
-                        <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} name="Revenue" />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-64 text-gray-500">
-                    <div className="text-center">
-                      <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p className="font-light">No order data available for the selected period</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Secondary Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            {/* Average Order Value Trend */}
-            <Card className="card-minimal">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium text-black">Average Order Value Trend</CardTitle>
-                <CardDescription className="font-light text-gray-600">Track pricing and bundling effectiveness</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {timeSeriesData.length > 0 ? (
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={timeSeriesData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis 
-                          dataKey="date" 
-                          fontSize={12}
-                          stroke="#666"
-                          tickFormatter={(value) => formatDateForGranularity(value, granularity)}
-                        />
-                        <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => `$${value.toFixed(0)}`} />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Line 
-                          type="monotone" 
-                          dataKey="avgOrderValue" 
-                          stroke="#10b981" 
-                          strokeWidth={2}
-                          name="AOV"
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-64 text-gray-500">
-                    <div className="text-center">
-                      <Target className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p className="font-light">No AOV data available for the selected period</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Revenue by Channel */}
-            <Card className="card-minimal">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium text-black">Revenue by Channel</CardTitle>
-                <CardDescription className="font-light text-gray-600">Channel performance breakdown</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {channelData.length > 0 ? (
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={channelData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ channel, percentage }) => `${channel}: ${percentage}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="revenue"
-                        >
-                          {channelData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={`hsl(${index * 45}, 70%, 60%)`} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: any) => [`$${value.toLocaleString()}`, 'Revenue']} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-64 text-gray-500">
-                    <div className="text-center">
-                      <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p className="font-light">No channel data available for the selected period</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+        </ChartCard>
+      </div>
 
           {/* Top Products and Customers */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">

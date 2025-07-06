@@ -24,8 +24,6 @@ export async function getDashboardChartsData(
   orderTimingData: OrderTimingData[]
 }> {
   try {
-    console.log('📊 Fetching dashboard charts data for merchant:', merchant_id, 'with filters:', filters, 'granularity:', granularity)
-
     // Build the base query for orders
     let query = supabase
       .from('orders')
@@ -47,11 +45,8 @@ export async function getDashboardChartsData(
     }
 
     if (!orders || orders.length === 0) {
-      console.log('📭 No orders data found for charts')
       return { dailyData: [], orderTimingData: [] }
     }
-
-    console.log('📊 Processing', orders.length, 'orders for charts')
 
     // Process data based on granularity
     const periodTotals: Record<string, { revenue: number; orders: number }> = {}
