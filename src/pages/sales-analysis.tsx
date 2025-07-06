@@ -55,7 +55,7 @@ import {
 import { getEnhancedCustomerData, EnhancedCustomerData } from '@/lib/fetchers/getEnhancedCustomerData'
 import { getKPIs, getPreviousYearKPIs, type KPIData, type FilterState } from '@/lib/fetchers/getKpis'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
-import Layout from '@/components/Layout/AppLayout'
+import AppLayout from '@/components/Layout/AppLayout'
 import PageHeader from '@/components/Layout/PageHeader'
 import PageFilters from '@/components/Layout/PageFilters'
 import KPIGrid from '@/components/Layout/KPIGrid'
@@ -240,7 +240,7 @@ const SalesAnalysisPage: React.FC = () => {
   }
 
   return (
-    <Layout loading={loading} loadingMessage="Loading sales analysis...">
+    <AppLayout loading={loading} loadingMessage="Loading sales analysis...">
       <PageHeader
         title="Sales Analysis"
         description="Revenue trends and performance insights"
@@ -600,7 +600,7 @@ const SalesAnalysisPage: React.FC = () => {
         items={getSalesAnalysisHelpItems()}
         defaultOpen={false}
       />
-    </Layout>
+    </AppLayout>
   )
 }
 

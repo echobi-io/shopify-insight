@@ -9,7 +9,7 @@ interface LayoutProps {
   loadingMessage?: string
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, loading, loadingMessage = "Loading..." }) => {
+const AppLayout: React.FC<LayoutProps> = ({ children, loading, loadingMessage = "Loading..." }) => {
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-50">
@@ -40,4 +40,4 @@ const Layout: React.FC<LayoutProps> = ({ children, loading, loadingMessage = "Lo
   )
 }
 
-export default Layout
+export default AppLayout

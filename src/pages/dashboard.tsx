@@ -23,7 +23,7 @@ import {
 } from '@/lib/fetchers/getDashboardChartsData'
 import { formatCurrency, getSettings } from '@/lib/utils/settingsUtils'
 import { getTopCustomersData, TopCustomer } from '@/lib/fetchers/getTopCustomersData'
-import Layout from '@/components/Layout/AppLayout'
+import AppLayout from '@/components/Layout/AppLayout'
 import PageHeader from '@/components/Layout/PageHeader'
 import PageFilters from '@/components/Layout/PageFilters'
 import KPIGrid from '@/components/Layout/KPIGrid'
@@ -146,7 +146,7 @@ const DashboardPage: React.FC = () => {
   }
 
   return (
-    <Layout loading={loading} loadingMessage="Loading dashboard data...">
+    <AppLayout loading={loading} loadingMessage="Loading dashboard data...">
       <PageHeader
         title="Dashboard"
         description="Business performance overview"
@@ -422,7 +422,7 @@ const DashboardPage: React.FC = () => {
         items={getDashboardHelpItems()}
         defaultOpen={false}
       />
-    </Layout>
+    </AppLayout>
   )
 }
 
