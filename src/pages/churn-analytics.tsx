@@ -21,10 +21,10 @@ import { Progress } from '@/components/ui/progress'
 import { getChurnLtvData, getChurnedCustomerProductData, type ChurnAnalyticsData, type ChurnTrend, type RiskSegment, type ChurnCustomer, type ChurnRiskFactor, type ChurnedCustomerProductData } from '@/lib/fetchers/getChurnLtvData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency, getSettings, getInitialTimeframe } from '@/lib/utils/settingsUtils'
-import Sidebar from '@/components/Sidebar'
-import Header from '@/components/Header'
+import AppLayout from '@/components/Layout/AppLayout'
+import PageHeader from '@/components/Layout/PageHeader'
+import PageFilters from '@/components/Layout/PageFilters'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import DateRangeSelector from '@/components/DateRangeSelector'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection from '@/components/HelpSection'
 import ExpandableTile from '@/components/ExpandableTile'
@@ -131,10 +131,6 @@ const ChurnAnalyticsPage: React.FC = () => {
     if (!data?.customers || data.customers.length === 0) return []
     
     const customers = data.customers
-    // Use the churn period from the badge display which shows the current setting
-    const churnPeriodElement = document.querySelector('[data-churn-period]')
-    const churnPeriodDays = churnPeriodElement ? 
-      parseInt(churnPeriodElement.getAttribute('data-churn-period') || '180') : 180
     const mediumRiskThreshold = Math.floor(churnPeriodDays * 0.67)
     const lowRiskThreshold = Math.floor(churnPeriodDays * 0.33)
     
@@ -181,53 +177,6 @@ const ChurnAnalyticsPage: React.FC = () => {
     })).sort((a, b) => b.impact - a.impact)
   }
 
-  const generateChurnPredictionAccuracy = () => {
-    if (!data?.customers || data.customers.length === 0) {
-      return [
-        { model: 'Behavioral Analysis', accuracy: 0, precision: 0, recall: 0 },
-        { model: 'RFM Segmentation', accuracy: 0, precision: 0, recall: 0 },
-        { model: 'Order Pattern', accuracy: 0, precision: 0, recall: 0 },
-        { model: 'Time-based Risk', accuracy: 0, precision: 0, recall: 0 }
-      ]
-    }
-
-    // Calculate real model performance based on prediction confidence
-    const avgConfidence = data.customers.reduce((sum, c) => sum + (c.predictionConfidence || 0), 0) / data.customers.length
-    const highConfidenceCustomers = data.customers.filter(c => (c.predictionConfidence || 0) > 70).length
-    const totalCustomers = data.customers.length
-    
-    const baseAccuracy = avgConfidence * 0.8 // Scale confidence to accuracy
-    const precisionBoost = (highConfidenceCustomers / totalCustomers) * 10
-    const recallPenalty = totalCustomers < 50 ? 5 : 0 // Penalty for small datasets
-    
-    return [
-      { 
-        model: 'Behavioral Analysis', 
-        accuracy: Math.min(95, baseAccuracy + 5), 
-        precision: Math.min(95, baseAccuracy + precisionBoost), 
-        recall: Math.max(60, baseAccuracy - recallPenalty) 
-      },
-      { 
-        model: 'RFM Segmentation', 
-        accuracy: Math.min(90, baseAccuracy), 
-        precision: Math.min(90, baseAccuracy + precisionBoost - 2), 
-        recall: Math.max(65, baseAccuracy - recallPenalty - 2) 
-      },
-      { 
-        model: 'Order Pattern', 
-        accuracy: Math.min(85, baseAccuracy - 3), 
-        precision: Math.min(85, baseAccuracy + precisionBoost - 5), 
-        recall: Math.max(70, baseAccuracy - recallPenalty - 3) 
-      },
-      { 
-        model: 'Time-based Risk', 
-        accuracy: Math.min(80, baseAccuracy - 8), 
-        precision: Math.min(80, baseAccuracy + precisionBoost - 8), 
-        recall: Math.max(65, baseAccuracy - recallPenalty - 8) 
-      }
-    ]
-  }
-
   const generateRetentionCampaignData = () => {
     const atRiskCustomers = data?.customers.filter(c => c.riskLevel === 'High' || c.riskLevel === 'Medium').length || 0
     const baseConversion = Math.max(1, Math.floor(atRiskCustomers * 0.15))
@@ -262,111 +211,56 @@ const ChurnAnalyticsPage: React.FC = () => {
   const cohortData = generateChurnCohortData()
   const lifecycleData = generateCustomerLifecycleData()
   const riskFactorsData = generateRiskFactorsData()
-  const predictionAccuracyData = generateChurnPredictionAccuracy()
   const campaignData = generateRetentionCampaignData()
 
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <RefreshCw className="h-8 w-8 animate-spin text-black mx-auto mb-4" />
-              <p className="text-gray-600 font-light">Loading churn analytics...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
-              <p className="text-red-600 mb-4 font-light">{error}</p>
-              <Button onClick={loadData} className="font-light">Retry</Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!data) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <p className="text-gray-600 font-light">No churn data available for the selected period.</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      
-      <div className="flex-1 ml-[240px] overflow-auto">
-        <Header />
-        <div className="p-8">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-light text-black mb-2">Churn Analytics</h1>
-                <p className="text-gray-600 font-light">Comprehensive customer retention analysis and churn risk assessment</p>
-                <div className="mt-2 flex items-center space-x-2">
-                  <Badge variant="outline" className="text-xs">
-                    Churn Period: {churnPeriodDays} days
-                  </Badge>
-                  <span className="text-xs text-gray-500">
-                    (Configure in Settings)
-                  </span>
-                </div>
-              </div>
-              
-              {/* Date Filter */}
-              <div className="flex items-center space-x-4">
-                <DateRangeSelector
-                  value={timeframe}
-                  onChange={setTimeframe}
-                  showCustomInputs={true}
-                  customStartDate={customStartDate}
-                  customEndDate={customEndDate}
-                  onCustomStartDateChange={setCustomStartDate}
-                  onCustomEndDateChange={setCustomEndDate}
-                />
-                
-                <Button 
-                  onClick={loadData} 
-                  variant="outline" 
-                  size="sm"
-                  disabled={loading}
-                  className="font-light"
-                >
-                  {loading ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
-                  Refresh
-                </Button>
-              </div>
-            </div>
-          </div>
+    <AppLayout loading={loading} loadingMessage="Loading churn analytics...">
+      <PageHeader
+        title="Churn Analytics"
+        description="Comprehensive customer retention analysis and churn risk assessment"
+        onRefresh={loadData}
+        loading={loading}
+        actions={
+          <PageFilters
+            timeframe={timeframe}
+            onTimeframeChange={setTimeframe}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomStartDateChange={setCustomStartDate}
+            onCustomEndDateChange={setCustomEndDate}
+            showGranularity={false}
+          />
+        }
+      />
 
+      {/* Churn Period Badge */}
+      <div className="mb-6 flex items-center space-x-2">
+        <Badge variant="outline" className="text-xs">
+          Churn Period: {churnPeriodDays} days
+        </Badge>
+        <span className="text-xs text-gray-500">
+          (Configure in Settings)
+        </span>
+      </div>
+
+      {error && (
+        <div className="mb-6">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
+            <p className="text-red-600 mb-4 font-light">{error}</p>
+            <Button onClick={loadData} className="font-light">Retry</Button>
+          </div>
+        </div>
+      )}
+
+      {!data && !loading && (
+        <div className="text-center py-12">
+          <p className="text-gray-600 font-light">No churn data available for the selected period.</p>
+        </div>
+      )}
+
+      {data && (
+        <>
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
@@ -923,8 +817,6 @@ const ChurnAnalyticsPage: React.FC = () => {
               </ExpandableTile>
             </TabsContent>
 
-
-
             {/* Campaigns Tab */}
             <TabsContent value="campaigns" className="space-y-8">
               {/* Retention Campaign Performance */}
@@ -959,8 +851,8 @@ const ChurnAnalyticsPage: React.FC = () => {
             items={getChurnHelpItems()}
             defaultOpen={false}
           />
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Customer Detail Modal */}
       <Dialog open={!!selectedCustomer} onOpenChange={() => setSelectedCustomer(null)}>
@@ -1248,7 +1140,7 @@ const ChurnAnalyticsPage: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </AppLayout>
   )
 }
 

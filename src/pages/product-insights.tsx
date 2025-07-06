@@ -12,10 +12,10 @@ import { getProductPerformanceData, type ProductPerformanceData, type ProductMet
 import { getReturnedProductsData, type ReturnedProductsData } from '@/lib/fetchers/getReturnedProductsData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency, getInitialTimeframe } from '@/lib/utils/settingsUtils'
-import Sidebar from '@/components/Sidebar'
-import Header from '@/components/Header'
+import AppLayout from '@/components/Layout/AppLayout'
+import PageHeader from '@/components/Layout/PageHeader'
+import PageFilters from '@/components/Layout/PageFilters'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import DateRangeSelector from '@/components/DateRangeSelector'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection from '@/components/HelpSection'
 import ReturnedProductsSection from '@/components/ReturnedProductsSection'
@@ -130,100 +130,44 @@ const ProductInsightsPage: React.FC = () => {
 
   const categories = [...new Set(data?.products.map(p => p.category).filter(Boolean))] || []
 
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <RefreshCw className="h-8 w-8 animate-spin text-black mx-auto mb-4" />
-              <p className="text-gray-600 font-light">Loading product insights...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
-              <p className="text-red-600 mb-4 font-light">{error}</p>
-              <Button onClick={loadData} className="font-light">Retry</Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!data) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <p className="text-gray-600 font-light">No product data available for the selected period.</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      
-      <div className="flex-1 ml-[240px] overflow-auto">
-        <Header />
-        <div className="p-8">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-light text-black mb-2">Product Insights</h1>
-                <p className="text-gray-600 font-light">Product performance analytics and inventory insights</p>
-              </div>
-              
-              {/* Date Filter */}
-              <div className="flex items-center space-x-4">
-                <DateRangeSelector
-                  value={timeframe}
-                  onChange={setTimeframe}
-                  showCustomInputs={true}
-                  customStartDate={customStartDate}
-                  customEndDate={customEndDate}
-                  onCustomStartDateChange={setCustomStartDate}
-                  onCustomEndDateChange={setCustomEndDate}
-                />
-                
-                <Button 
-                  onClick={loadData} 
-                  variant="outline" 
-                  size="sm"
-                  disabled={loading}
-                  className="font-light"
-                >
-                  {loading ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
-                  Refresh
-                </Button>
-              </div>
-            </div>
-          </div>
+    <AppLayout loading={loading} loadingMessage="Loading product insights...">
+      <PageHeader
+        title="Product Insights"
+        description="Product performance analytics and inventory insights"
+        onRefresh={loadData}
+        loading={loading}
+        actions={
+          <PageFilters
+            timeframe={timeframe}
+            onTimeframeChange={setTimeframe}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomStartDateChange={setCustomStartDate}
+            onCustomEndDateChange={setCustomEndDate}
+            showGranularity={false}
+          />
+        }
+      />
 
+      {error && (
+        <div className="mb-6">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
+            <p className="text-red-600 mb-4 font-light">{error}</p>
+            <Button onClick={loadData} className="font-light">Retry</Button>
+          </div>
+        </div>
+      )}
+
+      {!data && !loading && (
+        <div className="text-center py-12">
+          <p className="text-gray-600 font-light">No product data available for the selected period.</p>
+        </div>
+      )}
+
+      {data && (
+        <>
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <EnhancedKPICard
@@ -543,9 +487,9 @@ const ProductInsightsPage: React.FC = () => {
             items={getProductHelpItems()}
             defaultOpen={false}
           />
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </AppLayout>
   )
 }
 
