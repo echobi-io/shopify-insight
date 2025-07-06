@@ -151,17 +151,21 @@ export async function getDashboardChartsData(
       })
       .map(({ periodKey, ...rest }) => rest) // Remove periodKey from final result
 
-    // Convert hourly data to array format with percentages
+    // Convert hourly data to array format with percentages - ALWAYS sort chronologically
     const totalOrders = orders.length
-    const orderTimingData = Object.entries(hourlyTotals).map(([hour, count]) => ({
-      hour: parseInt(hour),
-      order_count: count,
-      percentage: totalOrders > 0 ? (count / totalOrders) * 100 : 0
-    })).sort((a, b) => a.hour - b.hour) // Sort by hour (time) not by order count
+    const orderTimingData = Object.entries(hourlyTotals)
+      .map(([hour, count]) => ({
+        hour: parseInt(hour),
+        order_count: count,
+        percentage: totalOrders > 0 ? (count / totalOrders) * 100 : 0
+      }))
+      .sort((a, b) => a.hour - b.hour) // CRITICAL: Sort chronologically by hour (0-23), NOT by order count
 
-    // Debug hourly data
-    console.log('📊 Hourly totals:', hourlyTotals)
-    console.log('📊 Sample order timing data:', orderTimingData.slice(0, 5))
+    // Debug hourly data to verify chronological sorting
+    console.log('📊 Hourly totals (raw):', hourlyTotals)
+    console.log('📊 Order timing data (first 8 hours):', orderTimingData.slice(0, 8).map(d => `${d.hour}:00 = ${d.order_count} orders`))
+    console.log('📊 Order timing data (last 8 hours):', orderTimingData.slice(-8).map(d => `${d.hour}:00 = ${d.order_count} orders`))
+    console.log('📊 Verification - Hours are in order:', orderTimingData.map(d => d.hour).join(', '))
     console.log('📊 Non-zero hours:', orderTimingData.filter(d => d.order_count > 0).length)
 
     console.log('✅ Dashboard charts data processed:', {
