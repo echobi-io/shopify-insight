@@ -219,14 +219,39 @@ export async function generateAICommentary(merchant_id: string, filters?: Filter
     const previousRevenue = previousPeriodOrders?.reduce((sum, order) => sum + (parseFloat(order.total_price) || 0), 0) || 0;
     const revenueChange = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
 
-    // Get top product from RPC function (if available)
-    const { data: topProductData, error: productError } = await supabase.rpc('get_product_performance', {
-      merchant_id: merchant_id,
-      start_date: startDate,
-      end_date: endDate
-    });
+    // Get top product from order items directly
+    const { data: orderItems, error: productError } = await supabase
+      .from('order_items')
+      .select(`
+        product_id,
+        quantity,
+        price,
+        products!inner(name),
+        orders!inner(created_at, merchant_id)
+      `)
+      .gte('orders.created_at', startDate)
+      .lte('orders.created_at', endDate)
+      .eq('orders.merchant_id', merchant_id);
 
-    const topProduct = topProductData && topProductData.length > 0 ? topProductData[0].name : 'Unknown Product';
+    let topProduct = 'Unknown Product';
+    if (orderItems && orderItems.length > 0 && !productError) {
+      // Group by product and calculate revenue
+      const productRevenue = orderItems.reduce((acc, item) => {
+        const productName = (item.products as any)?.name || 'Unknown Product';
+        const revenue = (item.quantity || 0) * (item.price || 0);
+        acc[productName] = (acc[productName] || 0) + revenue;
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Get the top product by revenue
+      const topProductEntry = Object.entries(productRevenue)
+        .sort(([,a], [,b]) => b - a)[0];
+      
+      if (topProductEntry) {
+        topProduct = topProductEntry[0];
+      }
+    }
+
     const topProductGrowth = Math.abs(revenueChange); // Simplified for now
     const customerChurnIndicator = 0; // No churn data available
 
