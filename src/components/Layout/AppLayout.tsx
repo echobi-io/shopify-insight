@@ -1,25 +1,20 @@
-import React, { ReactNode } from 'react'
+import React from 'react'
 import { RefreshCw } from 'lucide-react'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
-import ProtectedRoute from '@/components/ProtectedRoute'
 
-interface AppLayoutProps {
-  children: ReactNode
+interface LayoutProps {
+  children: React.ReactNode
   loading?: boolean
   loadingMessage?: string
 }
 
-const AppLayout: React.FC<AppLayoutProps> = ({ 
-  children, 
-  loading = false, 
-  loadingMessage = "Loading..." 
-}) => {
+const Layout: React.FC<LayoutProps> = ({ children, loading, loadingMessage = "Loading..." }) => {
   if (loading) {
     return (
       <div className="flex h-screen bg-gray-50">
         <Sidebar />
-        <div className="flex-1 ml-[280px]">
+        <div className="flex-1 ml-[240px]">
           <Header />
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -35,7 +30,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 ml-[280px] overflow-auto">
+      <div className="flex-1 ml-[240px] overflow-auto">
         <Header />
         <div className="p-8">
           {children}
@@ -45,12 +40,4 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   )
 }
 
-export default function Layout({ children, loading, loadingMessage }: AppLayoutProps) {
-  return (
-    <ProtectedRoute>
-      <AppLayout loading={loading} loadingMessage={loadingMessage}>
-        {children}
-      </AppLayout>
-    </ProtectedRoute>
-  )
-}
+export default Layout

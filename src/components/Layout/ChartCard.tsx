@@ -1,15 +1,13 @@
-import React, { ReactNode } from 'react'
+import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle } from 'lucide-react'
 
 interface ChartCardProps {
   title: string
   description?: string
-  children: ReactNode
+  children: React.ReactNode
   hasData?: boolean
   noDataMessage?: string
-  noDataIcon?: ReactNode
-  className?: string
+  noDataIcon?: React.ReactNode
 }
 
 const ChartCard: React.FC<ChartCardProps> = ({
@@ -18,11 +16,10 @@ const ChartCard: React.FC<ChartCardProps> = ({
   children,
   hasData = true,
   noDataMessage = "No data available",
-  noDataIcon,
-  className = "card-minimal"
+  noDataIcon
 }) => {
   return (
-    <Card className={className}>
+    <Card className="card-minimal">
       <CardHeader>
         <CardTitle className="text-lg font-medium text-black">{title}</CardTitle>
         {description && (
@@ -35,10 +32,10 @@ const ChartCard: React.FC<ChartCardProps> = ({
         {hasData ? (
           children
         ) : (
-          <div className="h-64 flex items-center justify-center">
+          <div className="flex items-center justify-center h-64 text-gray-500">
             <div className="text-center">
-              {noDataIcon || <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />}
-              <p className="text-sm font-light text-gray-500">{noDataMessage}</p>
+              {noDataIcon}
+              <p className="font-light">{noDataMessage}</p>
             </div>
           </div>
         )}

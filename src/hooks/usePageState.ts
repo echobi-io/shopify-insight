@@ -1,64 +1,51 @@
 import { useState, useEffect } from 'react'
-import { getInitialTimeframe } from '@/lib/utils/settingsUtils'
-import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { FilterState } from '@/lib/fetchers/getKpis'
+import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 
-interface UsePageStateOptions {
-  initialTimeframe?: string
-  initialGranularity?: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
-  onDataLoad?: (filters: FilterState, granularity?: string) => Promise<void>
+interface UsePageStateProps {
+  onDataLoad: (filters: FilterState, granularity?: string) => Promise<void>
+  defaultTimeframe?: string
+  defaultGranularity?: string
 }
 
-export const usePageState = (options: UsePageStateOptions = {}) => {
-  const {
-    initialTimeframe = getInitialTimeframe() || 'financial_current',
-    initialGranularity = 'daily',
-    onDataLoad
-  } = options
-
-  // Filter states
-  const [timeframe, setTimeframe] = useState(initialTimeframe)
-  const [granularity, setGranularity] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'>(initialGranularity)
+export const usePageState = ({
+  onDataLoad,
+  defaultTimeframe = 'financial_current',
+  defaultGranularity = 'daily'
+}: UsePageStateProps) => {
+  const [timeframe, setTimeframe] = useState(defaultTimeframe)
+  const [granularity, setGranularity] = useState(defaultGranularity)
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
-  
-  // Loading state
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Generate filters from current state
-  const getFilters = (): FilterState => {
-    const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
-    return {
-      startDate: formatDateForSQL(dateRange.startDate),
-      endDate: formatDateForSQL(dateRange.endDate)
-    }
-  }
-
-  // Load data function
   const loadData = async () => {
-    if (!onDataLoad) return
-
     try {
       setLoading(true)
       setError(null)
-      const filters = getFilters()
+      
+      const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
+      const filters: FilterState = {
+        startDate: formatDateForSQL(dateRange.startDate),
+        endDate: formatDateForSQL(dateRange.endDate)
+      }
+      
       await onDataLoad(filters, granularity)
     } catch (err) {
-      console.error('❌ Error loading page data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load data')
+      console.error('Error loading data:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred while loading data')
     } finally {
       setLoading(false)
     }
   }
 
-  // Auto-load data when dependencies change
+  // Load data on mount and when dependencies change
   useEffect(() => {
     loadData()
-  }, [timeframe, customStartDate, customEndDate, granularity])
+  }, [timeframe, granularity, customStartDate, customEndDate])
 
   return {
-    // Filter states
     timeframe,
     setTimeframe,
     granularity,
@@ -67,15 +54,9 @@ export const usePageState = (options: UsePageStateOptions = {}) => {
     setCustomStartDate,
     customEndDate,
     setCustomEndDate,
-    
-    // Loading states
     loading,
-    setLoading,
     error,
     setError,
-    
-    // Utilities
-    getFilters,
     loadData
   }
 }
