@@ -410,50 +410,40 @@ const DashboardPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {orderTimingData.length > 0 ? (
-                  <div>
-                    {/* Debug info */}
-                    <div className="mb-4 p-2 bg-gray-50 rounded text-xs">
-                      <p><strong>Debug:</strong> {orderTimingData.length} data points</p>
-                      <p><strong>Sample data:</strong> {JSON.stringify(orderTimingData.slice(0, 3))}</p>
-                      <p><strong>Hours with orders:</strong> {orderTimingData.filter(d => d.order_count > 0).length}</p>
-                      <p><strong>Max orders in hour:</strong> {Math.max(...orderTimingData.map(d => d.order_count))}</p>
-                    </div>
-                    
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={orderTimingData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis 
-                            dataKey="hour" 
-                            fontSize={12}
-                            stroke="#666"
-                            tickFormatter={(value) => getHourLabel(value)}
-                            type="number"
-                            domain={[0, 23]}
-                            ticks={[0, 6, 12, 18, 23]}
-                          />
-                          <YAxis fontSize={12} stroke="#666" />
-                          <Tooltip 
-                            labelFormatter={(value) => `${getHourLabel(value)}`}
-                            formatter={(value: any, name: string) => [
-                              formatNumber(value),
-                              name === 'order_count' ? 'Orders' : name
-                            ]}
-                            contentStyle={{ 
-                              backgroundColor: 'white', 
-                              border: '1px solid #e5e7eb',
-                              borderRadius: '0',
-                              fontSize: '14px'
-                            }}
-                          />
-                          <Bar 
-                            dataKey="order_count" 
-                            fill="#8b5cf6"
-                            name="Orders"
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={orderTimingData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="hour" 
+                          fontSize={12}
+                          stroke="#666"
+                          tickFormatter={(value) => getHourLabel(value)}
+                          type="number"
+                          domain={[0, 23]}
+                          ticks={[0, 6, 12, 18, 23]}
+                        />
+                        <YAxis fontSize={12} stroke="#666" />
+                        <Tooltip 
+                          labelFormatter={(value) => `${getHourLabel(value)}`}
+                          formatter={(value: any, name: string) => [
+                            formatNumber(value),
+                            name === 'order_count' ? 'Orders' : name
+                          ]}
+                          contentStyle={{ 
+                            backgroundColor: 'white', 
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '0',
+                            fontSize: '14px'
+                          }}
+                        />
+                        <Bar 
+                          dataKey="order_count" 
+                          fill="#8b5cf6"
+                          name="Orders"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 ) : (
                   <div className="h-64 flex items-center justify-center">

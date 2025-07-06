@@ -121,11 +121,6 @@ export async function getDashboardChartsData(
       const periodKey = getPeriodKey(orderDate)
       const hour = orderDate.getHours()
       
-      // Debug first few orders
-      if (index < 3) {
-        console.log(`📊 Order ${index}: date=${order.created_at}, parsed=${orderDate.toISOString()}, hour=${hour}`)
-      }
-      
       // Period totals based on granularity
       if (!periodTotals[periodKey]) {
         periodTotals[periodKey] = { revenue: 0, orders: 0 }
@@ -161,19 +156,7 @@ export async function getDashboardChartsData(
       }))
       .sort((a, b) => a.hour - b.hour) // CRITICAL: Sort chronologically by hour (0-23), NOT by order count
 
-    // Debug hourly data to verify chronological sorting
-    console.log('📊 Hourly totals (raw):', hourlyTotals)
-    console.log('📊 Order timing data (first 8 hours):', orderTimingData.slice(0, 8).map(d => `${d.hour}:00 = ${d.order_count} orders`))
-    console.log('📊 Order timing data (last 8 hours):', orderTimingData.slice(-8).map(d => `${d.hour}:00 = ${d.order_count} orders`))
-    console.log('📊 Verification - Hours are in order:', orderTimingData.map(d => d.hour).join(', '))
-    console.log('📊 Non-zero hours:', orderTimingData.filter(d => d.order_count > 0).length)
 
-    console.log('✅ Dashboard charts data processed:', {
-      dailyDataPoints: dailyData.length,
-      hourlyDataPoints: orderTimingData.length,
-      totalOrders,
-      nonZeroHours: orderTimingData.filter(d => d.order_count > 0).length
-    })
 
     return {
       dailyData,
