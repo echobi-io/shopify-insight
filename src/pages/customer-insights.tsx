@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,23 +13,22 @@ import { getKPIs, getPreviousYearKPIs, type KPIData } from '@/lib/fetchers/getKp
 import { exportToCSV } from '@/lib/utils/exportUtils'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency, getInitialTimeframe } from '@/lib/utils/settingsUtils'
-import Sidebar from '@/components/Sidebar'
-import Header from '@/components/Header'
-import ProtectedRoute from '@/components/ProtectedRoute'
-import DateRangeSelector from '@/components/DateRangeSelector'
+import AppLayout from '@/components/Layout/AppLayout'
+import PageHeader from '@/components/Layout/PageHeader'
+import PageFilters from '@/components/Layout/PageFilters'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection, { getCustomerInsightsHelpItems } from '@/components/HelpSection'
 import InteractiveClusterChart from '@/components/InteractiveClusterChart'
 import { RefreshCw, AlertCircle, Users, TrendingDown, DollarSign, Target, AlertTriangle, Calendar, Mail, Phone, Star, Shield, Search, Eye, EyeOff, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
+import { usePageState } from '@/hooks/usePageState'
 
 const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 const CustomerInsightsPage: React.FC = () => {
+  // Data states
   const [data, setData] = useState<CustomerInsightsData | null>(null)
   const [enhancedKpis, setEnhancedKpis] = useState<KPIData | null>(null)
   const [previousYearKpis, setPreviousYearKpis] = useState<KPIData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [riskFilter, setRiskFilter] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -58,35 +57,29 @@ const CustomerInsightsPage: React.FC = () => {
       uniqueCohorts
     };
   };
-  
-  // Date filter states
-  const [dateRange, setDateRange] = useState(getInitialTimeframe())
-  const [customStartDate, setCustomStartDate] = useState('')
-  const [customEndDate, setCustomEndDate] = useState('')
 
-  useEffect(() => {
-    loadData()
-  }, [dateRange, customStartDate, customEndDate])
-
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      // Get date range based on selection
-      const dateFilters = getDateRangeFromTimeframe(dateRange, customStartDate, customEndDate)
-      const filters = {
-        startDate: formatDateForSQL(dateFilters.startDate),
-        endDate: formatDateForSQL(dateFilters.endDate)
-      }
-      
-      console.log('🔄 Loading customer insights data with date filters:', filters)
+  // Use the page state hook
+  const {
+    timeframe,
+    setTimeframe,
+    granularity,
+    setGranularity,
+    customStartDate,
+    setCustomStartDate,
+    customEndDate,
+    setCustomEndDate,
+    loading,
+    error,
+    loadData
+  } = usePageState({
+    onDataLoad: async (filters) => {
+      console.log('🔄 Loading customer insights data with filters:', filters)
       
       // Load all data in parallel
       const [customerData, currentKpis, previousKpis] = await Promise.all([
         getCustomerInsightsData(HARDCODED_MERCHANT_ID, {
-          startDate: dateFilters.startDate.toISOString(),
-          endDate: dateFilters.endDate.toISOString()
+          startDate: filters.startDate,
+          endDate: filters.endDate
         }),
         getKPIs(filters, HARDCODED_MERCHANT_ID).catch(err => {
           console.error('❌ Error loading current KPIs:', err)
@@ -101,13 +94,8 @@ const CustomerInsightsPage: React.FC = () => {
       setData(customerData)
       setEnhancedKpis(currentKpis)
       setPreviousYearKpis(previousKpis)
-    } catch (err) {
-      console.error('Error loading customer insights data:', err)
-      setError('Failed to load customer insights data')
-    } finally {
-      setLoading(false)
     }
-  }
+  })
 
   const handleCustomerClick = async (customerId: string) => {
     try {
@@ -174,59 +162,11 @@ const CustomerInsightsPage: React.FC = () => {
 
   const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899']
 
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <RefreshCw className="h-8 w-8 animate-spin text-black mx-auto mb-4" />
-              <p className="text-gray-600 font-light">Loading customer insights...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // Only compute these if we have data
+  const { transformedData: retentionData, uniqueCohorts: retentionCohorts } = data ? transformCohortData(data.cohortAnalysis, 'retention_rate') : { transformedData: [], uniqueCohorts: [] };
+  const { transformedData: revenueData, uniqueCohorts: revenueCohorts } = data ? transformCohortData(data.cohortAnalysis, 'avg_revenue_per_customer') : { transformedData: [], uniqueCohorts: [] };
 
-  if (error) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
-              <p className="text-red-600 mb-4 font-light">{error}</p>
-              <Button onClick={loadData} className="font-light">Retry</Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!data) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <p className="text-gray-600 font-light">Insufficient data to generate customer insights yet. We need at least 60 days of transaction data.</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const { transformedData: retentionData, uniqueCohorts: retentionCohorts } = transformCohortData(data.cohortAnalysis, 'retention_rate');
-  const { transformedData: revenueData, uniqueCohorts: revenueCohorts } = transformCohortData(data.cohortAnalysis, 'avg_revenue_per_customer');
-
-  const hasData = data.kpis.totalActiveCustomers > 0 || data.churnPredictions.length > 0 || data.ltvPredictions.length > 0;
+  const hasData = data ? (data.kpis.totalActiveCustomers > 0 || data.churnPredictions.length > 0 || data.ltvPredictions.length > 0) : false;
 
   const pageContent = hasData ? (
     <>
@@ -793,50 +733,43 @@ const CustomerInsightsPage: React.FC = () => {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      
-      <div className="flex-1 ml-[240px] overflow-auto">
-        <Header />
-        <div className="p-8">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-light text-black mb-2">Customer Insights</h1>
-                <p className="text-gray-600 font-light">Customer analytics, churn prediction, and lifetime value modeling</p>
-              </div>
-              
-              {/* Date Filter */}
-              <div className="flex items-center space-x-4">
-                <DateRangeSelector
-                  value={dateRange}
-                  onChange={setDateRange}
-                  showCustomInputs={true}
-                  customStartDate={customStartDate}
-                  customEndDate={customEndDate}
-                  onCustomStartDateChange={setCustomStartDate}
-                  onCustomEndDateChange={setCustomEndDate}
-                />
-                
-                <Button 
-                  onClick={loadData} 
-                  variant="outline" 
-                  size="sm"
-                  disabled={loading}
-                  className="font-light"
-                >
-                  {loading ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
-                  Refresh
-                </Button>
-              </div>
-            </div>
-          </div>
+    <AppLayout loading={loading} loadingMessage="Loading customer insights...">
+      <PageHeader
+        title="Customer Insights"
+        description="Customer analytics, churn prediction, and lifetime value modeling"
+        onRefresh={loadData}
+        loading={loading}
+        actions={
+          <PageFilters
+            timeframe={timeframe}
+            onTimeframeChange={setTimeframe}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomStartDateChange={setCustomStartDate}
+            onCustomEndDateChange={setCustomEndDate}
+            granularity={granularity}
+            onGranularityChange={setGranularity}
+          />
+        }
+      />
 
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+            <p className="text-red-800 font-light">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {!data ? (
+        <div className="text-center py-20">
+          <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-lg font-light text-gray-700">Insufficient data to generate customer insights yet.</p>
+          <p className="font-light text-gray-500">We need at least 60 days of transaction data.</p>
+        </div>
+      ) : (
+        <>
           {pageContent}
           
           {/* Help Section */}
@@ -846,8 +779,8 @@ const CustomerInsightsPage: React.FC = () => {
             defaultOpen={false}
             className="mt-8"
           />
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Customer Details Modal */}
       <Dialog open={customerDetailsOpen} onOpenChange={setCustomerDetailsOpen}>
@@ -876,7 +809,7 @@ const CustomerInsightsPage: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </AppLayout>
   )
 }
 
