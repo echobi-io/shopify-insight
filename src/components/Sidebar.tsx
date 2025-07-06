@@ -1,6 +1,16 @@
 import React from 'react'
 import { useRouter } from 'next/router'
-import Link from 'next/link'
+import { 
+  BarChart3, 
+  TrendingUp, 
+  Users, 
+  Package, 
+  UserX, 
+  Target, 
+  GitBranch2, 
+  Settings,
+  Home
+} from 'lucide-react'
 
 interface SidebarProps {
   activeSection?: string
@@ -10,50 +20,78 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectionChange }) => {
   const router = useRouter()
 
-  const sidebarItems = [
+  const sidebarSections = [
     {
-      id: 'dashboard',
-      label: 'Dashboard',
-      href: '/dashboard'
+      title: 'Overview',
+      items: [
+        {
+          id: 'dashboard',
+          label: 'Dashboard',
+          href: '/dashboard',
+          icon: <Home className="w-4 h-4" />
+        }
+      ]
     },
     {
-      id: 'sales-analysis',
-      label: 'Sales Analysis',
-      href: '/sales-analysis'
+      title: 'Analytics',
+      items: [
+        {
+          id: 'sales-analysis',
+          label: 'Sales Analysis',
+          href: '/sales-analysis',
+          icon: <TrendingUp className="w-4 h-4" />
+        },
+        {
+          id: 'customer-insights',
+          label: 'Customer Insights',
+          href: '/customer-insights',
+          icon: <Users className="w-4 h-4" />
+        },
+        {
+          id: 'product-insights',
+          label: 'Product Insights',
+          href: '/product-insights',
+          icon: <Package className="w-4 h-4" />
+        }
+      ]
     },
     {
-      id: 'customer-insights',
-      label: 'Customer Insights',
-      href: '/customer-insights'
+      title: 'Advanced Analytics',
+      items: [
+        {
+          id: 'churn-analytics',
+          label: 'Churn Analytics',
+          href: '/churn-analytics',
+          icon: <UserX className="w-4 h-4" />
+        },
+        {
+          id: 'churn-predictions',
+          label: 'Churn Predictions',
+          href: '/churn-predictions',
+          icon: <Target className="w-4 h-4" />
+        },
+        {
+          id: 'cohort-analysis',
+          label: 'Cohort Analysis',
+          href: '/cohort-analysis',
+          icon: <GitBranch2 className="w-4 h-4" />
+        }
+      ]
     },
     {
-      id: 'product-insights',
-      label: 'Product Insights',
-      href: '/product-insights'
-    },
-    {
-      id: 'churn-analytics',
-      label: 'Churn Analytics',
-      href: '/churn-analytics'
-    },
-    {
-      id: 'churn-predictions',
-      label: 'Churn Predictions',
-      href: '/churn-predictions'
-    },
-    {
-      id: 'cohort-analysis',
-      label: 'Cohort Analysis',
-      href: '/cohort-analysis'
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      href: '/settings'
+      title: 'Configuration',
+      items: [
+        {
+          id: 'settings',
+          label: 'Settings',
+          href: '/settings',
+          icon: <Settings className="w-4 h-4" />
+        }
+      ]
     }
   ]
 
-  const handleItemClick = (item: typeof sidebarItems[0]) => {
+  const handleItemClick = (item: any) => {
     router.push(item.href)
   }
 
@@ -73,57 +111,74 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
   const currentSection = getCurrentSection()
 
   return (
-    <div className="fixed left-0 top-0 h-full w-[240px] bg-white border-r border-gray-200 z-40 flex flex-col">
+    <div className="fixed left-0 top-0 h-full w-[280px] bg-white border-r border-gray-200 z-40 flex flex-col">
       {/* Logo/Brand Section */}
-      <div className="p-8 border-b border-gray-200">
+      <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          {/* Pulsing Logo */}
+          {/* Modern Logo */}
           <div className="relative">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <div className="w-4 h-4 bg-white rounded-sm opacity-90"></div>
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <BarChart3 className="w-5 h-5 text-white" />
             </div>
-            <div className="absolute inset-0 w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg animate-pulse opacity-30"></div>
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
           </div>
           <div>
-            <h1 className="text-2xl font-light text-black tracking-tight">EchoIQ</h1>
-            <p className="text-sm font-light text-gray-600 mt-1">Intelligent Analytics</p>
+            <h1 className="text-xl font-semibold text-gray-900 tracking-tight">EchoIQ</h1>
+            <p className="text-xs text-gray-500 mt-0.5">AI-Powered Analytics</p>
           </div>
         </div>
       </div>
 
-      {/* Navigation Items */}
-      <nav className="flex-1 py-8">
-        <ul className="space-y-2 px-6">
-          {sidebarItems.map((item) => {
-            const isActive = currentSection === item.id
-            
-            return (
-              <li key={item.id}>
-                <button
-                  onClick={() => handleItemClick(item)}
-                  className={`
-                    w-full text-left px-4 py-3 font-light transition-all duration-200
-                    ${isActive 
-                      ? 'text-black bg-gray-50 border-l-2 border-black' 
-                      : 'text-gray-600 hover:text-black hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <span className="text-base">
-                    {item.label}
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+      {/* Navigation Sections */}
+      <nav className="flex-1 py-6 overflow-y-auto">
+        <div className="px-4 space-y-8">
+          {sidebarSections.map((section) => (
+            <div key={section.title}>
+              <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                {section.title}
+              </h3>
+              <ul className="space-y-1">
+                {section.items.map((item) => {
+                  const isActive = currentSection === item.id
+                  
+                  return (
+                    <li key={item.id}>
+                      <button
+                        onClick={() => handleItemClick(item)}
+                        className={`
+                          w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
+                          ${isActive 
+                            ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' 
+                            : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
+                          }
+                        `}
+                      >
+                        <span className={`mr-3 ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>
+                          {item.icon}
+                        </span>
+                        <span className="truncate">
+                          {item.label}
+                        </span>
+                        {isActive && (
+                          <div className="ml-auto w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
+                        )}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
       </nav>
 
       {/* Footer */}
-      <div className="p-6 border-t border-gray-200">
-        <div className="text-xs font-light text-gray-400">
-          <p>© 2024 EchoIQ</p>
-          <p className="mt-1">Clean Analytics</p>
+      <div className="p-4 border-t border-gray-200 bg-gray-50">
+        <div className="text-center">
+          <div className="text-xs text-gray-500">
+            <p className="font-medium">EchoIQ Analytics</p>
+            <p className="mt-1">© 2024 • v2.1.0</p>
+          </div>
         </div>
       </div>
     </div>
