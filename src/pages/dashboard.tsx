@@ -393,7 +393,7 @@ const DashboardPage: React.FC = () => {
           }))}
           isLoading={loading}
           currency={currency}
-          showCount={5}
+          showCount={3}
           loadCount={10}
         />
 
