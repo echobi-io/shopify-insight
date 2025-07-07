@@ -493,10 +493,4 @@ const ProductInsightsPage: React.FC = () => {
   )
 }
 
-export default function ProductInsights() {
-  return (
-    <ProtectedRoute>
-      <ProductInsightsPage />
-    </ProtectedRoute>
-  )
-}
+export default ProductInsightsPage

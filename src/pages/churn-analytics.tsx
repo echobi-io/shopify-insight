@@ -1144,10 +1144,4 @@ const ChurnAnalyticsPage: React.FC = () => {
   )
 }
 
-export default function ChurnAnalytics() {
-  return (
-    <ProtectedRoute>
-      <ChurnAnalyticsPage />
-    </ProtectedRoute>
-  )
-}
+export default ChurnAnalyticsPage

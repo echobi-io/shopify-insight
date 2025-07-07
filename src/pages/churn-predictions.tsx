@@ -15,10 +15,9 @@ import { getCustomerInsightsData, type ChurnPrediction } from '@/lib/fetchers/ge
 import { getChurnLtvData, type ChurnAnalyticsData } from '@/lib/fetchers/getChurnLtvData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency, getSettings, getInitialTimeframe } from '@/lib/utils/settingsUtils'
-import Sidebar from '@/components/Sidebar'
-import Header from '@/components/Header'
-import ProtectedRoute from '@/components/ProtectedRoute'
-import DateRangeSelector from '@/components/DateRangeSelector'
+import AppLayout from '@/components/Layout/AppLayout'
+import PageHeader from '@/components/Layout/PageHeader'
+import PageFilters from '@/components/Layout/PageFilters'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection from '@/components/HelpSection'
 import ExpandableTile from '@/components/ExpandableTile'
@@ -290,108 +289,52 @@ const ChurnPredictionsPage: React.FC = () => {
   const predictionAccuracyData = generateChurnPredictionAccuracy()
   const riskFactorsData = generateRiskFactorsData()
 
-  if (loading) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <RefreshCw className="h-8 w-8 animate-spin text-black mx-auto mb-4" />
-              <p className="text-gray-600 font-light">Loading churn predictions...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
-              <p className="text-red-600 mb-4 font-light">{error}</p>
-              <Button onClick={loadData} className="font-light">Retry</Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!summary) {
-    return (
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-[240px]">
-          <Header />
-          <div className="flex items-center justify-center h-full">
-            <p className="text-gray-600 font-light">No prediction data available for the selected period.</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      
-      <div className="flex-1 ml-[240px] overflow-auto">
-        <Header />
-        <div className="p-8">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-light text-black mb-2">Churn Predictions</h1>
-                <p className="text-gray-600 font-light">AI-powered customer churn predictions and risk assessment</p>
-                <div className="mt-2 flex items-center space-x-2">
-                  <Badge variant="outline" className="text-xs">
-                    Churn Period: {getSettings().churnPeriodDays} days
-                  </Badge>
-                  <span className="text-xs text-gray-500">
-                    (Configure in Settings)
-                  </span>
-                </div>
-              </div>
-              
-              {/* Date Filter */}
-              <div className="flex items-center space-x-4">
-                <DateRangeSelector
-                  value={timeframe}
-                  onChange={setTimeframe}
-                  showCustomInputs={true}
-                  customStartDate={customStartDate}
-                  customEndDate={customEndDate}
-                  onCustomStartDateChange={setCustomStartDate}
-                  onCustomEndDateChange={setCustomEndDate}
-                />
-                
-                <Button 
-                  onClick={loadData} 
-                  variant="outline" 
-                  size="sm"
-                  disabled={loading}
-                  className="font-light"
-                >
-                  {loading ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
-                  Refresh
-                </Button>
-              </div>
-            </div>
-          </div>
+    <AppLayout loading={loading} loadingMessage="Loading churn predictions...">
+      <PageHeader
+        title="Churn Predictions"
+        description="AI-powered customer churn predictions and risk assessment"
+        onRefresh={loadData}
+        loading={loading}
+        actions={
+          <PageFilters
+            timeframe={timeframe}
+            onTimeframeChange={setTimeframe}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onCustomStartDateChange={setCustomStartDate}
+            onCustomEndDateChange={setCustomEndDate}
+            showGranularity={false}
+          />
+        }
+      />
 
+      {/* Churn Period Badge */}
+      <div className="mb-6 flex items-center space-x-2">
+        <Badge variant="outline" className="text-xs">
+          Churn Period: {getSettings().churnPeriodDays} days
+        </Badge>
+        <span className="text-xs text-gray-500">
+          (Configure in Settings)
+        </span>
+      </div>
+
+      {error && (
+        <div className="mb-6 text-center">
+          <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
+          <p className="text-red-600 mb-4 font-light">{error}</p>
+          <Button onClick={loadData} className="font-light">Retry</Button>
+        </div>
+      )}
+
+      {!summary && !loading && (
+        <div className="text-center py-12">
+          <p className="text-gray-600 font-light">No prediction data available for the selected period.</p>
+        </div>
+      )}
+
+      {summary && (
+        <>
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <EnhancedKPICard
@@ -725,16 +668,10 @@ const ChurnPredictionsPage: React.FC = () => {
             items={getPredictionsHelpItems()}
             defaultOpen={false}
           />
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </AppLayout>
   )
 }
 
-export default function ChurnPredictions() {
-  return (
-    <ProtectedRoute>
-      <ChurnPredictionsPage />
-    </ProtectedRoute>
-  )
-}
+export default ChurnPredictionsPage
