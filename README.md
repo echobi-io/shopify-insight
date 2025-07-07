@@ -25,6 +25,15 @@ This is a Codev template project that includes:
    ```
 4. Open [http://localhost:3000](http://localhost:3000) in your browser to see the result.
 
+### Environment Variables
+
+The Supabase helpers require the following environment variables:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Make sure these are set in your environment (e.g., in a `.env.local` file) before running the project.
+
 ## Project Structure
 
 - `pages/`: Contains all the pages of the application
