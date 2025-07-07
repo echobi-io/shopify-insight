@@ -2,8 +2,8 @@ import type { AppProps } from 'next/app'
 import { AuthProvider } from '@/contexts/AuthContext'
 import '../styles/globals.css';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import ErrorBoundary from '@/components/ErrorBoundary'
 import { Toaster } from "@/components/ui/toaster"
-import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 
 export default function App({ Component, pageProps }: AppProps) {
@@ -30,7 +30,9 @@ export default function App({ Component, pageProps }: AppProps) {
     <div className="min-h-screen">
       <AuthProvider>
         <ProtectedRoute>
-          <Component {...pageProps} />
+          <ErrorBoundary>
+            <Component {...pageProps} />
+          </ErrorBoundary>
         </ProtectedRoute>
         <Toaster />
       </AuthProvider>
