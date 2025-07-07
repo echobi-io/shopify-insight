@@ -62,7 +62,7 @@ const DashboardPage: React.FC = () => {
   // Filter states
   const [loading, setLoading] = useState(true)
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())
-  const [granularity, setGranularity] = useState('daily')
+  const [granularity, setGranularity] = useState('monthly')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
 
