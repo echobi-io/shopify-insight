@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/utils/settingsUtils';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -265,31 +266,8 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
         {/* Detailed Breakdown based on KPI type */}
         {renderDetailedBreakdown(kpiType)}
 
-        {/* Trend Chart */}
-        {trend && trend.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="text-lg font-medium">Trend Analysis</h3>
-            <div className="flex items-end justify-center space-x-1 h-32 bg-gray-50 rounded-lg p-4">
-              {trend.map((value, index) => {
-                const max = Math.max(...trend);
-                const min = Math.min(...trend);
-                const range = max - min || 1;
-                const height = ((value - min) / range) * 100 + 10;
-                return (
-                  <div
-                    key={index}
-                    className={`w-4 rounded-sm ${
-                      changeType === 'positive' ? 'bg-green-400' :
-                      changeType === 'negative' ? 'bg-red-400' : 'bg-gray-400'
-                    }`}
-                    style={{ height: `${height}px` }}
-                    title={`Period ${index + 1}: ${formatValue(value)}`}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* Timeseries Chart */}
+        {renderTimeseriesChart(kpiType)}
 
         {/* Performance Insights */}
         {renderPerformanceInsights(kpiType)}
@@ -692,6 +670,145 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
     );
   };
 
+  const renderTimeseriesChart = (kpiType: string) => {
+    if (!data || data.length === 0) return null;
+
+    // Prepare chart data based on KPI type
+    let chartData: any[] = [];
+    let dataKey = '';
+    let chartTitle = '';
+    let yAxisLabel = '';
+
+    switch (kpiType) {
+      case 'revenue':
+        chartData = data.map((d: any) => ({
+          date: d.date ? new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A',
+          value: d.revenue || d.total_revenue || 0,
+          orders: d.orders || d.order_count || 0
+        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        dataKey = 'value';
+        chartTitle = 'Revenue Over Time';
+        yAxisLabel = 'Revenue';
+        break;
+
+      case 'orders':
+        // For orders, we'll show order count by product over time if available
+        if (data.some((d: any) => d.product_name)) {
+          const topProducts = [...data].sort((a: any, b: any) => (b.orders_count || 0) - (a.orders_count || 0)).slice(0, 5);
+          chartData = topProducts.map((d: any) => ({
+            name: d.product_name || 'Unknown',
+            value: d.orders_count || 0,
+            revenue: d.revenue || 0
+          }));
+          dataKey = 'value';
+          chartTitle = 'Orders by Top Products';
+          yAxisLabel = 'Orders';
+        }
+        break;
+
+      case 'customers':
+        // Show customer acquisition over time
+        chartData = data.map((d: any, index: number) => ({
+          date: d.first_order_date ? new Date(d.first_order_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : `Customer ${index + 1}`,
+          value: d.total_spent || 0,
+          orders: d.total_orders || 0
+        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 10);
+        dataKey = 'value';
+        chartTitle = 'Customer Value Over Time';
+        yAxisLabel = 'Total Spent';
+        break;
+
+      case 'aov':
+        chartData = data.map((d: any) => ({
+          date: d.date ? new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A',
+          value: d.avg_order_value || 0,
+          orders: d.orders_count || 0
+        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        dataKey = 'value';
+        chartTitle = 'Average Order Value Over Time';
+        yAxisLabel = 'AOV';
+        break;
+
+      default:
+        return null;
+    }
+
+    if (chartData.length === 0) return null;
+
+    const isBarChart = kpiType === 'orders' && data.some((d: any) => d.product_name);
+
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">{chartTitle}</h3>
+        <div className="h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            {isBarChart ? (
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="name" 
+                  fontSize={12}
+                  stroke="#666"
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis fontSize={12} stroke="#666" />
+                <Tooltip 
+                  formatter={(value: any, name: string) => [
+                    name === 'value' ? `${value} orders` : value,
+                    name === 'value' ? 'Orders' : name
+                  ]}
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}
+                />
+                <Bar 
+                  dataKey={dataKey} 
+                  fill="#3b82f6"
+                  name="Orders"
+                />
+              </BarChart>
+            ) : (
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis 
+                  dataKey="date" 
+                  fontSize={12}
+                  stroke="#666"
+                />
+                <YAxis fontSize={12} stroke="#666" />
+                <Tooltip 
+                  formatter={(value: any, name: string) => [
+                    name === 'value' ? (isMonetary ? formatCurrency(value) : formatValue(value)) : value,
+                    yAxisLabel
+                  ]}
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey={dataKey} 
+                  stroke="#3b82f6" 
+                  strokeWidth={2}
+                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
+                />
+              </LineChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  };
+
   const renderActionableRecommendations = (kpiType: string) => {
     const recommendations = [];
 
@@ -837,8 +954,8 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
                   })}
                 </div>
                 
-                {/* Export/Expand buttons - shown on hover */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1">
+                {/* Export/Expand buttons - always visible */}
+                <div className="flex items-center space-x-1">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button 
