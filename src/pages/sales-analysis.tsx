@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -55,6 +55,7 @@ import {
 import { getEnhancedCustomerData, EnhancedCustomerData } from '@/lib/fetchers/getEnhancedCustomerData'
 import { getKPIs, getPreviousYearKPIs, type KPIData, type FilterState } from '@/lib/fetchers/getKpis'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
+import { getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import AppLayout from '@/components/Layout/AppLayout'
 import PageHeader from '@/components/Layout/PageHeader'
 import PageFilters from '@/components/Layout/PageFilters'
@@ -62,7 +63,6 @@ import KPIGrid from '@/components/Layout/KPIGrid'
 import ChartCard from '@/components/Layout/ChartCard'
 import HelpSection, { getSalesAnalysisHelpItems } from '@/components/HelpSection'
 import DataDebugPanel from '@/components/DataDebugPanel'
-import { usePageState } from '@/hooks/usePageState'
 import { useAuth } from '@/contexts/AuthContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
@@ -77,7 +77,15 @@ const SalesAnalysisPage: React.FC = () => {
   const [channelData, setChannelData] = useState<ChannelRevenueData[]>([])
   const [topProducts, setTopProducts] = useState<TopProduct[]>([])
   const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { merchantId } = useAuth()
+  
+  // Filter states
+  const [timeframe, setTimeframe] = useState(getInitialTimeframe())
+  const [granularity, setGranularity] = useState('daily')
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
   
   // Drill-down states (keeping for complex functionality)
   const [selectedProduct, setSelectedProduct] = useState<ProductDrillDown | null>(null)
@@ -92,25 +100,25 @@ const SalesAnalysisPage: React.FC = () => {
   const [showAllProducts, setShowAllProducts] = useState(false)
   const [showAllCustomers, setShowAllCustomers] = useState(false)
 
-  // Use the page state hook
-  const {
-    timeframe,
-    setTimeframe,
-    granularity,
-    setGranularity,
-    customStartDate,
-    setCustomStartDate,
-    customEndDate,
-    setCustomEndDate,
-    loading,
-    error,
-    loadData
-  } = usePageState({
-    onDataLoad: async (filters, granularityParam) => {
+  useEffect(() => {
+    loadData()
+  }, [timeframe, granularity, customStartDate, customEndDate])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
+      const filters = {
+        startDate: formatDateForSQL(dateRange.startDate),
+        endDate: formatDateForSQL(dateRange.endDate)
+      }
+
       console.log('🔄 Loading sales analysis data with filters:', filters)
 
-      // Load all data in parallel
       if (!merchantId) return
+      // Load all data in parallel
       const [data, currentKpis, previousYearKpis, timeSeriesWithGranularity] = await Promise.all([
         getSalesAnalysisData(filters, merchantId),
         getKPIs(filters, merchantId).catch(err => {
@@ -121,7 +129,7 @@ const SalesAnalysisPage: React.FC = () => {
           console.error('❌ Error loading previous year KPIs:', err)
           return null
         }),
-        getRevenueTimeSeries(filters, granularityParam as any, merchantId)
+        getRevenueTimeSeries(filters, granularity as any, merchantId)
       ])
       
       setKpis(data.kpis)
@@ -131,8 +139,13 @@ const SalesAnalysisPage: React.FC = () => {
       setChannelData(data.channelData)
       setTopProducts(data.topProducts)
       setTopCustomers(data.topCustomers)
+    } catch (err) {
+      console.error('Error loading sales analysis data:', err)
+      setError('Failed to load sales analysis data')
+    } finally {
+      setLoading(false)
     }
-  })
+  }
 
   // Handle product drill-down
   const handleProductClick = async (product: TopProduct) => {

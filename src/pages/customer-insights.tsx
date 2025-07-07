@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,7 +20,6 @@ import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection, { getCustomerInsightsHelpItems } from '@/components/HelpSection'
 import InteractiveClusterChart from '@/components/InteractiveClusterChart'
 import { RefreshCw, AlertCircle, Users, TrendingDown, DollarSign, Target, AlertTriangle, Calendar, Mail, Phone, Star, Shield, Search, Eye, EyeOff, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
-import { usePageState } from '@/hooks/usePageState'
 import { useAuth } from '@/contexts/AuthContext'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
@@ -31,6 +30,8 @@ const CustomerInsightsPage: React.FC = () => {
   const [data, setData] = useState<CustomerInsightsData | null>(null)
   const [enhancedKpis, setEnhancedKpis] = useState<KPIData | null>(null)
   const [previousYearKpis, setPreviousYearKpis] = useState<KPIData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [riskFilter, setRiskFilter] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -38,6 +39,57 @@ const CustomerInsightsPage: React.FC = () => {
   const [customerDetailsOpen, setCustomerDetailsOpen] = useState(false)
   const [cohortPeriod, setCohortPeriod] = useState<'monthly' | 'quarterly'>('monthly')
   const { merchantId } = useAuth()
+
+  // Filter states
+  const [timeframe, setTimeframe] = useState(getInitialTimeframe())
+  const [granularity, setGranularity] = useState('daily')
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
+
+  useEffect(() => {
+    loadData()
+  }, [timeframe, customStartDate, customEndDate])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
+      const filters = {
+        startDate: formatDateForSQL(dateRange.startDate),
+        endDate: formatDateForSQL(dateRange.endDate)
+      }
+
+      console.log('🔄 Loading customer insights data with filters:', filters)
+      
+      if (!merchantId) return
+      // Load all data in parallel
+      const [customerData, currentKpis, previousKpis] = await Promise.all([
+        getCustomerInsightsData(merchantId, {
+          startDate: filters.startDate,
+          endDate: filters.endDate
+        }),
+        getKPIs(filters, merchantId).catch(err => {
+          console.error('❌ Error loading current KPIs:', err)
+          return null
+        }),
+        getPreviousYearKPIs(filters, merchantId).catch(err => {
+          console.error('❌ Error loading previous year KPIs:', err)
+          return null
+        })
+      ])
+      
+      setData(customerData)
+      setEnhancedKpis(currentKpis)
+      setPreviousYearKpis(previousKpis)
+    } catch (err) {
+      console.error('Error loading customer insights data:', err)
+      setError('Failed to load customer insights data')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const transformCohortData = (cohortData: CohortData[], dataKey: 'retention_rate' | 'avg_revenue_per_customer') => {
     if (!cohortData || cohortData.length === 0) return { transformedData: [], uniqueCohorts: [] };
@@ -60,46 +112,6 @@ const CustomerInsightsPage: React.FC = () => {
       uniqueCohorts
     };
   };
-
-  // Use the page state hook
-  const {
-    timeframe,
-    setTimeframe,
-    granularity,
-    setGranularity,
-    customStartDate,
-    setCustomStartDate,
-    customEndDate,
-    setCustomEndDate,
-    loading,
-    error,
-    loadData
-  } = usePageState({
-    onDataLoad: async (filters) => {
-      console.log('🔄 Loading customer insights data with filters:', filters)
-      
-      // Load all data in parallel
-      if (!merchantId) return
-      const [customerData, currentKpis, previousKpis] = await Promise.all([
-        getCustomerInsightsData(merchantId, {
-          startDate: filters.startDate,
-          endDate: filters.endDate
-        }),
-        getKPIs(filters, merchantId).catch(err => {
-          console.error('❌ Error loading current KPIs:', err)
-          return null
-        }),
-        getPreviousYearKPIs(filters, merchantId).catch(err => {
-          console.error('❌ Error loading previous year KPIs:', err)
-          return null
-        })
-      ])
-      
-      setData(customerData)
-      setEnhancedKpis(currentKpis)
-      setPreviousYearKpis(previousKpis)
-    }
-  })
 
   const handleCustomerClick = async (customerId: string) => {
     try {
