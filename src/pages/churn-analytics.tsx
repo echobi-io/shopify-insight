@@ -29,8 +29,9 @@ import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection from '@/components/HelpSection'
 import ExpandableTile from '@/components/ExpandableTile'
 import ChurnCalculationHelp from '@/components/ChurnCalculationHelp'
+import { useAuth } from '@/contexts/AuthContext'
 
-const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
+
 
 const ChurnAnalyticsPage: React.FC = () => {
   const [data, setData] = useState<ChurnAnalyticsData | null>(null)
@@ -38,6 +39,7 @@ const ChurnAnalyticsPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [churnPeriodDays, setChurnPeriodDays] = useState(180) // Default value
+  const { merchantId } = useAuth()
   
   // Filter states
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())
@@ -75,10 +77,11 @@ const ChurnAnalyticsPage: React.FC = () => {
 
       console.log('🔄 Loading churn analytics data with filters:', filters)
       
+      if (!merchantId) return
       // Load both churn analytics and churned customer product data in parallel
       const [result, productData] = await Promise.all([
-        getChurnLtvData(HARDCODED_MERCHANT_ID, filters),
-        getChurnedCustomerProductData(HARDCODED_MERCHANT_ID, filters)
+        getChurnLtvData(merchantId, filters),
+        getChurnedCustomerProductData(merchantId, filters)
       ])
       
       setData(result)

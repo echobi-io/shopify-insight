@@ -26,7 +26,6 @@ export interface EnhancedCustomerData {
   createdAt: string
 }
 
-const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 // Helper function to calculate churn risk
 function calculateChurnRisk(daysSinceLastOrder: number | null, avgOrderFrequency: number, isChurned: boolean, churnPeriodDays: number): 'low' | 'medium' | 'high' {
@@ -111,7 +110,7 @@ function calculateIntelligentCustomerSegment(
 export async function getEnhancedCustomerData(
   customerId: string,
   filters: FilterState,
-  merchant_id: string = HARDCODED_MERCHANT_ID
+  merchant_id: string
 ): Promise<EnhancedCustomerData | null> {
   try {
     console.log('🔍 Fetching enhanced customer data for:', customerId)

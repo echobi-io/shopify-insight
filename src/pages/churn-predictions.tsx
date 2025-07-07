@@ -22,8 +22,8 @@ import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection from '@/components/HelpSection'
 import ExpandableTile from '@/components/ExpandableTile'
 import ChurnCalculationHelp from '@/components/ChurnCalculationHelp'
+import { useAuth } from '@/contexts/AuthContext'
 
-const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 interface PredictionSummary {
   totalPredictions: number
@@ -42,6 +42,7 @@ const ChurnPredictionsPage: React.FC = () => {
   const [churnData, setChurnData] = useState<ChurnAnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { merchantId } = useAuth()
   
   // Filter states
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())
@@ -71,12 +72,13 @@ const ChurnPredictionsPage: React.FC = () => {
       console.log('🔄 Loading churn predictions data with filters:', filters)
       
       // Load both customer insights and churn analytics data
+      if (!merchantId) return
       const [customerResult, churnResult] = await Promise.all([
-        getCustomerInsightsData(HARDCODED_MERCHANT_ID, {
+        getCustomerInsightsData(merchantId, {
           startDate: dateRange.startDate.toISOString(),
           endDate: dateRange.endDate.toISOString()
         }),
-        getChurnLtvData(HARDCODED_MERCHANT_ID, filters)
+        getChurnLtvData(merchantId, filters)
       ])
       
       setPredictions(customerResult.churnPredictions)

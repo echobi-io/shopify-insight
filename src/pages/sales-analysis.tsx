@@ -63,8 +63,9 @@ import ChartCard from '@/components/Layout/ChartCard'
 import HelpSection, { getSalesAnalysisHelpItems } from '@/components/HelpSection'
 import DataDebugPanel from '@/components/DataDebugPanel'
 import { usePageState } from '@/hooks/usePageState'
+import { useAuth } from '@/contexts/AuthContext'
 
-const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
+
 
 const SalesAnalysisPage: React.FC = () => {
   // Data states
@@ -75,6 +76,7 @@ const SalesAnalysisPage: React.FC = () => {
   const [channelData, setChannelData] = useState<ChannelRevenueData[]>([])
   const [topProducts, setTopProducts] = useState<TopProduct[]>([])
   const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([])
+  const { merchantId } = useAuth()
   
   // Drill-down states (keeping for complex functionality)
   const [selectedProduct, setSelectedProduct] = useState<ProductDrillDown | null>(null)
@@ -107,17 +109,18 @@ const SalesAnalysisPage: React.FC = () => {
       console.log('🔄 Loading sales analysis data with filters:', filters)
 
       // Load all data in parallel
+      if (!merchantId) return
       const [data, currentKpis, previousYearKpis, timeSeriesWithGranularity] = await Promise.all([
-        getSalesAnalysisData(filters, HARDCODED_MERCHANT_ID),
-        getKPIs(filters, HARDCODED_MERCHANT_ID).catch(err => {
+        getSalesAnalysisData(filters, merchantId),
+        getKPIs(filters, merchantId).catch(err => {
           console.error('❌ Error loading current KPIs:', err)
           return null
         }),
-        getPreviousYearKPIs(filters, HARDCODED_MERCHANT_ID).catch(err => {
+        getPreviousYearKPIs(filters, merchantId).catch(err => {
           console.error('❌ Error loading previous year KPIs:', err)
           return null
         }),
-        getRevenueTimeSeries(filters, granularityParam as any, HARDCODED_MERCHANT_ID)
+        getRevenueTimeSeries(filters, granularityParam as any, merchantId)
       ])
       
       setKpis(data.kpis)
@@ -139,7 +142,8 @@ const SalesAnalysisPage: React.FC = () => {
         endDate: formatDateForSQL(dateRange.endDate) 
       }
       
-      const drillDownData = await getProductDrillDown(product.id, filters, HARDCODED_MERCHANT_ID)
+      if (!merchantId) return
+      const drillDownData = await getProductDrillDown(product.id, filters, merchantId)
       if (drillDownData) {
         setSelectedProduct(drillDownData)
         setShowProductDrillDown(true)
@@ -158,7 +162,8 @@ const SalesAnalysisPage: React.FC = () => {
         endDate: formatDateForSQL(dateRange.endDate) 
       }
       
-      const drillDownData = await getCustomerDrillDown(customer.id, filters, HARDCODED_MERCHANT_ID)
+      if (!merchantId) return
+      const drillDownData = await getCustomerDrillDown(customer.id, filters, merchantId)
       if (drillDownData) {
         setSelectedCustomer(drillDownData)
         setShowCustomerDrillDown(true)
@@ -177,7 +182,8 @@ const SalesAnalysisPage: React.FC = () => {
         endDate: formatDateForSQL(dateRange.endDate) 
       }
       
-      const enhancedData = await getEnhancedCustomerData(customer.id, filters, HARDCODED_MERCHANT_ID)
+      if (!merchantId) return
+      const enhancedData = await getEnhancedCustomerData(customer.id, filters, merchantId)
       if (enhancedData) {
         setEnhancedCustomerData(enhancedData)
         setSelectedCustomerForEnhanced(customer)

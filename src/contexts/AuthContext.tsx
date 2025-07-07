@@ -3,8 +3,9 @@ import { createClient } from '@/util/supabase/component';
 import { User, Provider } from '@supabase/supabase-js';
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from 'next/router';
+import { getSettingsSync } from '@/lib/utils/settingsUtils';
 
-const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111';
+const DEFAULT_MERCHANT_ID = getSettingsSync().merchant_id;
 
 interface AuthContextType {
   user: User | null;
@@ -68,7 +69,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           } as any;
           
           setUser(mockUser);
-          setMerchantId(HARDCODED_MERCHANT_ID);
+          setMerchantId(DEFAULT_MERCHANT_ID);
           setIsDevAdmin(true);
           setInitializing(false);
           return;
@@ -80,7 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // For any authenticated user, use the hardcoded merchant ID
         if (user) {
-          setMerchantId(HARDCODED_MERCHANT_ID);
+          setMerchantId(DEFAULT_MERCHANT_ID);
         } else {
           setMerchantId(null);
         }
@@ -102,7 +103,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (devAdminMode) return;
 
       setUser(session?.user ?? null);
-      setMerchantId(session?.user ? HARDCODED_MERCHANT_ID : null);
+      setMerchantId(session?.user ? DEFAULT_MERCHANT_ID : null);
       setIsDevAdmin(false);
       setInitializing(false);
     });
