@@ -516,6 +516,10 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
     const bestAOVDay = data.find((d: any) => (d.avg_order_value || 0) === maxAOV);
     const worstAOVDay = data.find((d: any) => (d.avg_order_value || 0) === minAOV);
 
+    // Calculate total orders and revenue
+    const totalOrders = data.reduce((sum: number, d: any) => sum + (d.orders_count || 0), 0);
+    const totalRevenue = data.reduce((sum: number, d: any) => sum + (d.total_revenue || 0), 0);
+
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Average Order Value Analysis</h3>
@@ -527,11 +531,11 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
             <p className="text-lg font-semibold text-blue-600">{formatCurrency(avgAOV)}</p>
           </div>
           <div className="text-center p-3 bg-green-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Highest AOV</p>
+            <p className="text-xs text-muted-foreground mb-1">Highest AOV Day</p>
             <p className="text-lg font-semibold text-green-600">{formatCurrency(maxAOV)}</p>
           </div>
           <div className="text-center p-3 bg-red-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Lowest AOV</p>
+            <p className="text-xs text-muted-foreground mb-1">Lowest AOV Day</p>
             <p className="text-lg font-semibold text-red-600">{formatCurrency(minAOV)}</p>
           </div>
           <div className="text-center p-3 bg-purple-50 rounded-lg">
@@ -542,16 +546,38 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
           </div>
         </div>
 
+        {/* Period Summary */}
+        <div>
+          <h4 className="font-medium mb-3">Period Summary</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">Total Orders</p>
+              <p className="text-lg font-semibold text-blue-700">{totalOrders.toLocaleString()}</p>
+              <p className="text-xs text-blue-600">Across {data.length} days</p>
+            </div>
+            <div className="p-3 bg-green-50 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
+              <p className="text-lg font-semibold text-green-700">{formatCurrency(totalRevenue)}</p>
+              <p className="text-xs text-green-600">Period total</p>
+            </div>
+            <div className="p-3 bg-purple-50 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">Daily Average Orders</p>
+              <p className="text-lg font-semibold text-purple-700">{(totalOrders / data.length).toFixed(1)}</p>
+              <p className="text-xs text-purple-600">Orders per day</p>
+            </div>
+          </div>
+        </div>
+
         {/* AOV Range Analysis */}
         <div>
           <h4 className="font-medium mb-3">Order Value Distribution</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-3 bg-green-50 rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">High Value Orders</p>
+              <p className="text-xs text-muted-foreground mb-1">High Value Days</p>
               <p className="text-sm font-semibold text-green-700">
-                {data.filter((d: any) => (d.avg_order_value || 0) > avgAOV * 1.5).length} days
+                {data.filter((d: any) => (d.avg_order_value || 0) > avgAOV * 1.2).length} days
               </p>
-              <p className="text-xs text-green-600">Above {formatCurrency(avgAOV * 1.5)}</p>
+              <p className="text-xs text-green-600">Above {formatCurrency(avgAOV * 1.2)}</p>
             </div>
             <div className="p-3 bg-blue-50 rounded-lg">
               <p className="text-xs text-muted-foreground mb-1">Average Range</p>
@@ -564,7 +590,7 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
               <p className="text-xs text-blue-600">{formatCurrency(avgAOV * 0.8)} - {formatCurrency(avgAOV * 1.2)}</p>
             </div>
             <div className="p-3 bg-red-50 rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">Low Value Orders</p>
+              <p className="text-xs text-muted-foreground mb-1">Low Value Days</p>
               <p className="text-sm font-semibold text-red-700">
                 {data.filter((d: any) => (d.avg_order_value || 0) < avgAOV * 0.8).length} days
               </p>
@@ -580,18 +606,47 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
               <h4 className="font-medium text-green-800 mb-2">🎯 Highest AOV Day</h4>
               <p className="text-sm text-green-700">
                 {bestAOVDay.date ? new Date(bestAOVDay.date).toLocaleDateString() : 'N/A'}: {formatCurrency(maxAOV)}
-                {bestAOVDay.orders_count && <span className="block text-xs">({bestAOVDay.orders_count} orders)</span>}
+                {bestAOVDay.orders_count && <span className="block text-xs">({bestAOVDay.orders_count} orders, {formatCurrency(bestAOVDay.total_revenue || 0)} revenue)</span>}
               </p>
             </div>
             <div className="p-4 bg-red-50 rounded-lg">
               <h4 className="font-medium text-red-800 mb-2">📊 Lowest AOV Day</h4>
               <p className="text-sm text-red-700">
                 {worstAOVDay.date ? new Date(worstAOVDay.date).toLocaleDateString() : 'N/A'}: {formatCurrency(minAOV)}
-                {worstAOVDay.orders_count && <span className="block text-xs">({worstAOVDay.orders_count} orders)</span>}
+                {worstAOVDay.orders_count && <span className="block text-xs">({worstAOVDay.orders_count} orders, {formatCurrency(worstAOVDay.total_revenue || 0)} revenue)</span>}
               </p>
             </div>
           </div>
         )}
+
+        {/* AOV Volatility Analysis */}
+        <div>
+          <h4 className="font-medium mb-3">AOV Consistency Analysis</h4>
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">AOV Range</p>
+                <p className="text-xs text-gray-600">
+                  Difference between highest and lowest: {formatCurrency(maxAOV - minAOV)}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Volatility: {((maxAOV - minAOV) / avgAOV * 100).toFixed(1)}% of average
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Consistency Rating</p>
+                <p className="text-xs text-gray-600">
+                  {((minAOV / maxAOV) * 100) > 80 ? '🟢 Very Consistent' : 
+                   ((minAOV / maxAOV) * 100) > 60 ? '🟡 Moderately Consistent' : 
+                   '🔴 Highly Variable'}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Consistency Score: {((minAOV / maxAOV) * 100).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
@@ -722,8 +777,13 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
         chartData = data.map((d: any) => ({
           date: d.date ? new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A',
           value: d.avg_order_value || 0,
-          orders: d.orders_count || 0
-        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          orders: d.orders_count || 0,
+          revenue: d.total_revenue || 0
+        })).sort((a, b) => {
+          const dateA = new Date(a.date === 'N/A' ? '1970-01-01' : a.date);
+          const dateB = new Date(b.date === 'N/A' ? '1970-01-01' : b.date);
+          return dateA.getTime() - dateB.getTime();
+        });
         dataKey = 'value';
         chartTitle = 'Average Order Value Over Time';
         yAxisLabel = 'AOV';
