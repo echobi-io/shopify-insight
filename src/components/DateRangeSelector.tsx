@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar, Info, HelpCircle } from 'lucide-react'
-import { getSettings, getFinancialYearDates } from '@/lib/utils/settingsUtils'
+import { getSettingsSync, getFinancialYearDates } from '@/lib/utils/settingsUtils'
 
 interface DateRangeSelectorProps {
   value: string
@@ -28,7 +28,7 @@ export const DateRangeSelector: React.FC<DateRangeSelectorProps> = ({
   className = ''
 }) => {
   const [showHelp, setShowHelp] = useState(false)
-  const settings = getSettings()
+  const settings = getSettingsSync()
   
   // Get current financial year dates for display
   const currentYear = new Date().getFullYear()

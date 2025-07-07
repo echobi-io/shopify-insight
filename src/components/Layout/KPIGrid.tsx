@@ -3,16 +3,25 @@ import { DollarSign, ShoppingCart, Target, Users } from 'lucide-react'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
 import { KPIData } from '@/lib/fetchers/getKpis'
 
+interface DetailedData {
+  revenue?: any[]
+  orders?: any[]
+  customers?: any[]
+  aov?: any[]
+}
+
 interface KPIGridProps {
   currentKpis: KPIData | null
   previousKpis?: KPIData | null
-  variant?: 'simple' | 'enhanced'
+  variant?: 'simple' | 'enhanced' | 'detailed'
+  detailedData?: DetailedData
 }
 
 const KPIGrid: React.FC<KPIGridProps> = ({
   currentKpis,
   previousKpis,
-  variant = 'enhanced'
+  variant = 'enhanced',
+  detailedData
 }) => {
   if (!currentKpis) {
     return null
@@ -26,6 +35,8 @@ const KPIGrid: React.FC<KPIGridProps> = ({
         previousValue={previousKpis?.totalRevenue}
         icon={<DollarSign className="w-5 h-5" />}
         isMonetary={true}
+        data={detailedData?.revenue}
+        filename="total-revenue"
       />
       <EnhancedKPICard
         title="Total Orders"
@@ -33,6 +44,8 @@ const KPIGrid: React.FC<KPIGridProps> = ({
         previousValue={previousKpis?.totalOrders}
         icon={<ShoppingCart className="w-5 h-5" />}
         isMonetary={false}
+        data={detailedData?.orders}
+        filename="total-orders"
       />
       <EnhancedKPICard
         title="Average Order Value"
@@ -40,6 +53,8 @@ const KPIGrid: React.FC<KPIGridProps> = ({
         previousValue={previousKpis?.avgOrderValue}
         icon={<Target className="w-5 h-5" />}
         isMonetary={true}
+        data={detailedData?.aov}
+        filename="average-order-value"
       />
       <EnhancedKPICard
         title="New Customers"
@@ -47,6 +62,8 @@ const KPIGrid: React.FC<KPIGridProps> = ({
         previousValue={previousKpis?.newCustomers}
         icon={<Users className="w-5 h-5" />}
         isMonetary={false}
+        data={detailedData?.customers}
+        filename="new-customers"
       />
     </div>
   )
