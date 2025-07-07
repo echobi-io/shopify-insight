@@ -32,7 +32,7 @@ const AppLayout: React.FC<LayoutProps> = ({ children, loading, loadingMessage = 
       <Sidebar />
       <div className="flex-1 ml-[240px] overflow-auto">
         <Header />
-        <div className="p-8 pl-8">
+        <div className="p-8">
           {children}
         </div>
       </div>
