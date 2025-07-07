@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { AlertCircle } from 'lucide-react'
 import { getKPIs, getPreviousYearKPIs, type KPIData } from '@/lib/fetchers/getKpis'
@@ -59,6 +59,75 @@ const DashboardPage: React.FC = () => {
   const [topCustomersData, setTopCustomersData] = useState<TopCustomer[]>([])
   const [currency, setCurrency] = useState('GBP')
 
+  // Memoize the data loading function to prevent infinite re-renders
+  const onDataLoad = useCallback(async (filters: any, granularityParam?: string) => {
+    console.log('🔄 Loading dashboard data...')
+
+    // Load all data in parallel
+    const [
+      currentKpis, 
+      previousYearKpis, 
+      products, 
+      chartsData,
+      dailyRevenue,
+      ordersByProduct,
+      newCustomers,
+      aovStats,
+      topCustomers,
+      settings
+    ] = await Promise.all([
+      getKPIs(filters, MERCHANT_ID).catch(err => {
+        console.error('❌ Error loading current KPIs:', err)
+        return null
+      }),
+      getPreviousYearKPIs(filters, MERCHANT_ID).catch(err => {
+        console.error('❌ Error loading previous year KPIs:', err)
+        return null
+      }),
+      getProductData(filters, MERCHANT_ID),
+      getDashboardChartsData(MERCHANT_ID, filters, granularityParam as any).catch(err => {
+        console.error('❌ Error loading dashboard charts data:', err)
+        return { dailyData: [], orderTimingData: [] }
+      }),
+      getDailyRevenueBreakdown(MERCHANT_ID, filters).catch(err => {
+        console.error('❌ Error loading daily revenue data:', err)
+        return []
+      }),
+      getOrdersByProduct(MERCHANT_ID, filters).catch(err => {
+        console.error('❌ Error loading orders by product data:', err)
+        return []
+      }),
+      getNewCustomersDetail(MERCHANT_ID, filters).catch(err => {
+        console.error('❌ Error loading new customers data:', err)
+        return []
+      }),
+      getAOVStats(MERCHANT_ID, filters).catch(err => {
+        console.error('❌ Error loading AOV stats data:', err)
+        return []
+      }),
+      getTopCustomersData(filters.startDate, filters.endDate).catch(err => {
+        console.error('❌ Error loading top customers data:', err)
+        return []
+      }),
+      getSettings().catch(err => {
+        console.error('❌ Error loading settings:', err)
+        return { currency: 'GBP' }
+      })
+    ])
+
+    setKpiData(currentKpis)
+    setPreviousYearKpiData(previousYearKpis)
+    setProductData(products)
+    setDashboardChartData(chartsData.dailyData)
+    setOrderTimingData(chartsData.orderTimingData)
+    setDailyRevenueData(dailyRevenue)
+    setOrdersByProductData(ordersByProduct)
+    setNewCustomersData(newCustomers)
+    setAovStatsData(aovStats)
+    setTopCustomersData(topCustomers)
+    setCurrency(settings.currency || 'GBP')
+  }, [])
+
   // Use the page state hook
   const {
     timeframe,
@@ -72,73 +141,7 @@ const DashboardPage: React.FC = () => {
     loading,
     loadData
   } = usePageState({
-    onDataLoad: async (filters, granularityParam) => {
-      console.log('🔄 Loading dashboard data for timeframe:', timeframe)
-
-      // Load all data in parallel
-      const [
-        currentKpis, 
-        previousYearKpis, 
-        products, 
-        chartsData,
-        dailyRevenue,
-        ordersByProduct,
-        newCustomers,
-        aovStats,
-        topCustomers,
-        settings
-      ] = await Promise.all([
-        getKPIs(filters, MERCHANT_ID).catch(err => {
-          console.error('❌ Error loading current KPIs:', err)
-          return null
-        }),
-        getPreviousYearKPIs(filters, MERCHANT_ID).catch(err => {
-          console.error('❌ Error loading previous year KPIs:', err)
-          return null
-        }),
-        getProductData(filters, MERCHANT_ID),
-        getDashboardChartsData(MERCHANT_ID, filters, granularityParam as any).catch(err => {
-          console.error('❌ Error loading dashboard charts data:', err)
-          return { dailyData: [], orderTimingData: [] }
-        }),
-        getDailyRevenueBreakdown(MERCHANT_ID, filters).catch(err => {
-          console.error('❌ Error loading daily revenue data:', err)
-          return []
-        }),
-        getOrdersByProduct(MERCHANT_ID, filters).catch(err => {
-          console.error('❌ Error loading orders by product data:', err)
-          return []
-        }),
-        getNewCustomersDetail(MERCHANT_ID, filters).catch(err => {
-          console.error('❌ Error loading new customers data:', err)
-          return []
-        }),
-        getAOVStats(MERCHANT_ID, filters).catch(err => {
-          console.error('❌ Error loading AOV stats data:', err)
-          return []
-        }),
-        getTopCustomersData(filters.startDate, filters.endDate).catch(err => {
-          console.error('❌ Error loading top customers data:', err)
-          return []
-        }),
-        getSettings().catch(err => {
-          console.error('❌ Error loading settings:', err)
-          return { currency: 'GBP' }
-        })
-      ])
-
-      setKpiData(currentKpis)
-      setPreviousYearKpiData(previousYearKpis)
-      setProductData(products)
-      setDashboardChartData(chartsData.dailyData)
-      setOrderTimingData(chartsData.orderTimingData)
-      setDailyRevenueData(dailyRevenue)
-      setOrdersByProductData(ordersByProduct)
-      setNewCustomersData(newCustomers)
-      setAovStatsData(aovStats)
-      setTopCustomersData(topCustomers)
-      setCurrency(settings.currency || 'GBP')
-    }
+    onDataLoad
   })
 
   const formatNumber = (value: number) => {

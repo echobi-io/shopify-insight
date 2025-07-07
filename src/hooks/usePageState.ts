@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { FilterState } from '@/lib/fetchers/getKpis'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 
@@ -20,7 +20,7 @@ export const usePageState = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -38,12 +38,12 @@ export const usePageState = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [timeframe, granularity, customStartDate, customEndDate, onDataLoad])
 
   // Load data on mount and when dependencies change
   useEffect(() => {
     loadData()
-  }, [timeframe, granularity, customStartDate, customEndDate])
+  }, [loadData])
 
   return {
     timeframe,
