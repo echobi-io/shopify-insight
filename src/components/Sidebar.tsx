@@ -7,10 +7,12 @@ import {
   Package, 
   UserX, 
   Target, 
-  GitBranch2, 
   Settings,
   Home
 } from 'lucide-react'
+
+// Import GitBranch2 separately to handle potential naming issues
+import { GitBranch } from 'lucide-react'
 
 interface SidebarProps {
   activeSection?: string
@@ -74,7 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
           id: 'cohort-analysis',
           label: 'Cohort Analysis',
           href: '/cohort-analysis',
-          icon: <GitBranch2 className="w-4 h-4" />
+          icon: <GitBranch className="w-4 h-4" />
         }
       ]
     },
