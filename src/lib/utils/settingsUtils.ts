@@ -44,10 +44,12 @@ export function getSettingsSync(): AppSettings {
   
   // Try to get from localStorage as fallback
   try {
-    const savedSettings = localStorage.getItem('echobi-settings')
-    if (savedSettings) {
-      const parsed = JSON.parse(savedSettings)
-      return { ...DEFAULT_SETTINGS, merchant_id: MERCHANT_ID, ...parsed }
+    if (typeof window !== 'undefined') {
+      const savedSettings = localStorage.getItem('echobi-settings')
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings)
+        return { ...DEFAULT_SETTINGS, merchant_id: MERCHANT_ID, ...parsed }
+      }
     }
   } catch (error) {
     console.error('Error loading settings from localStorage:', error)
@@ -79,11 +81,43 @@ export function getFinancialYearDates(year: number, settings?: AppSettings): { s
   const appSettings = settings || getSettingsSync()
   
   // Provide fallback values if financialYearStart or financialYearEnd are undefined
-  const financialYearStart = appSettings.financialYearStart || DEFAULT_SETTINGS.financialYearStart
-  const financialYearEnd = appSettings.financialYearEnd || DEFAULT_SETTINGS.financialYearEnd
+  const financialYearStart = appSettings?.financialYearStart || DEFAULT_SETTINGS.financialYearStart
+  const financialYearEnd = appSettings?.financialYearEnd || DEFAULT_SETTINGS.financialYearEnd
   
-  const [startMonth, startDay] = financialYearStart.split('-').map(Number)
-  const [endMonth, endDay] = financialYearEnd.split('-').map(Number)
+  // Ensure we have valid strings before splitting
+  if (!financialYearStart || !financialYearEnd || 
+      typeof financialYearStart !== 'string' || typeof financialYearEnd !== 'string') {
+    // Return calendar year as fallback
+    return {
+      startDate: new Date(year, 0, 1, 0, 0, 0, 0), // January 1st
+      endDate: new Date(year, 11, 31, 23, 59, 59, 999) // December 31st
+    }
+  }
+  
+  const startParts = financialYearStart.split('-')
+  const endParts = financialYearEnd.split('-')
+  
+  if (startParts.length !== 2 || endParts.length !== 2) {
+    // Return calendar year as fallback
+    return {
+      startDate: new Date(year, 0, 1, 0, 0, 0, 0), // January 1st
+      endDate: new Date(year, 11, 31, 23, 59, 59, 999) // December 31st
+    }
+  }
+  
+  const [startMonth, startDay] = startParts.map(Number)
+  const [endMonth, endDay] = endParts.map(Number)
+  
+  // Validate the parsed numbers
+  if (isNaN(startMonth) || isNaN(startDay) || isNaN(endMonth) || isNaN(endDay) ||
+      startMonth < 1 || startMonth > 12 || endMonth < 1 || endMonth > 12 ||
+      startDay < 1 || startDay > 31 || endDay < 1 || endDay > 31) {
+    // Return calendar year as fallback
+    return {
+      startDate: new Date(year, 0, 1, 0, 0, 0, 0), // January 1st
+      endDate: new Date(year, 11, 31, 23, 59, 59, 999) // December 31st
+    }
+  }
   
   let startYear = year
   let endYear = year

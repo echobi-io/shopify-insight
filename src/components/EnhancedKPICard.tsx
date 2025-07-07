@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, Maximize2, Download, FileText, Image, FileSpreadsheet } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,11 +35,7 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const fadeInUp = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.3 }
-  };
+
 
   // Calculate variance and percentage change
   const variance = previousValue !== undefined ? value - previousValue : 0;
@@ -314,7 +309,7 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
 
   return (
     <>
-      <motion.div variants={fadeInUp}>
+      <div>
         <Card className="transition-all duration-200 hover:shadow-sm group">
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-3">
@@ -410,7 +405,7 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
 
       <Dialog open={isExpanded} onOpenChange={setIsExpanded}>
         <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-auto">
