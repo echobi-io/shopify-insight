@@ -362,6 +362,14 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
   const renderOrdersBreakdown = () => {
     if (!data || data.length === 0) return null;
 
+    // Check if this is actually product order data (has product_name field)
+    const hasProductData = data.some((d: any) => d.product_name);
+    
+    if (!hasProductData) {
+      // This is not product order data, return null to avoid showing incorrect information
+      return null;
+    }
+
     // Calculate top products by orders
     const sortedProducts = [...data].sort((a: any, b: any) => (b.orders_count || 0) - (a.orders_count || 0));
     const topProducts = sortedProducts.slice(0, 5);
