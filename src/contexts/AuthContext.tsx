@@ -5,7 +5,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from 'next/router';
 import { getSettingsSync } from '@/lib/utils/settingsUtils';
 
-const DEFAULT_MERCHANT_ID = getSettingsSync().merchant_id;
+const DEFAULT_MERCHANT_ID = '11111111-1111-1111-1111-111111111111';
 
 interface AuthContextType {
   user: User | null;

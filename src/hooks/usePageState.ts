@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { FilterState } from '@/lib/fetchers/getKpis'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 
@@ -19,8 +19,19 @@ export const usePageState = ({
   const [customEndDate, setCustomEndDate] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Use ref to track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true)
+  
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   const loadData = useCallback(async () => {
+    if (!isMountedRef.current) return
+    
     try {
       setLoading(true)
       setError(null)
@@ -34,9 +45,13 @@ export const usePageState = ({
       await onDataLoad(filters, granularity)
     } catch (err) {
       console.error('Error loading data:', err)
-      setError(err instanceof Error ? err.message : 'An error occurred while loading data')
+      if (isMountedRef.current) {
+        setError(err instanceof Error ? err.message : 'An error occurred while loading data')
+      }
     } finally {
-      setLoading(false)
+      if (isMountedRef.current) {
+        setLoading(false)
+      }
     }
   }, [timeframe, granularity, customStartDate, customEndDate, onDataLoad])
 
