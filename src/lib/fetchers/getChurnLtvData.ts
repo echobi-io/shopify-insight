@@ -785,16 +785,42 @@ export async function getChurnedCustomerProductData(
   try {
     console.log('🔄 Fetching churned customer product data for merchant:', merchantId, 'with filters:', filters)
     
+    // Validate input filters
+    if (!filters.startDate || !filters.endDate) {
+      console.error('Missing date filters:', filters)
+      return []
+    }
+    
     const settings = await getSettings()
-    const churnPeriodDays = settings.churnPeriodDays
+    const churnPeriodDays = settings.churnPeriodDays || 90 // Default fallback
     
-    // Validate and create dates safely
-    const endDate = new Date(filters.endDate)
-    const startDate = new Date(filters.startDate)
+    // Validate and create dates safely with additional checks
+    let endDate: Date
+    let startDate: Date
     
-    // Check if dates are valid
-    if (isNaN(endDate.getTime()) || isNaN(startDate.getTime())) {
-      console.error('Invalid date values:', { startDate: filters.startDate, endDate: filters.endDate })
+    try {
+      endDate = new Date(filters.endDate)
+      startDate = new Date(filters.startDate)
+      
+      // Check if dates are valid
+      if (isNaN(endDate.getTime()) || isNaN(startDate.getTime())) {
+        console.error('Invalid date values:', { startDate: filters.startDate, endDate: filters.endDate })
+        return []
+      }
+      
+      // Additional validation - ensure dates are reasonable
+      const now = new Date()
+      if (endDate > now || startDate > now || startDate >= endDate) {
+        console.error('Invalid date range:', { 
+          startDate: startDate.toISOString(), 
+          endDate: endDate.toISOString(),
+          now: now.toISOString()
+        })
+        return []
+      }
+      
+    } catch (dateError) {
+      console.error('Error creating dates:', dateError, { filters })
       return []
     }
     
