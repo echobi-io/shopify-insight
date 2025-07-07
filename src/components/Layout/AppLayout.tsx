@@ -14,7 +14,7 @@ const AppLayout: React.FC<LayoutProps> = ({ children, loading, loadingMessage = 
     return (
       <div className="flex h-screen bg-gray-50">
         <Sidebar />
-        <div className="flex-1 ml-[240px]">
+        <div className="flex-1 ml-[280px]">
           <Header />
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -30,7 +30,7 @@ const AppLayout: React.FC<LayoutProps> = ({ children, loading, loadingMessage = 
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 ml-[240px] overflow-auto">
+      <div className="flex-1 ml-[280px] overflow-auto">
         <Header />
         <div className="p-8">
           {children}
