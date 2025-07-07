@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabaseClient'
+import { useAuth } from '@/contexts/AuthContext'
 
-const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
+
 
 export const SalesAnalysisDebug: React.FC = () => {
   const [debugInfo, setDebugInfo] = useState<any>({})
   const [loading, setLoading] = useState(false)
+  const { merchantId } = useAuth()
 
   const runDebugChecks = async () => {
     setLoading(true)
@@ -21,7 +23,7 @@ export const SalesAnalysisDebug: React.FC = () => {
       const { data: dailyRevenue, error: dailyError } = await supabase
         .from('daily_revenue_summary')
         .select('*')
-        .eq('merchant_id', HARDCODED_MERCHANT_ID)
+        .eq('merchant_id', merchantId || '')
         .limit(5)
 
       results.dailyRevenue = {
@@ -35,7 +37,7 @@ export const SalesAnalysisDebug: React.FC = () => {
       const { data: channelData, error: channelError } = await supabase
         .from('channel_performance_summary')
         .select('*')
-        .eq('merchant_id', HARDCODED_MERCHANT_ID)
+        .eq('merchant_id', merchantId || '')
         .limit(5)
 
       results.channelData = {
@@ -49,7 +51,7 @@ export const SalesAnalysisDebug: React.FC = () => {
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
         .select('*')
-        .eq('merchant_id', HARDCODED_MERCHANT_ID)
+        .eq('merchant_id', merchantId || '')
         .limit(5)
 
       results.orders = {

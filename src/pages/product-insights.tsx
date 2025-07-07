@@ -20,14 +20,16 @@ import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection from '@/components/HelpSection'
 import ReturnedProductsSection from '@/components/ReturnedProductsSection'
 import InteractiveProductClusterChart from '@/components/InteractiveProductClusterChart'
+import { useAuth } from '@/contexts/AuthContext'
 
-const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
+
 
 const ProductInsightsPage: React.FC = () => {
   const [data, setData] = useState<ProductPerformanceData | null>(null)
   const [returnedProductsData, setReturnedProductsData] = useState<ReturnedProductsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { merchantId } = useAuth()
   
   // Filter states
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())
@@ -56,10 +58,11 @@ const ProductInsightsPage: React.FC = () => {
 
       console.log('🔄 Loading product insights data with filters:', filters)
       
+      if (!merchantId) return
       // Load both product performance and returned products data in parallel
       const [performanceResult, returnsResult] = await Promise.all([
-        getProductPerformanceData(HARDCODED_MERCHANT_ID, filters),
-        getReturnedProductsData(HARDCODED_MERCHANT_ID, filters)
+        getProductPerformanceData(merchantId, filters),
+        getReturnedProductsData(merchantId, filters)
       ])
       
       setData(performanceResult)

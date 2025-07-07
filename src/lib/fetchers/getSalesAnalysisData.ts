@@ -85,7 +85,6 @@ export interface CustomerDrillDown {
   }>
 }
 
-const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
 // Helper function to calculate date ranges for comparison
 function getPreviousPeriodDates(startDate: string, endDate: string): { prevStartDate: string; prevEndDate: string } {
@@ -227,7 +226,7 @@ async function getSalesAnalysisKPIsFromOrders(filters: FilterState, merchant_id:
   }
 }
 
-export async function getSalesAnalysisKPIs(filters: FilterState, merchant_id: string = HARDCODED_MERCHANT_ID): Promise<SalesAnalysisKPIs> {
+export async function getSalesAnalysisKPIs(filters: FilterState, merchant_id: string): Promise<SalesAnalysisKPIs> {
   try {
     console.log('📊 Fetching Sales Analysis KPIs with filters:', filters, 'merchant_id:', merchant_id)
 
@@ -362,9 +361,9 @@ export async function getSalesAnalysisKPIs(filters: FilterState, merchant_id: st
 }
 
 export async function getRevenueTimeSeries(
-  filters: FilterState, 
+  filters: FilterState,
   granularity: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' = 'daily',
-  merchant_id: string = HARDCODED_MERCHANT_ID
+  merchant_id: string
 ): Promise<RevenueTimeSeriesData[]> {
   try {
     console.log('📈 Fetching revenue time series with granularity:', granularity)
@@ -529,7 +528,7 @@ async function getRevenueTimeSeriesFromOrders(
 
 export async function getChannelRevenueBreakdown(
   filters: FilterState,
-  merchant_id: string = HARDCODED_MERCHANT_ID
+  merchant_id: string
 ): Promise<ChannelRevenueData[]> {
   try {
     console.log('🏪 Fetching channel revenue breakdown')
@@ -734,7 +733,7 @@ export async function generateSalesInsights(
 
 export async function getTopProducts(
   filters: FilterState,
-  merchant_id: string = HARDCODED_MERCHANT_ID,
+  merchant_id: string,
   limit: number = 10
 ): Promise<TopProduct[]> {
   try {
@@ -859,7 +858,7 @@ export async function getTopProducts(
 
 export async function getTopCustomers(
   filters: FilterState,
-  merchant_id: string = HARDCODED_MERCHANT_ID,
+  merchant_id: string,
   limit: number = 10
 ): Promise<TopCustomer[]> {
   try {
@@ -939,7 +938,7 @@ export async function getTopCustomers(
 export async function getProductDrillDown(
   productId: string,
   filters: FilterState,
-  merchant_id: string = HARDCODED_MERCHANT_ID
+  merchant_id: string
 ): Promise<ProductDrillDown | null> {
   try {
     console.log('🔍 Fetching product drill-down for:', productId)
@@ -1097,7 +1096,7 @@ export async function getProductDrillDown(
 export async function getCustomerDrillDown(
   customerId: string,
   filters: FilterState,
-  merchant_id: string = HARDCODED_MERCHANT_ID
+  merchant_id: string
 ): Promise<CustomerDrillDown | null> {
   try {
     console.log('🔍 Fetching customer drill-down for:', customerId)
@@ -1231,7 +1230,7 @@ export async function getCustomerDrillDown(
   }
 }
 
-export async function getSalesAnalysisData(filters: FilterState, merchant_id: string = HARDCODED_MERCHANT_ID) {
+export async function getSalesAnalysisData(filters: FilterState, merchant_id: string) {
   try {
     console.log('🔄 Fetching complete sales analysis data')
 

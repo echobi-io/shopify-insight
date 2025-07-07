@@ -21,8 +21,9 @@ import EnhancedKPICard from '@/components/EnhancedKPICard'
 import HelpSection, { getCustomerInsightsHelpItems } from '@/components/HelpSection'
 import InteractiveClusterChart from '@/components/InteractiveClusterChart'
 import { RefreshCw, AlertCircle, Users, TrendingDown, DollarSign, Target, AlertTriangle, Calendar, Mail, Phone, Star, Shield, Search, Eye, EyeOff, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 
-const HARDCODED_MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
+
 
 const CustomerInsightsPage: React.FC = () => {
   const [data, setData] = useState<CustomerInsightsData | null>(null)
@@ -36,6 +37,7 @@ const CustomerInsightsPage: React.FC = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
   const [customerDetailsOpen, setCustomerDetailsOpen] = useState(false)
   const [cohortPeriod, setCohortPeriod] = useState<'monthly' | 'quarterly'>('monthly')
+  const { merchantId } = useAuth()
 
   const transformCohortData = (cohortData: CohortData[], dataKey: 'retention_rate' | 'avg_revenue_per_customer') => {
     if (!cohortData || cohortData.length === 0) return { transformedData: [], uniqueCohorts: [] };
@@ -82,17 +84,18 @@ const CustomerInsightsPage: React.FC = () => {
       
       console.log('🔄 Loading customer insights data with date filters:', filters)
       
+      if (!merchantId) return
       // Load all data in parallel
       const [customerData, currentKpis, previousKpis] = await Promise.all([
-        getCustomerInsightsData(HARDCODED_MERCHANT_ID, {
+        getCustomerInsightsData(merchantId, {
           startDate: dateFilters.startDate.toISOString(),
           endDate: dateFilters.endDate.toISOString()
         }),
-        getKPIs(filters, HARDCODED_MERCHANT_ID).catch(err => {
+        getKPIs(filters, merchantId).catch(err => {
           console.error('❌ Error loading current KPIs:', err)
           return null
         }),
-        getPreviousYearKPIs(filters, HARDCODED_MERCHANT_ID).catch(err => {
+        getPreviousYearKPIs(filters, merchantId).catch(err => {
           console.error('❌ Error loading previous year KPIs:', err)
           return null
         })
