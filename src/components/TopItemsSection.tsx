@@ -107,9 +107,6 @@ export const TopItemsSection: React.FC<TopItemsSectionProps> = ({
 
   const displayItems = showAll ? items.slice(0, loadCount) : items.slice(0, showCount);
   const hasMore = items.length > showCount;
-  
-  // Debug logging
-  console.log(`${title} - Total items: ${items.length}, Show count: ${showCount}, Has more: ${hasMore}`);
 
   return (
     <Card className="card-minimal">
