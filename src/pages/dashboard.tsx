@@ -30,7 +30,7 @@ import PageFilters from '@/components/Layout/PageFilters'
 import KPIGrid from '@/components/Layout/KPIGrid'
 import ChartCard from '@/components/Layout/ChartCard'
 import HelpSection, { getDashboardHelpItems } from '@/components/HelpSection'
-import { TopCustomersSection } from '@/components/TopCustomersSection'
+import { TopItemsSection } from '@/components/TopItemsSection'
 import { SupabaseDiagnostic } from '@/components/SupabaseDiagnostic'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
@@ -378,47 +378,44 @@ const DashboardPage: React.FC = () => {
       {/* Top Products and Top Customers */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Top Products */}
-        <ChartCard
+        <TopItemsSection
           title="Top Products"
           description="Best performing products by revenue"
-          hasData={productData.length > 0}
-          noDataMessage="No product data available"
-        >
-          <div className="space-y-4">
-            {productData.slice(0, 5).map((product, index) => (
-              <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                <div className="flex items-center space-x-4">
-                  <div className="w-8 h-8 bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <p className="font-medium text-black">{product.product}</p>
-                    <p className="text-sm font-light text-gray-600">
-                      {formatNumber(product.unitsSold)} units sold
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium text-black">
-                    {formatCurrency(product.revenue)}
-                  </p>
-                  <p className="text-sm font-light text-gray-600">
-                    {formatCurrency(product.aov)} AOV
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </ChartCard>
+          items={productData.map((product, index) => ({
+            id: `product-${index}`,
+            name: product.product,
+            primaryValue: product.revenue,
+            secondaryValue: product.aov,
+            primaryLabel: "Revenue",
+            secondaryLabel: "AOV",
+            additionalInfo: formatNumber(product.unitsSold),
+            additionalLabel: "units sold"
+          }))}
+          isLoading={loading}
+          currency={currency}
+          showCount={5}
+          loadCount={10}
+        />
 
         {/* Top Customers */}
-        <div className="card-minimal">
-          <TopCustomersSection
-            customers={topCustomersData}
-            isLoading={loading}
-            currency={currency}
-          />
-        </div>
+        <TopItemsSection
+          title="Top Customers"
+          description="Highest value customers by total spent"
+          items={topCustomersData.map((customer) => ({
+            id: customer.customer_id,
+            name: customer.customer_name,
+            primaryValue: customer.total_spent,
+            secondaryValue: customer.avg_order_value,
+            primaryLabel: "Total Spent",
+            secondaryLabel: "AOV",
+            additionalInfo: customer.order_count.toString(),
+            additionalLabel: "orders"
+          }))}
+          isLoading={loading}
+          currency={currency}
+          showCount={5}
+          loadCount={10}
+        />
       </div>
 
       {/* Supabase Diagnostic - Temporary */}
