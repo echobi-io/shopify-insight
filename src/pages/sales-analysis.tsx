@@ -64,6 +64,7 @@ import HelpSection, { getSalesAnalysisHelpItems } from '@/components/HelpSection
 import DataDebugPanel from '@/components/DataDebugPanel'
 import { usePageState } from '@/hooks/usePageState'
 import { useAuth } from '@/contexts/AuthContext'
+import ProtectedRoute from '@/components/ProtectedRoute'
 
 
 
@@ -610,4 +611,10 @@ const SalesAnalysisPage: React.FC = () => {
   )
 }
 
-export default SalesAnalysisPage
+export default function SalesAnalysis() {
+  return (
+    <ProtectedRoute>
+      <SalesAnalysisPage />
+    </ProtectedRoute>
+  )
+}

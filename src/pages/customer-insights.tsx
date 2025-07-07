@@ -22,6 +22,7 @@ import InteractiveClusterChart from '@/components/InteractiveClusterChart'
 import { RefreshCw, AlertCircle, Users, TrendingDown, DollarSign, Target, AlertTriangle, Calendar, Mail, Phone, Star, Shield, Search, Eye, EyeOff, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
 import { usePageState } from '@/hooks/usePageState'
 import { useAuth } from '@/contexts/AuthContext'
+import ProtectedRoute from '@/components/ProtectedRoute'
 
 
 
