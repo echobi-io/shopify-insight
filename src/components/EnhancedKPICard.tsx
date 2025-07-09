@@ -41,10 +41,18 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
   // Calculate variance and percentage change
   const variance = previousValue !== undefined ? value - previousValue : 0;
   const percentageChange = previousValue !== undefined && previousValue !== 0 
-    ? ((value - previousValue) / Math.abs(previousValue)) * 100 
+    ? ((value - previousValue) / previousValue) * 100 
     : 0;
 
-  const changeType = variance > 0 ? 'positive' : variance < 0 ? 'negative' : 'neutral';
+  // Determine change type based on actual improvement/decline, not just variance sign
+  const changeType = previousValue !== undefined ? (
+    // If previous was negative and current is positive, that's positive change
+    (previousValue < 0 && value > 0) ? 'positive' :
+    // If previous was positive and current is negative, that's negative change  
+    (previousValue > 0 && value < 0) ? 'negative' :
+    // Otherwise, use variance to determine direction
+    variance > 0 ? 'positive' : variance < 0 ? 'negative' : 'neutral'
+  ) : 'neutral';
 
   const getTrendIcon = () => {
     if (previousValue === undefined) return null;
