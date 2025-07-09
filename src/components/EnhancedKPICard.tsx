@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { TrendingUp, TrendingDown, Minus, Maximize2, Download, FileText, Image, FileSpreadsheet } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Maximize2, Download, FileText, Image, FileSpreadsheet, HelpCircle, ChevronDown, ChevronUp, Info, Package, Users, Star, BarChart3 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/utils/settingsUtils';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -34,9 +35,8 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [helpExpanded, setHelpExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
-
-
 
   // Calculate variance and percentage change
   const variance = previousValue !== undefined ? value - previousValue : 0;
@@ -220,535 +220,103 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
     );
   };
 
-  const renderExpandedContent = () => {
-    // Determine KPI type for specialized content
-    const kpiType = title.toLowerCase().includes('revenue') ? 'revenue' :
-                   title.toLowerCase().includes('order') ? 'orders' :
-                   title.toLowerCase().includes('customer') ? 'customers' :
-                   title.toLowerCase().includes('average') || title.toLowerCase().includes('aov') ? 'aov' : 'general';
-
-    return (
-      <div className="space-y-6">
-        {/* Main KPI Display */}
-        <div className="text-center">
-          <div className="flex items-center justify-center mb-4">
-            {React.cloneElement(icon as React.ReactElement, {
-              className: 'w-12 h-12 text-primary'
-            })}
-          </div>
-          <h2 className="text-4xl font-bold text-foreground mb-2">
-            {formatValue(value)}
-          </h2>
-          <p className="text-lg text-muted-foreground">{title}</p>
-        </div>
-
-        {/* Comparison with Previous Period */}
-        {previousValue !== undefined && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Current Period</p>
-              <p className="text-xl font-semibold">{formatValue(value)}</p>
-            </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Previous Period</p>
-              <p className="text-xl font-semibold">{formatValue(previousValue)}</p>
-            </div>
-            <div className={`text-center p-4 rounded-lg ${
-              changeType === 'positive' ? 'bg-green-50' :
-              changeType === 'negative' ? 'bg-red-50' : 'bg-gray-50'
-            }`}>
-              <p className="text-sm text-muted-foreground mb-1">Change</p>
-              <div className="flex items-center justify-center space-x-2">
-                {getTrendIcon()}
-                <span className={`text-xl font-semibold ${
-                  changeType === 'positive' ? 'text-green-600' :
-                  changeType === 'negative' ? 'text-red-600' : 'text-gray-600'
-                }`}>
-                  {Math.abs(percentageChange).toFixed(1)}%
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Detailed Breakdown based on KPI type */}
-        {renderDetailedBreakdown(kpiType)}
-
-        {/* Timeseries Chart */}
-        {renderTimeseriesChart(kpiType)}
-
-        {/* Performance Insights */}
-        {renderPerformanceInsights(kpiType)}
-
-        {/* Next Steps */}
-        {renderNextSteps(kpiType)}
-      </div>
-    );
+  const getKPIType = () => {
+    return title.toLowerCase().includes('revenue') ? 'revenue' :
+           title.toLowerCase().includes('order') ? 'orders' :
+           title.toLowerCase().includes('customer') ? 'customers' :
+           title.toLowerCase().includes('average') || title.toLowerCase().includes('aov') ? 'aov' : 'general';
   };
 
-  const renderDetailedBreakdown = (kpiType: string) => {
-    if (!data || data.length === 0) return null;
-
-    switch (kpiType) {
-      case 'revenue':
-        return renderRevenueBreakdown();
-      case 'orders':
-        return renderOrdersBreakdown();
-      case 'customers':
-        return renderCustomersBreakdown();
-      case 'aov':
-        return renderAOVBreakdown();
-      default:
-        return null;
-    }
-  };
-
-  const renderRevenueBreakdown = () => {
-    if (!data || data.length === 0) return null;
-
-    // Calculate revenue statistics
-    const revenues = data.map((d: any) => d.revenue || d.total_revenue || 0);
-    const totalRevenue = revenues.reduce((sum, rev) => sum + rev, 0);
-    const avgDailyRevenue = totalRevenue / revenues.length;
-    const maxRevenue = Math.max(...revenues);
-    const minRevenue = Math.min(...revenues);
-    const revenueGrowth = revenues.length > 1 ? ((revenues[revenues.length - 1] - revenues[0]) / revenues[0]) * 100 : 0;
-
-    // Find best and worst performing days
-    const bestDay = data.find((d: any) => (d.revenue || d.total_revenue || 0) === maxRevenue);
-    const worstDay = data.find((d: any) => (d.revenue || d.total_revenue || 0) === minRevenue);
-
-    return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Revenue Breakdown</h3>
-        
-        {/* Revenue Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-3 bg-blue-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Daily Average</p>
-            <p className="text-lg font-semibold text-blue-600">{formatCurrency(avgDailyRevenue)}</p>
-          </div>
-          <div className="text-center p-3 bg-green-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Best Day</p>
-            <p className="text-lg font-semibold text-green-600">{formatCurrency(maxRevenue)}</p>
-          </div>
-          <div className="text-center p-3 bg-red-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Lowest Day</p>
-            <p className="text-lg font-semibold text-red-600">{formatCurrency(minRevenue)}</p>
-          </div>
-          <div className="text-center p-3 bg-purple-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Growth Rate</p>
-            <p className={`text-lg font-semibold ${revenueGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {revenueGrowth >= 0 ? '+' : ''}{revenueGrowth.toFixed(1)}%
-            </p>
-          </div>
-        </div>
-
-        {/* Best/Worst Performance Days */}
-        {bestDay && worstDay && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-green-50 rounded-lg">
-              <h4 className="font-medium text-green-800 mb-2">🏆 Best Performance</h4>
-              <p className="text-sm text-green-700">
-                {bestDay.date ? new Date(bestDay.date).toLocaleDateString() : 'N/A'}: {formatCurrency(maxRevenue)}
-                {bestDay.orders && <span className="block text-xs">({bestDay.orders} orders)</span>}
-              </p>
-            </div>
-            <div className="p-4 bg-red-50 rounded-lg">
-              <h4 className="font-medium text-red-800 mb-2">📉 Needs Attention</h4>
-              <p className="text-sm text-red-700">
-                {worstDay.date ? new Date(worstDay.date).toLocaleDateString() : 'N/A'}: {formatCurrency(minRevenue)}
-                {worstDay.orders && <span className="block text-xs">({worstDay.orders} orders)</span>}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderOrdersBreakdown = () => {
-    if (!data || data.length === 0) return null;
-
-    // Check if this is actually product order data (has product_name field)
-    const hasProductData = data.some((d: any) => d.product_name);
+  const getHelpContent = () => {
+    const kpiType = getKPIType();
     
-    if (!hasProductData) {
-      // This is not product order data, return null to avoid showing incorrect information
-      return null;
-    }
-
-    // Calculate top products by orders
-    const sortedProducts = [...data].sort((a: any, b: any) => (b.orders_count || 0) - (a.orders_count || 0));
-    const topProducts = sortedProducts.slice(0, 5);
-    const totalOrders = data.reduce((sum: number, item: any) => sum + (item.orders_count || 0), 0);
-
-    return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Orders Breakdown</h3>
-        
-        {/* Top Products by Orders */}
-        <div>
-          <h4 className="font-medium mb-3">Top Products by Orders</h4>
-          <div className="space-y-2">
-            {topProducts.map((product: any, index: number) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
-                    {index + 1}
-                  </span>
-                  <span className="font-medium text-sm">{product.product_name || 'Unknown Product'}</span>
-                </div>
-                <div className="text-right">
-                  <span className="font-semibold">{product.orders_count || 0} orders</span>
-                  <span className="text-xs text-gray-600 block">
-                    {totalOrders > 0 ? ((product.orders_count || 0) / totalOrders * 100).toFixed(1) : 0}% of total
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Order Value Distribution */}
-        {data.some((d: any) => d.avg_order_value) && (
-          <div>
-            <h4 className="font-medium mb-3">Order Value Analysis</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Highest AOV Product</p>
-                <p className="text-sm font-semibold">
-                  {[...data].sort((a: any, b: any) => (b.avg_order_value || 0) - (a.avg_order_value || 0))[0]?.product_name || 'N/A'}
-                </p>
-                <p className="text-xs text-blue-600">
-                  {formatCurrency([...data].sort((a: any, b: any) => (b.avg_order_value || 0) - (a.avg_order_value || 0))[0]?.avg_order_value || 0)}
-                </p>
-              </div>
-              <div className="p-3 bg-green-50 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Most Revenue</p>
-                <p className="text-sm font-semibold">
-                  {[...data].sort((a: any, b: any) => (b.revenue || 0) - (a.revenue || 0))[0]?.product_name || 'N/A'}
-                </p>
-                <p className="text-xs text-green-600">
-                  {formatCurrency([...data].sort((a: any, b: any) => (b.revenue || 0) - (a.revenue || 0))[0]?.revenue || 0)}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderCustomersBreakdown = () => {
-    if (!data || data.length === 0) return null;
-
-    // Calculate customer statistics
-    const totalSpent = data.reduce((sum: number, customer: any) => sum + (customer.total_spent || 0), 0);
-    const avgSpent = totalSpent / data.length;
-    const topSpender = [...data].sort((a: any, b: any) => (b.total_spent || 0) - (a.total_spent || 0))[0];
-    const mostOrders = [...data].sort((a: any, b: any) => (b.total_orders || 0) - (a.total_orders || 0))[0];
-
-    return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">New Customers Analysis</h3>
-        
-        {/* Customer Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="text-center p-3 bg-blue-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Average Spent</p>
-            <p className="text-lg font-semibold text-blue-600">{formatCurrency(avgSpent)}</p>
-          </div>
-          <div className="text-center p-3 bg-green-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Total Value</p>
-            <p className="text-lg font-semibold text-green-600">{formatCurrency(totalSpent)}</p>
-          </div>
-          <div className="text-center p-3 bg-purple-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Customers</p>
-            <p className="text-lg font-semibold text-purple-600">{data.length}</p>
-          </div>
-        </div>
-
-        {/* Top New Customers */}
-        <div>
-          <h4 className="font-medium mb-3">Highest Value New Customers</h4>
-          <div className="space-y-2">
-            {[...data].sort((a: any, b: any) => (b.total_spent || 0) - (a.total_spent || 0)).slice(0, 5).map((customer: any, index: number) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-medium">
-                    {index + 1}
-                  </span>
-                  <div>
-                    <span className="font-medium text-sm block">{customer.customer_name || 'Unknown Customer'}</span>
-                    <span className="text-xs text-gray-600">{customer.email || 'No email'}</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="font-semibold">{formatCurrency(customer.total_spent || 0)}</span>
-                  <span className="text-xs text-gray-600 block">
-                    {customer.total_orders || 0} orders
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Customer Insights */}
-        {topSpender && mostOrders && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-green-50 rounded-lg">
-              <h4 className="font-medium text-green-800 mb-2">💰 Top Spender</h4>
-              <p className="text-sm text-green-700">
-                {topSpender.customer_name}: {formatCurrency(topSpender.total_spent || 0)}
-                <span className="block text-xs">First order: {formatCurrency(topSpender.first_order_value || 0)}</span>
-              </p>
-            </div>
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-800 mb-2">🔄 Most Active</h4>
-              <p className="text-sm text-blue-700">
-                {mostOrders.customer_name}: {mostOrders.total_orders || 0} orders
-                <span className="block text-xs">Total spent: {formatCurrency(mostOrders.total_spent || 0)}</span>
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderAOVBreakdown = () => {
-    if (!data || data.length === 0) return null;
-
-    // Calculate AOV statistics
-    const aovValues = data.map((d: any) => d.avg_order_value || 0).filter(v => v > 0);
-    const avgAOV = aovValues.reduce((sum, aov) => sum + aov, 0) / aovValues.length;
-    const maxAOV = Math.max(...aovValues);
-    const minAOV = Math.min(...aovValues);
-    const aovTrend = aovValues.length > 1 ? ((aovValues[aovValues.length - 1] - aovValues[0]) / aovValues[0]) * 100 : 0;
-
-    // Find best and worst AOV days
-    const bestAOVDay = data.find((d: any) => (d.avg_order_value || 0) === maxAOV);
-    const worstAOVDay = data.find((d: any) => (d.avg_order_value || 0) === minAOV);
-
-    // Calculate total orders and revenue
-    const totalOrders = data.reduce((sum: number, d: any) => sum + (d.orders_count || 0), 0);
-    const totalRevenue = data.reduce((sum: number, d: any) => sum + (d.total_revenue || 0), 0);
-
-    return (
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Average Order Value Analysis</h3>
-        
-        {/* AOV Statistics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-3 bg-blue-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Period Average</p>
-            <p className="text-lg font-semibold text-blue-600">{formatCurrency(avgAOV)}</p>
-          </div>
-          <div className="text-center p-3 bg-green-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Highest AOV Day</p>
-            <p className="text-lg font-semibold text-green-600">{formatCurrency(maxAOV)}</p>
-          </div>
-          <div className="text-center p-3 bg-red-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Lowest AOV Day</p>
-            <p className="text-lg font-semibold text-red-600">{formatCurrency(minAOV)}</p>
-          </div>
-          <div className="text-center p-3 bg-purple-50 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">AOV Trend</p>
-            <p className={`text-lg font-semibold ${aovTrend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {aovTrend >= 0 ? '+' : ''}{aovTrend.toFixed(1)}%
-            </p>
-          </div>
-        </div>
-
-        {/* Period Summary */}
-        <div>
-          <h4 className="font-medium mb-3">Period Summary</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">Total Orders</p>
-              <p className="text-lg font-semibold text-blue-700">{totalOrders.toLocaleString()}</p>
-              <p className="text-xs text-blue-600">Across {data.length} days</p>
-            </div>
-            <div className="p-3 bg-green-50 rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
-              <p className="text-lg font-semibold text-green-700">{formatCurrency(totalRevenue)}</p>
-              <p className="text-xs text-green-600">Period total</p>
-            </div>
-            <div className="p-3 bg-purple-50 rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">Daily Average Orders</p>
-              <p className="text-lg font-semibold text-purple-700">{(totalOrders / data.length).toFixed(1)}</p>
-              <p className="text-xs text-purple-600">Orders per day</p>
-            </div>
-          </div>
-        </div>
-
-        {/* AOV Range Analysis */}
-        <div>
-          <h4 className="font-medium mb-3">Order Value Distribution</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-3 bg-green-50 rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">High Value Days</p>
-              <p className="text-sm font-semibold text-green-700">
-                {data.filter((d: any) => (d.avg_order_value || 0) > avgAOV * 1.2).length} days
-              </p>
-              <p className="text-xs text-green-600">Above {formatCurrency(avgAOV * 1.2)}</p>
-            </div>
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">Average Range</p>
-              <p className="text-sm font-semibold text-blue-700">
-                {data.filter((d: any) => {
-                  const aov = d.avg_order_value || 0;
-                  return aov >= avgAOV * 0.8 && aov <= avgAOV * 1.2;
-                }).length} days
-              </p>
-              <p className="text-xs text-blue-600">{formatCurrency(avgAOV * 0.8)} - {formatCurrency(avgAOV * 1.2)}</p>
-            </div>
-            <div className="p-3 bg-red-50 rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">Low Value Days</p>
-              <p className="text-sm font-semibold text-red-700">
-                {data.filter((d: any) => (d.avg_order_value || 0) < avgAOV * 0.8).length} days
-              </p>
-              <p className="text-xs text-red-600">Below {formatCurrency(avgAOV * 0.8)}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Best/Worst AOV Days */}
-        {bestAOVDay && worstAOVDay && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-green-50 rounded-lg">
-              <h4 className="font-medium text-green-800 mb-2">🎯 Highest AOV Day</h4>
-              <p className="text-sm text-green-700">
-                {bestAOVDay.date ? new Date(bestAOVDay.date).toLocaleDateString() : 'N/A'}: {formatCurrency(maxAOV)}
-                {bestAOVDay.orders_count && <span className="block text-xs">({bestAOVDay.orders_count} orders, {formatCurrency(bestAOVDay.total_revenue || 0)} revenue)</span>}
-              </p>
-            </div>
-            <div className="p-4 bg-red-50 rounded-lg">
-              <h4 className="font-medium text-red-800 mb-2">📊 Lowest AOV Day</h4>
-              <p className="text-sm text-red-700">
-                {worstAOVDay.date ? new Date(worstAOVDay.date).toLocaleDateString() : 'N/A'}: {formatCurrency(minAOV)}
-                {worstAOVDay.orders_count && <span className="block text-xs">({worstAOVDay.orders_count} orders, {formatCurrency(worstAOVDay.total_revenue || 0)} revenue)</span>}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* AOV Volatility Analysis */}
-        <div>
-          <h4 className="font-medium mb-3">AOV Consistency Analysis</h4>
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">AOV Range</p>
-                <p className="text-xs text-gray-600">
-                  Difference between highest and lowest: {formatCurrency(maxAOV - minAOV)}
-                </p>
-                <p className="text-xs text-gray-600">
-                  Volatility: {((maxAOV - minAOV) / avgAOV * 100).toFixed(1)}% of average
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Consistency Rating</p>
-                <p className="text-xs text-gray-600">
-                  {((minAOV / maxAOV) * 100) > 80 ? '🟢 Very Consistent' : 
-                   ((minAOV / maxAOV) * 100) > 60 ? '🟡 Moderately Consistent' : 
-                   '🔴 Highly Variable'}
-                </p>
-                <p className="text-xs text-gray-600">
-                  Consistency Score: {((minAOV / maxAOV) * 100).toFixed(1)}%
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderPerformanceInsights = (kpiType: string) => {
-    const insights = [];
-
-    if (previousValue !== undefined) {
-      const changeDirection = changeType === 'positive' ? 'increased' : changeType === 'negative' ? 'decreased' : 'remained stable';
-      const changeImpact = Math.abs(percentageChange) > 20 ? 'significantly' : Math.abs(percentageChange) > 10 ? 'moderately' : 'slightly';
-      
-      insights.push(`${title} has ${changeImpact} ${changeDirection} by ${Math.abs(percentageChange).toFixed(1)}% compared to the previous period`);
-      
-      if (changeType === 'positive' && Math.abs(percentageChange) > 15) {
-        insights.push(`This represents strong growth and indicates positive business momentum`);
-      } else if (changeType === 'negative' && Math.abs(percentageChange) > 15) {
-        insights.push(`This decline warrants attention and may require strategic intervention`);
+    const helpContent = {
+      revenue: {
+        title: "Understanding Revenue",
+        definition: "Total monetary value of all completed orders in the selected time period.",
+        calculation: "Sum of all order values (excluding taxes, shipping, and refunds)",
+        importance: "Revenue is the primary indicator of business performance and growth. It shows how much money your business is generating from sales.",
+        factors: [
+          "Number of orders placed",
+          "Average order value",
+          "Product pricing strategy",
+          "Marketing effectiveness",
+          "Seasonal trends"
+        ],
+        interpretation: {
+          positive: "Increasing revenue indicates business growth, successful marketing campaigns, or improved product-market fit.",
+          negative: "Declining revenue may signal market challenges, increased competition, or need for strategy adjustment.",
+          stable: "Stable revenue suggests consistent performance but may indicate need for growth initiatives."
+        }
+      },
+      orders: {
+        title: "Understanding Orders",
+        definition: "Total number of completed purchase transactions in the selected time period.",
+        calculation: "Count of all successfully processed orders",
+        importance: "Order volume indicates customer demand and business activity level. It's a key metric for operational planning.",
+        factors: [
+          "Marketing campaign effectiveness",
+          "Website traffic and conversion rates",
+          "Product availability",
+          "Customer satisfaction",
+          "Seasonal patterns"
+        ],
+        interpretation: {
+          positive: "Increasing orders show growing customer demand and successful acquisition strategies.",
+          negative: "Declining orders may indicate conversion issues, inventory problems, or market challenges.",
+          stable: "Consistent order volume suggests stable demand but may require growth strategies."
+        }
+      },
+      customers: {
+        title: "Understanding New Customers",
+        definition: "Number of unique customers who made their first purchase in the selected time period.",
+        calculation: "Count of customers with first order date within the period",
+        importance: "New customer acquisition is essential for business growth and replacing churned customers.",
+        factors: [
+          "Marketing and advertising spend",
+          "Brand awareness campaigns",
+          "Referral programs",
+          "Product launches",
+          "Market expansion"
+        ],
+        interpretation: {
+          positive: "Growing new customer base indicates successful acquisition strategies and market expansion.",
+          negative: "Declining new customers may signal acquisition challenges or market saturation.",
+          stable: "Steady new customer flow is healthy but may need acceleration for growth."
+        }
+      },
+      aov: {
+        title: "Understanding Average Order Value (AOV)",
+        definition: "Average monetary value of each order in the selected time period.",
+        calculation: "Total Revenue ÷ Total Number of Orders",
+        importance: "AOV indicates customer spending behavior and is crucial for profitability and growth strategies.",
+        factors: [
+          "Product pricing strategy",
+          "Upselling and cross-selling",
+          "Product bundling",
+          "Customer segments",
+          "Promotional strategies"
+        ],
+        interpretation: {
+          positive: "Increasing AOV shows customers are spending more per transaction, improving profitability.",
+          negative: "Declining AOV may indicate price sensitivity or need for better upselling strategies.",
+          stable: "Consistent AOV suggests stable customer behavior but may benefit from optimization."
+        }
       }
-    }
+    };
 
-    if (trend && trend.length > 0) {
-      const trendDirection = trend[trend.length - 1] > trend[0] ? 'upward' : trend[trend.length - 1] < trend[0] ? 'downward' : 'stable';
-      const volatility = Math.max(...trend) - Math.min(...trend);
-      const avgValue = trend.reduce((sum, val) => sum + val, 0) / trend.length;
-      const volatilityPercent = (volatility / avgValue) * 100;
-      
-      insights.push(`The trend shows ${trendDirection} movement with ${volatilityPercent > 30 ? 'high' : volatilityPercent > 15 ? 'moderate' : 'low'} volatility`);
-    }
-
-    // Add KPI-specific insights
-    switch (kpiType) {
-      case 'revenue':
-        if (data && data.length > 0) {
-          const revenues = data.map((d: any) => d.revenue || d.total_revenue || 0);
-          const consistency = (Math.min(...revenues) / Math.max(...revenues)) * 100;
-          insights.push(`Revenue consistency is ${consistency > 70 ? 'high' : consistency > 40 ? 'moderate' : 'low'} (${consistency.toFixed(1)}%)`);
-        }
-        break;
-      case 'orders':
-        if (data && data.length > 0) {
-          const totalProducts = data.length;
-          const topProductShare = data[0] ? ((data[0].orders_count || 0) / data.reduce((sum: number, p: any) => sum + (p.orders_count || 0), 0)) * 100 : 0;
-          insights.push(`Product portfolio shows ${topProductShare > 50 ? 'high concentration' : topProductShare > 30 ? 'moderate concentration' : 'good diversification'} with top product at ${topProductShare.toFixed(1)}%`);
-        }
-        break;
-      case 'customers':
-        if (data && data.length > 0) {
-          const avgSpent = data.reduce((sum: number, c: any) => sum + (c.total_spent || 0), 0) / data.length;
-          const repeatCustomers = data.filter((c: any) => (c.total_orders || 0) > 1).length;
-          const repeatRate = (repeatCustomers / data.length) * 100;
-          insights.push(`${repeatRate.toFixed(1)}% of new customers made repeat purchases, indicating ${repeatRate > 30 ? 'strong' : repeatRate > 15 ? 'moderate' : 'weak'} customer retention`);
-        }
-        break;
-      case 'aov':
-        if (data && data.length > 0) {
-          const aovValues = data.map((d: any) => d.avg_order_value || 0).filter(v => v > 0);
-          const aovStability = (Math.min(...aovValues) / Math.max(...aovValues)) * 100;
-          insights.push(`AOV stability is ${aovStability > 80 ? 'very high' : aovStability > 60 ? 'high' : aovStability > 40 ? 'moderate' : 'low'} indicating ${aovStability > 60 ? 'consistent' : 'variable'} customer spending patterns`);
-        }
-        break;
-    }
-
-    if (insights.length === 0) return null;
-
-    return (
-      <div className="space-y-2">
-        <h3 className="text-lg font-medium">Performance Insights</h3>
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <ul className="space-y-2 text-sm">
-            {insights.map((insight, index) => (
-              <li key={index}>• {insight}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    );
+    return helpContent[kpiType as keyof typeof helpContent] || helpContent.revenue;
   };
 
-  const renderTimeseriesChart = (kpiType: string) => {
+  const renderTimeseriesChart = () => {
     if (!data || data.length === 0) return null;
 
-    // Prepare chart data based on KPI type
+    const kpiType = getKPIType();
     let chartData: any[] = [];
     let dataKey = '';
     let chartTitle = '';
     let yAxisLabel = '';
+    let isBarChart = false;
 
     switch (kpiType) {
       case 'revenue':
@@ -758,35 +326,36 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
           orders: d.orders || d.order_count || 0
         })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         dataKey = 'value';
-        chartTitle = 'Revenue Over Time';
+        chartTitle = 'Revenue Trend';
         yAxisLabel = 'Revenue';
         break;
 
       case 'orders':
-        // For orders, we'll show order count by product over time if available
         if (data.some((d: any) => d.product_name)) {
-          const topProducts = [...data].sort((a: any, b: any) => (b.orders_count || 0) - (a.orders_count || 0)).slice(0, 5);
+          const topProducts = [...data].sort((a: any, b: any) => (b.orders_count || 0) - (a.orders_count || 0)).slice(0, 8);
           chartData = topProducts.map((d: any) => ({
-            name: d.product_name || 'Unknown',
+            name: (d.product_name || 'Unknown').length > 15 ? 
+                  (d.product_name || 'Unknown').substring(0, 15) + '...' : 
+                  (d.product_name || 'Unknown'),
             value: d.orders_count || 0,
             revenue: d.revenue || 0
           }));
           dataKey = 'value';
-          chartTitle = 'Orders by Top Products';
+          chartTitle = 'Orders by Product';
           yAxisLabel = 'Orders';
+          isBarChart = true;
         }
         break;
 
       case 'customers':
-        // Show customer acquisition over time
         chartData = data.map((d: any, index: number) => ({
           date: d.first_order_date ? new Date(d.first_order_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : `Customer ${index + 1}`,
           value: d.total_spent || 0,
           orders: d.total_orders || 0
-        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 10);
+        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 15);
         dataKey = 'value';
-        chartTitle = 'Customer Value Over Time';
-        yAxisLabel = 'Total Spent';
+        chartTitle = 'New Customer Value Timeline';
+        yAxisLabel = 'Customer Value';
         break;
 
       case 'aov':
@@ -801,7 +370,7 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
           return dateA.getTime() - dateB.getTime();
         });
         dataKey = 'value';
-        chartTitle = 'Average Order Value Over Time';
+        chartTitle = 'Average Order Value Trend';
         yAxisLabel = 'AOV';
         break;
 
@@ -811,71 +380,76 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
 
     if (chartData.length === 0) return null;
 
-    const isBarChart = kpiType === 'orders' && data.some((d: any) => d.product_name);
-
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-medium">{chartTitle}</h3>
-        <div className="h-64 w-full">
+        <div className="flex items-center space-x-2">
+          <BarChart3 className="w-5 h-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-gray-900">{chartTitle}</h3>
+        </div>
+        <div className="h-80 w-full bg-gray-50 rounded-lg p-4">
           <ResponsiveContainer width="100%" height="100%">
             {isBarChart ? (
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
                   dataKey="name" 
-                  fontSize={12}
-                  stroke="#666"
+                  fontSize={11}
+                  stroke="#6b7280"
                   angle={-45}
                   textAnchor="end"
                   height={80}
+                  interval={0}
                 />
-                <YAxis fontSize={12} stroke="#666" />
+                <YAxis fontSize={12} stroke="#6b7280" />
                 <Tooltip 
                   formatter={(value: any, name: string) => [
-                    name === 'value' ? `${value} orders` : value,
-                    name === 'value' ? 'Orders' : name
+                    name === 'value' ? `${value} orders` : formatCurrency(value),
+                    name === 'value' ? 'Orders' : 'Revenue'
                   ]}
                   contentStyle={{ 
                     backgroundColor: 'white', 
                     border: '1px solid #e5e7eb',
                     borderRadius: '8px',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                   }}
                 />
                 <Bar 
                   dataKey={dataKey} 
                   fill="#3b82f6"
                   name="Orders"
+                  radius={[4, 4, 0, 0]}
                 />
               </BarChart>
             ) : (
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
                   dataKey="date" 
                   fontSize={12}
-                  stroke="#666"
+                  stroke="#6b7280"
                 />
-                <YAxis fontSize={12} stroke="#666" />
+                <YAxis fontSize={12} stroke="#6b7280" />
                 <Tooltip 
                   formatter={(value: any, name: string) => [
-                    name === 'value' ? (isMonetary ? formatCurrency(value) : formatValue(value)) : value,
+                    isMonetary ? formatCurrency(value) : formatValue(value),
                     yAxisLabel
                   ]}
                   contentStyle={{ 
                     backgroundColor: 'white', 
                     border: '1px solid #e5e7eb',
                     borderRadius: '8px',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                   }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey={dataKey} 
                   stroke="#3b82f6" 
-                  strokeWidth={2}
-                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
+                  strokeWidth={3}
+                  dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5 }}
+                  activeDot={{ r: 7, stroke: '#3b82f6', strokeWidth: 2, fill: '#ffffff' }}
                 />
               </LineChart>
             )}
@@ -885,220 +459,378 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
     );
   };
 
-  const renderNextSteps = (kpiType: string) => {
-    const nextSteps = [];
+  const renderProductCustomerInsights = () => {
+    if (!data || data.length === 0) return null;
 
-    // Data-driven next steps based on actual performance
-    if (previousValue !== undefined) {
-      if (changeType === 'negative' && Math.abs(percentageChange) > 15) {
-        nextSteps.push({
-          priority: 'high',
-          title: 'Investigate Root Cause',
-          action: `Analyze what caused the ${Math.abs(percentageChange).toFixed(1)}% decline`,
-          timeframe: 'This week'
-        });
-      } else if (changeType === 'positive' && Math.abs(percentageChange) > 25) {
-        nextSteps.push({
-          priority: 'medium',
-          title: 'Document Success Factors',
-          action: `Identify and document what drove the ${Math.abs(percentageChange).toFixed(1)}% improvement`,
-          timeframe: 'Next 2 weeks'
-        });
-      }
-    }
+    const kpiType = getKPIType();
 
-    // KPI-specific next steps based on actual data patterns
     switch (kpiType) {
       case 'revenue':
-        if (data && data.length > 0) {
-          const revenues = data.map((d: any) => d.revenue || d.total_revenue || 0);
-          const avgRevenue = revenues.reduce((sum, rev) => sum + rev, 0) / revenues.length;
-          const lowPerformingDays = revenues.filter(rev => rev < avgRevenue * 0.7).length;
-          
-          if (lowPerformingDays > revenues.length * 0.3) {
-            nextSteps.push({
-              priority: 'high',
-              title: 'Address Revenue Volatility',
-              action: `${lowPerformingDays} days performed 30% below average - review marketing spend and inventory levels`,
-              timeframe: 'Next week'
-            });
-          }
-
-          const bestDay = data.find((d: any) => (d.revenue || d.total_revenue || 0) === Math.max(...revenues));
-          if (bestDay) {
-            nextSteps.push({
-              priority: 'medium',
-              title: 'Replicate Best Day Performance',
-              action: `Analyze what made ${bestDay.date ? new Date(bestDay.date).toLocaleDateString() : 'your best day'} successful and create playbook`,
-              timeframe: 'This month'
-            });
-          }
-        }
-        break;
-
+        return renderRevenueInsights();
       case 'orders':
-        if (data && data.length > 0 && data.some((d: any) => d.product_name)) {
-          const totalOrders = data.reduce((sum: number, p: any) => sum + (p.orders_count || 0), 0);
-          const topProduct = data[0];
-          const topProductShare = topProduct ? ((topProduct.orders_count || 0) / totalOrders) * 100 : 0;
-          
-          if (topProductShare > 40) {
-            nextSteps.push({
-              priority: 'medium',
-              title: 'Reduce Product Concentration Risk',
-              action: `${topProduct?.product_name} represents ${topProductShare.toFixed(1)}% of orders - promote other products`,
-              timeframe: 'Next 2 weeks'
-            });
-          }
-
-          const lowPerformingProducts = data.filter((p: any) => (p.orders_count || 0) < totalOrders * 0.05).length;
-          if (lowPerformingProducts > 0) {
-            nextSteps.push({
-              priority: 'low',
-              title: 'Review Underperforming Products',
-              action: `${lowPerformingProducts} products have very low order volume - consider promotion or discontinuation`,
-              timeframe: 'This month'
-            });
-          }
-        }
-        break;
-
+        return renderOrdersInsights();
       case 'customers':
-        if (data && data.length > 0) {
-          const avgSpent = data.reduce((sum: number, c: any) => sum + (c.total_spent || 0), 0) / data.length;
-          const highValueCustomers = data.filter((c: any) => (c.total_spent || 0) > avgSpent * 2).length;
-          const repeatCustomers = data.filter((c: any) => (c.total_orders || 0) > 1).length;
-          const repeatRate = (repeatCustomers / data.length) * 100;
-          
-          if (repeatRate < 25) {
-            nextSteps.push({
-              priority: 'high',
-              title: 'Improve New Customer Retention',
-              action: `Only ${repeatRate.toFixed(1)}% of new customers returned - implement welcome series and follow-up campaigns`,
-              timeframe: 'Next week'
-            });
-          }
-
-          if (highValueCustomers > 0) {
-            nextSteps.push({
-              priority: 'medium',
-              title: 'Nurture High-Value Customers',
-              action: `${highValueCustomers} customers spent 2x+ average - create VIP program and personalized outreach`,
-              timeframe: 'Next 2 weeks'
-            });
-          }
-        }
-        break;
-
+        return renderCustomerInsights();
       case 'aov':
-        if (data && data.length > 0) {
-          const aovValues = data.map((d: any) => d.avg_order_value || 0).filter(v => v > 0);
-          const avgAOV = aovValues.reduce((sum, aov) => sum + aov, 0) / aovValues.length;
-          const lowAOVDays = aovValues.filter(aov => aov < avgAOV * 0.8).length;
-          const highAOVDays = aovValues.filter(aov => aov > avgAOV * 1.2).length;
-          
-          if (lowAOVDays > aovValues.length * 0.3) {
-            nextSteps.push({
-              priority: 'high',
-              title: 'Address Low AOV Days',
-              action: `${lowAOVDays} days had AOV 20% below average - implement bundling and upsell strategies`,
-              timeframe: 'This week'
-            });
-          }
-
-          if (highAOVDays > 0) {
-            nextSteps.push({
-              priority: 'medium',
-              title: 'Scale High AOV Strategies',
-              action: `${highAOVDays} days achieved 20%+ higher AOV - identify and replicate successful tactics`,
-              timeframe: 'Next 2 weeks'
-            });
-          }
-
-          const aovVolatility = (Math.max(...aovValues) - Math.min(...aovValues)) / avgAOV * 100;
-          if (aovVolatility > 50) {
-            nextSteps.push({
-              priority: 'medium',
-              title: 'Stabilize Order Values',
-              action: `AOV varies by ${aovVolatility.toFixed(1)}% - implement consistent pricing and promotion strategies`,
-              timeframe: 'This month'
-            });
-          }
-        }
-        break;
+        return renderAOVInsights();
+      default:
+        return null;
     }
+  };
 
-    // Add trend-based next steps
-    if (trend && trend.length > 2) {
-      const recentTrend = trend.slice(-3);
-      const isDecreasing = recentTrend.every((val, i) => i === 0 || val < recentTrend[i - 1]);
-      const isIncreasing = recentTrend.every((val, i) => i === 0 || val > recentTrend[i - 1]);
-      
-      if (isDecreasing) {
-        nextSteps.push({
-          priority: 'high',
-          title: 'Address Declining Trend',
-          action: 'Recent data shows consistent decline - implement immediate intervention strategies',
-          timeframe: 'This week'
-        });
-      } else if (isIncreasing) {
-        nextSteps.push({
-          priority: 'low',
-          title: 'Maintain Positive Momentum',
-          action: 'Continue current strategies that are driving consistent growth',
-          timeframe: 'Ongoing'
-        });
-      }
-    }
-
-    if (nextSteps.length === 0) {
-      // Add default next step if no specific issues found
-      nextSteps.push({
-        priority: 'low',
-        title: 'Monitor Performance',
-        action: 'Performance is stable - continue monitoring for changes and optimization opportunities',
-        timeframe: 'Weekly review'
-      });
-    }
-
-    const getPriorityStyle = (priority: string) => {
-      switch (priority) {
-        case 'high': return 'bg-red-50 border-l-red-400 text-red-800';
-        case 'medium': return 'bg-yellow-50 border-l-yellow-400 text-yellow-800';
-        case 'low': return 'bg-green-50 border-l-green-400 text-green-800';
-        default: return 'bg-gray-50 border-l-gray-400 text-gray-800';
-      }
-    };
-
-    const getPriorityIcon = (priority: string) => {
-      switch (priority) {
-        case 'high': return '🔴';
-        case 'medium': return '🟡';
-        case 'low': return '🟢';
-        default: return '⚪';
-      }
-    };
+  const renderRevenueInsights = () => {
+    const revenues = data.map((d: any) => d.revenue || d.total_revenue || 0);
+    const totalRevenue = revenues.reduce((sum, rev) => sum + rev, 0);
+    const avgDailyRevenue = totalRevenue / revenues.length;
+    const maxRevenue = Math.max(...revenues);
+    const minRevenue = Math.min(...revenues);
+    const bestDay = data.find((d: any) => (d.revenue || d.total_revenue || 0) === maxRevenue);
+    const worstDay = data.find((d: any) => (d.revenue || d.total_revenue || 0) === minRevenue);
 
     return (
-      <div className="space-y-2">
-        <h3 className="text-lg font-medium">Next Steps</h3>
+      <div className="space-y-6">
+        <div className="flex items-center space-x-2">
+          <Package className="w-5 h-5 text-green-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Revenue Insights</h3>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-blue-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-blue-600 font-medium mb-1">Daily Average</p>
+            <p className="text-xl font-bold text-blue-800">{formatCurrency(avgDailyRevenue)}</p>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-green-600 font-medium mb-1">Best Day</p>
+            <p className="text-xl font-bold text-green-800">{formatCurrency(maxRevenue)}</p>
+          </div>
+          <div className="bg-red-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-red-600 font-medium mb-1">Lowest Day</p>
+            <p className="text-xl font-bold text-red-800">{formatCurrency(minRevenue)}</p>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-purple-600 font-medium mb-1">Volatility</p>
+            <p className="text-xl font-bold text-purple-800">{((maxRevenue - minRevenue) / avgDailyRevenue * 100).toFixed(0)}%</p>
+          </div>
+        </div>
+
+        {bestDay && worstDay && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <Star className="w-4 h-4 text-green-600" />
+                <h4 className="font-semibold text-green-800">Best Performance</h4>
+              </div>
+              <p className="text-sm text-green-700">
+                {bestDay.date ? new Date(bestDay.date).toLocaleDateString() : 'N/A'}
+              </p>
+              <p className="text-lg font-bold text-green-800">{formatCurrency(maxRevenue)}</p>
+              {bestDay.orders && <p className="text-xs text-green-600">{bestDay.orders} orders</p>}
+            </div>
+            <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <Info className="w-4 h-4 text-red-600" />
+                <h4 className="font-semibold text-red-800">Needs Attention</h4>
+              </div>
+              <p className="text-sm text-red-700">
+                {worstDay.date ? new Date(worstDay.date).toLocaleDateString() : 'N/A'}
+              </p>
+              <p className="text-lg font-bold text-red-800">{formatCurrency(minRevenue)}</p>
+              {worstDay.orders && <p className="text-xs text-red-600">{worstDay.orders} orders</p>}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderOrdersInsights = () => {
+    const hasProductData = data.some((d: any) => d.product_name);
+    if (!hasProductData) return null;
+
+    const sortedProducts = [...data].sort((a: any, b: any) => (b.orders_count || 0) - (a.orders_count || 0));
+    const topProducts = sortedProducts.slice(0, 5);
+    const totalOrders = data.reduce((sum: number, item: any) => sum + (item.orders_count || 0), 0);
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-2">
+          <Package className="w-5 h-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Product Performance</h3>
+        </div>
+        
         <div className="space-y-3">
-          {nextSteps.map((step, index) => (
-            <div key={index} className={`p-4 rounded-lg border-l-4 ${getPriorityStyle(step.priority)}`}>
-              <div className="flex items-start space-x-3">
-                <span className="text-sm mt-0.5">{getPriorityIcon(step.priority)}</span>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-medium text-sm">{step.title}</h4>
-                    <span className="text-xs px-2 py-1 bg-white bg-opacity-50 rounded-full">
-                      {step.timeframe}
-                    </span>
-                  </div>
-                  <p className="text-sm opacity-90">{step.action}</p>
+          {topProducts.map((product: any, index: number) => (
+            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold">
+                  {index + 1}
                 </div>
+                <div>
+                  <p className="font-semibold text-gray-900">{product.product_name || 'Unknown Product'}</p>
+                  <p className="text-sm text-gray-600">
+                    {totalOrders > 0 ? ((product.orders_count || 0) / totalOrders * 100).toFixed(1) : 0}% of total orders
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-gray-900">{product.orders_count || 0}</p>
+                <p className="text-sm text-gray-600">orders</p>
               </div>
             </div>
           ))}
+        </div>
+
+        {data.some((d: any) => d.avg_order_value) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+              <h4 className="font-semibold text-blue-800 mb-2">Highest AOV Product</h4>
+              <p className="text-sm font-medium text-blue-700">
+                {[...data].sort((a: any, b: any) => (b.avg_order_value || 0) - (a.avg_order_value || 0))[0]?.product_name || 'N/A'}
+              </p>
+              <p className="text-lg font-bold text-blue-800">
+                {formatCurrency([...data].sort((a: any, b: any) => (b.avg_order_value || 0) - (a.avg_order_value || 0))[0]?.avg_order_value || 0)}
+              </p>
+            </div>
+            <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
+              <h4 className="font-semibold text-green-800 mb-2">Top Revenue Product</h4>
+              <p className="text-sm font-medium text-green-700">
+                {[...data].sort((a: any, b: any) => (b.revenue || 0) - (a.revenue || 0))[0]?.product_name || 'N/A'}
+              </p>
+              <p className="text-lg font-bold text-green-800">
+                {formatCurrency([...data].sort((a: any, b: any) => (b.revenue || 0) - (a.revenue || 0))[0]?.revenue || 0)}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderCustomerInsights = () => {
+    const totalSpent = data.reduce((sum: number, customer: any) => sum + (customer.total_spent || 0), 0);
+    const avgSpent = totalSpent / data.length;
+    const topCustomers = [...data].sort((a: any, b: any) => (b.total_spent || 0) - (a.total_spent || 0)).slice(0, 5);
+    const repeatCustomers = data.filter((c: any) => (c.total_orders || 0) > 1).length;
+    const repeatRate = (repeatCustomers / data.length) * 100;
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-2">
+          <Users className="w-5 h-5 text-purple-600" />
+          <h3 className="text-lg font-semibold text-gray-900">Customer Insights</h3>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-blue-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-blue-600 font-medium mb-1">Average Spent</p>
+            <p className="text-xl font-bold text-blue-800">{formatCurrency(avgSpent)}</p>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-green-600 font-medium mb-1">Total Value</p>
+            <p className="text-xl font-bold text-green-800">{formatCurrency(totalSpent)}</p>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-purple-600 font-medium mb-1">New Customers</p>
+            <p className="text-xl font-bold text-purple-800">{data.length}</p>
+          </div>
+          <div className="bg-orange-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-orange-600 font-medium mb-1">Repeat Rate</p>
+            <p className="text-xl font-bold text-orange-800">{repeatRate.toFixed(1)}%</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h4 className="font-semibold text-gray-900">Top New Customers</h4>
+          {topCustomers.map((customer: any, index: number) => (
+            <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold">
+                  {index + 1}
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">{customer.customer_name || 'Unknown Customer'}</p>
+                  <p className="text-sm text-gray-600">{customer.email || 'No email'}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-gray-900">{formatCurrency(customer.total_spent || 0)}</p>
+                <p className="text-sm text-gray-600">{customer.total_orders || 0} orders</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAOVInsights = () => {
+    const aovValues = data.map((d: any) => d.avg_order_value || 0).filter(v => v > 0);
+    const avgAOV = aovValues.reduce((sum, aov) => sum + aov, 0) / aovValues.length;
+    const maxAOV = Math.max(...aovValues);
+    const minAOV = Math.min(...aovValues);
+    const totalOrders = data.reduce((sum: number, d: any) => sum + (d.orders_count || 0), 0);
+    const totalRevenue = data.reduce((sum: number, d: any) => sum + (d.total_revenue || 0), 0);
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-2">
+          <BarChart3 className="w-5 h-5 text-green-600" />
+          <h3 className="text-lg font-semibold text-gray-900">AOV Analysis</h3>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-blue-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-blue-600 font-medium mb-1">Average AOV</p>
+            <p className="text-xl font-bold text-blue-800">{formatCurrency(avgAOV)}</p>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-green-600 font-medium mb-1">Highest AOV</p>
+            <p className="text-xl font-bold text-green-800">{formatCurrency(maxAOV)}</p>
+          </div>
+          <div className="bg-red-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-red-600 font-medium mb-1">Lowest AOV</p>
+            <p className="text-xl font-bold text-red-800">{formatCurrency(minAOV)}</p>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-purple-600 font-medium mb-1">Consistency</p>
+            <p className="text-xl font-bold text-purple-800">{((minAOV / maxAOV) * 100).toFixed(0)}%</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gray-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-gray-600 font-medium mb-1">Total Orders</p>
+            <p className="text-lg font-bold text-gray-800">{totalOrders.toLocaleString()}</p>
+            <p className="text-xs text-gray-600">Across {data.length} days</p>
+          </div>
+          <div className="bg-gray-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-gray-600 font-medium mb-1">Total Revenue</p>
+            <p className="text-lg font-bold text-gray-800">{formatCurrency(totalRevenue)}</p>
+            <p className="text-xs text-gray-600">Period total</p>
+          </div>
+          <div className="bg-gray-50 p-4 rounded-lg text-center">
+            <p className="text-sm text-gray-600 font-medium mb-1">Daily Avg Orders</p>
+            <p className="text-lg font-bold text-gray-800">{(totalOrders / data.length).toFixed(1)}</p>
+            <p className="text-xs text-gray-600">Orders per day</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderExpandedContent = () => {
+    const helpContent = getHelpContent();
+
+    return (
+      <div className="space-y-8">
+        {/* Header with KPI Value */}
+        <div className="text-center border-b pb-6">
+          <div className="flex items-center justify-center mb-4">
+            {React.cloneElement(icon as React.ReactElement, {
+              className: 'w-16 h-16 text-blue-600'
+            })}
+          </div>
+          <h2 className="text-5xl font-bold text-gray-900 mb-2">
+            {formatValue(value)}
+          </h2>
+          <p className="text-xl text-gray-600">{title}</p>
+          
+          {previousValue !== undefined && (
+            <div className="flex items-center justify-center space-x-6 mt-4">
+              <div className="text-center">
+                <p className="text-sm text-gray-500">Current Period</p>
+                <p className="text-2xl font-semibold text-gray-900">{formatValue(value)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-500">Previous Period</p>
+                <p className="text-2xl font-semibold text-gray-900">{formatValue(previousValue)}</p>
+              </div>
+              <div className={`text-center px-4 py-2 rounded-lg ${
+                changeType === 'positive' ? 'bg-green-50' :
+                changeType === 'negative' ? 'bg-red-50' : 'bg-gray-50'
+              }`}>
+                <p className="text-sm text-gray-500">Change</p>
+                <div className="flex items-center space-x-2">
+                  {getTrendIcon()}
+                  <span className={`text-2xl font-semibold ${
+                    changeType === 'positive' ? 'text-green-600' :
+                    changeType === 'negative' ? 'text-red-600' : 'text-gray-600'
+                  }`}>
+                    {Math.abs(percentageChange).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Timeseries Chart */}
+        {renderTimeseriesChart()}
+
+        {/* Product/Customer Insights */}
+        {renderProductCustomerInsights()}
+
+        {/* Help Section */}
+        <div className="border-t pt-6">
+          <Collapsible open={helpExpanded} onOpenChange={setHelpExpanded}>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" className="w-full justify-between">
+                <div className="flex items-center space-x-2">
+                  <HelpCircle className="w-4 h-4" />
+                  <span>Understanding This Metric</span>
+                </div>
+                {helpExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-4">
+                <div>
+                  <h4 className="font-semibold text-blue-900 mb-2">{helpContent.title}</h4>
+                  <p className="text-blue-800">{helpContent.definition}</p>
+                </div>
+                
+                <div>
+                  <h5 className="font-medium text-blue-900 mb-2">How it's calculated:</h5>
+                  <p className="text-blue-800 font-mono text-sm bg-blue-100 p-2 rounded">{helpContent.calculation}</p>
+                </div>
+                
+                <div>
+                  <h5 className="font-medium text-blue-900 mb-2">Why it matters:</h5>
+                  <p className="text-blue-800">{helpContent.importance}</p>
+                </div>
+                
+                <div>
+                  <h5 className="font-medium text-blue-900 mb-2">Key factors that influence this metric:</h5>
+                  <ul className="text-blue-800 space-y-1">
+                    {helpContent.factors.map((factor, index) => (
+                      <li key={index} className="flex items-start space-x-2">
+                        <span className="text-blue-600 mt-1">•</span>
+                        <span>{factor}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div>
+                  <h5 className="font-medium text-blue-900 mb-2">How to interpret changes:</h5>
+                  <div className="space-y-2">
+                    <div className="flex items-start space-x-2">
+                      <TrendingUp className="w-4 h-4 text-green-600 mt-0.5" />
+                      <span className="text-blue-800">{helpContent.interpretation.positive}</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <TrendingDown className="w-4 h-4 text-red-600 mt-0.5" />
+                      <span className="text-blue-800">{helpContent.interpretation.negative}</span>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <Minus className="w-4 h-4 text-gray-600 mt-0.5" />
+                      <span className="text-blue-800">{helpContent.interpretation.stable}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </div>
     );
@@ -1205,9 +937,9 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
       </div>
 
       <Dialog open={isExpanded} onOpenChange={setIsExpanded}>
-        <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-auto">
+        <DialogContent className="max-w-6xl w-full max-h-[95vh] overflow-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-medium text-black">{title} - Detailed View</DialogTitle>
+            <DialogTitle className="text-3xl font-bold text-gray-900">{title} - Detailed Analysis</DialogTitle>
           </DialogHeader>
           <div ref={contentRef}>
             {renderExpandedContent()}
