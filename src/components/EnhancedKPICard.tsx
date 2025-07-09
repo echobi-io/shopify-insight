@@ -272,8 +272,8 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
         {/* Performance Insights */}
         {renderPerformanceInsights(kpiType)}
 
-        {/* Actionable Recommendations */}
-        {renderActionableRecommendations(kpiType)}
+        {/* Next Steps */}
+        {renderNextSteps(kpiType)}
       </div>
     );
   };
@@ -877,52 +877,79 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
     );
   };
 
-  const renderActionableRecommendations = (kpiType: string) => {
-    const recommendations = [];
+  const renderNextSteps = (kpiType: string) => {
+    const nextSteps = [];
 
-    // General recommendations based on performance
+    // Data-driven next steps based on actual performance
     if (previousValue !== undefined) {
-      if (changeType === 'negative' && Math.abs(percentageChange) > 10) {
-        recommendations.push({
-          type: 'urgent',
-          title: 'Address Performance Decline',
-          action: `Investigate the ${Math.abs(percentageChange).toFixed(1)}% decline and implement corrective measures`
+      if (changeType === 'negative' && Math.abs(percentageChange) > 15) {
+        nextSteps.push({
+          priority: 'high',
+          title: 'Investigate Root Cause',
+          action: `Analyze what caused the ${Math.abs(percentageChange).toFixed(1)}% decline`,
+          timeframe: 'This week'
         });
-      } else if (changeType === 'positive' && Math.abs(percentageChange) > 20) {
-        recommendations.push({
-          type: 'opportunity',
-          title: 'Scale Success Factors',
-          action: `Identify what drove the ${Math.abs(percentageChange).toFixed(1)}% improvement and replicate it`
+      } else if (changeType === 'positive' && Math.abs(percentageChange) > 25) {
+        nextSteps.push({
+          priority: 'medium',
+          title: 'Document Success Factors',
+          action: `Identify and document what drove the ${Math.abs(percentageChange).toFixed(1)}% improvement`,
+          timeframe: 'Next 2 weeks'
         });
       }
     }
 
-    // KPI-specific recommendations
+    // KPI-specific next steps based on actual data patterns
     switch (kpiType) {
       case 'revenue':
-        if (changeType === 'negative') {
-          recommendations.push({
-            type: 'action',
-            title: 'Revenue Recovery Strategy',
-            action: 'Focus on high-value customers, optimize pricing, and enhance product offerings'
-          });
-        } else if (changeType === 'positive') {
-          recommendations.push({
-            type: 'growth',
-            title: 'Revenue Optimization',
-            action: 'Consider upselling strategies and expanding successful product lines'
-          });
+        if (data && data.length > 0) {
+          const revenues = data.map((d: any) => d.revenue || d.total_revenue || 0);
+          const avgRevenue = revenues.reduce((sum, rev) => sum + rev, 0) / revenues.length;
+          const lowPerformingDays = revenues.filter(rev => rev < avgRevenue * 0.7).length;
+          
+          if (lowPerformingDays > revenues.length * 0.3) {
+            nextSteps.push({
+              priority: 'high',
+              title: 'Address Revenue Volatility',
+              action: `${lowPerformingDays} days performed 30% below average - review marketing spend and inventory levels`,
+              timeframe: 'Next week'
+            });
+          }
+
+          const bestDay = data.find((d: any) => (d.revenue || d.total_revenue || 0) === Math.max(...revenues));
+          if (bestDay) {
+            nextSteps.push({
+              priority: 'medium',
+              title: 'Replicate Best Day Performance',
+              action: `Analyze what made ${bestDay.date ? new Date(bestDay.date).toLocaleDateString() : 'your best day'} successful and create playbook`,
+              timeframe: 'This month'
+            });
+          }
         }
         break;
 
       case 'orders':
-        if (data && data.length > 0) {
-          const topProductShare = data[0] ? ((data[0].orders_count || 0) / data.reduce((sum: number, p: any) => sum + (p.orders_count || 0), 0)) * 100 : 0;
-          if (topProductShare > 50) {
-            recommendations.push({
-              type: 'risk',
-              title: 'Diversify Product Portfolio',
-              action: 'Reduce dependency on top product by promoting other products and expanding catalog'
+        if (data && data.length > 0 && data.some((d: any) => d.product_name)) {
+          const totalOrders = data.reduce((sum: number, p: any) => sum + (p.orders_count || 0), 0);
+          const topProduct = data[0];
+          const topProductShare = topProduct ? ((topProduct.orders_count || 0) / totalOrders) * 100 : 0;
+          
+          if (topProductShare > 40) {
+            nextSteps.push({
+              priority: 'medium',
+              title: 'Reduce Product Concentration Risk',
+              action: `${topProduct?.product_name} represents ${topProductShare.toFixed(1)}% of orders - promote other products`,
+              timeframe: 'Next 2 weeks'
+            });
+          }
+
+          const lowPerformingProducts = data.filter((p: any) => (p.orders_count || 0) < totalOrders * 0.05).length;
+          if (lowPerformingProducts > 0) {
+            nextSteps.push({
+              priority: 'low',
+              title: 'Review Underperforming Products',
+              action: `${lowPerformingProducts} products have very low order volume - consider promotion or discontinuation`,
+              timeframe: 'This month'
             });
           }
         }
@@ -930,73 +957,136 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
 
       case 'customers':
         if (data && data.length > 0) {
+          const avgSpent = data.reduce((sum: number, c: any) => sum + (c.total_spent || 0), 0) / data.length;
+          const highValueCustomers = data.filter((c: any) => (c.total_spent || 0) > avgSpent * 2).length;
           const repeatCustomers = data.filter((c: any) => (c.total_orders || 0) > 1).length;
           const repeatRate = (repeatCustomers / data.length) * 100;
-          if (repeatRate < 20) {
-            recommendations.push({
-              type: 'retention',
-              title: 'Improve Customer Retention',
-              action: 'Implement loyalty programs, follow-up campaigns, and personalized recommendations'
+          
+          if (repeatRate < 25) {
+            nextSteps.push({
+              priority: 'high',
+              title: 'Improve New Customer Retention',
+              action: `Only ${repeatRate.toFixed(1)}% of new customers returned - implement welcome series and follow-up campaigns`,
+              timeframe: 'Next week'
+            });
+          }
+
+          if (highValueCustomers > 0) {
+            nextSteps.push({
+              priority: 'medium',
+              title: 'Nurture High-Value Customers',
+              action: `${highValueCustomers} customers spent 2x+ average - create VIP program and personalized outreach`,
+              timeframe: 'Next 2 weeks'
             });
           }
         }
         break;
 
       case 'aov':
-        if (changeType === 'negative') {
-          recommendations.push({
-            type: 'action',
-            title: 'Increase Average Order Value',
-            action: 'Implement bundling, cross-selling, and minimum order incentives'
-          });
+        if (data && data.length > 0) {
+          const aovValues = data.map((d: any) => d.avg_order_value || 0).filter(v => v > 0);
+          const avgAOV = aovValues.reduce((sum, aov) => sum + aov, 0) / aovValues.length;
+          const lowAOVDays = aovValues.filter(aov => aov < avgAOV * 0.8).length;
+          const highAOVDays = aovValues.filter(aov => aov > avgAOV * 1.2).length;
+          
+          if (lowAOVDays > aovValues.length * 0.3) {
+            nextSteps.push({
+              priority: 'high',
+              title: 'Address Low AOV Days',
+              action: `${lowAOVDays} days had AOV 20% below average - implement bundling and upsell strategies`,
+              timeframe: 'This week'
+            });
+          }
+
+          if (highAOVDays > 0) {
+            nextSteps.push({
+              priority: 'medium',
+              title: 'Scale High AOV Strategies',
+              action: `${highAOVDays} days achieved 20%+ higher AOV - identify and replicate successful tactics`,
+              timeframe: 'Next 2 weeks'
+            });
+          }
+
+          const aovVolatility = (Math.max(...aovValues) - Math.min(...aovValues)) / avgAOV * 100;
+          if (aovVolatility > 50) {
+            nextSteps.push({
+              priority: 'medium',
+              title: 'Stabilize Order Values',
+              action: `AOV varies by ${aovVolatility.toFixed(1)}% - implement consistent pricing and promotion strategies`,
+              timeframe: 'This month'
+            });
+          }
         }
         break;
     }
 
-    // Add general optimization recommendations
-    recommendations.push({
-      type: 'optimization',
-      title: 'Continuous Monitoring',
-      action: 'Set up alerts for significant changes and review performance weekly'
-    });
+    // Add trend-based next steps
+    if (trend && trend.length > 2) {
+      const recentTrend = trend.slice(-3);
+      const isDecreasing = recentTrend.every((val, i) => i === 0 || val < recentTrend[i - 1]);
+      const isIncreasing = recentTrend.every((val, i) => i === 0 || val > recentTrend[i - 1]);
+      
+      if (isDecreasing) {
+        nextSteps.push({
+          priority: 'high',
+          title: 'Address Declining Trend',
+          action: 'Recent data shows consistent decline - implement immediate intervention strategies',
+          timeframe: 'This week'
+        });
+      } else if (isIncreasing) {
+        nextSteps.push({
+          priority: 'low',
+          title: 'Maintain Positive Momentum',
+          action: 'Continue current strategies that are driving consistent growth',
+          timeframe: 'Ongoing'
+        });
+      }
+    }
 
-    if (recommendations.length === 0) return null;
+    if (nextSteps.length === 0) {
+      // Add default next step if no specific issues found
+      nextSteps.push({
+        priority: 'low',
+        title: 'Monitor Performance',
+        action: 'Performance is stable - continue monitoring for changes and optimization opportunities',
+        timeframe: 'Weekly review'
+      });
+    }
 
-    const getRecommendationStyle = (type: string) => {
-      switch (type) {
-        case 'urgent': return 'bg-red-50 border-red-200 text-red-800';
-        case 'opportunity': return 'bg-green-50 border-green-200 text-green-800';
-        case 'action': return 'bg-blue-50 border-blue-200 text-blue-800';
-        case 'growth': return 'bg-purple-50 border-purple-200 text-purple-800';
-        case 'risk': return 'bg-orange-50 border-orange-200 text-orange-800';
-        case 'retention': return 'bg-yellow-50 border-yellow-200 text-yellow-800';
-        default: return 'bg-gray-50 border-gray-200 text-gray-800';
+    const getPriorityStyle = (priority: string) => {
+      switch (priority) {
+        case 'high': return 'bg-red-50 border-l-red-400 text-red-800';
+        case 'medium': return 'bg-yellow-50 border-l-yellow-400 text-yellow-800';
+        case 'low': return 'bg-green-50 border-l-green-400 text-green-800';
+        default: return 'bg-gray-50 border-l-gray-400 text-gray-800';
       }
     };
 
-    const getRecommendationIcon = (type: string) => {
-      switch (type) {
-        case 'urgent': return '🚨';
-        case 'opportunity': return '🚀';
-        case 'action': return '⚡';
-        case 'growth': return '📈';
-        case 'risk': return '⚠️';
-        case 'retention': return '🔄';
-        default: return '💡';
+    const getPriorityIcon = (priority: string) => {
+      switch (priority) {
+        case 'high': return '🔴';
+        case 'medium': return '🟡';
+        case 'low': return '🟢';
+        default: return '⚪';
       }
     };
 
     return (
       <div className="space-y-2">
-        <h3 className="text-lg font-medium">Actionable Recommendations</h3>
+        <h3 className="text-lg font-medium">Next Steps</h3>
         <div className="space-y-3">
-          {recommendations.map((rec, index) => (
-            <div key={index} className={`p-4 rounded-lg border ${getRecommendationStyle(rec.type)}`}>
+          {nextSteps.map((step, index) => (
+            <div key={index} className={`p-4 rounded-lg border-l-4 ${getPriorityStyle(step.priority)}`}>
               <div className="flex items-start space-x-3">
-                <span className="text-lg">{getRecommendationIcon(rec.type)}</span>
-                <div>
-                  <h4 className="font-medium mb-1">{rec.title}</h4>
-                  <p className="text-sm">{rec.action}</p>
+                <span className="text-sm mt-0.5">{getPriorityIcon(step.priority)}</span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="font-medium text-sm">{step.title}</h4>
+                    <span className="text-xs px-2 py-1 bg-white bg-opacity-50 rounded-full">
+                      {step.timeframe}
+                    </span>
+                  </div>
+                  <p className="text-sm opacity-90">{step.action}</p>
                 </div>
               </div>
             </div>
