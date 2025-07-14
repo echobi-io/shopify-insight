@@ -42,7 +42,7 @@ import KPIGrid from '@/components/Layout/KPIGrid'
 import ChartCard from '@/components/Layout/ChartCard'
 import HelpSection, { getDashboardHelpItems } from '@/components/HelpSection'
 import { TopItemsSection } from '@/components/TopItemsSection'
-import { SupabaseDiagnostic } from '@/components/SupabaseDiagnostic'
+import BusinessInsights from '@/components/BusinessInsights'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
@@ -439,9 +439,16 @@ const DashboardPage: React.FC = () => {
         />
       </div>
 
-      {/* Supabase Diagnostic - Temporary */}
+      {/* Business Insights */}
       <div className="mb-8">
-        <SupabaseDiagnostic />
+        <BusinessInsights
+          kpiData={kpiData}
+          previousYearKpiData={previousYearKpiData}
+          productData={productData}
+          topCustomersData={topCustomersData}
+          orderTimingData={orderTimingData}
+          currency={currency}
+        />
       </div>
 
       {/* Help Section */}
