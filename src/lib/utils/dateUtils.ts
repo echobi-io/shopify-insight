@@ -92,8 +92,20 @@ export function getDateRangeFromTimeframe(timeframe: string, customStartDate?: s
       endDate.setHours(23, 59, 59, 999);
       return { startDate, endDate };
     case 'financial_current': {
-      const currentYear = new Date().getFullYear();
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      
+      // For calendar year financial years (Jan 1 - Dec 31), always use current calendar year
+      // This ensures we get 2024 data when we're in 2024
       const financialYear = getFinancialYearDates(currentYear);
+      
+      console.log('🗓️ Financial year calculation:', {
+        currentYear,
+        now: now.toISOString(),
+        financialYearStart: financialYear.startDate.toISOString(),
+        financialYearEnd: financialYear.endDate.toISOString()
+      });
+      
       return { 
         startDate: new Date(financialYear.startDate), 
         endDate: new Date(financialYear.endDate) 

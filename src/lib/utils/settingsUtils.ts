@@ -122,7 +122,7 @@ export function getFinancialYearDates(year: number, settings?: AppSettings): { s
   let startYear = year
   let endYear = year
   
-  // If financial year crosses calendar year boundary
+  // If financial year crosses calendar year boundary (e.g., April to March)
   if (startMonth > endMonth || (startMonth === endMonth && startDay > endDay)) {
     endYear = year + 1
   }
