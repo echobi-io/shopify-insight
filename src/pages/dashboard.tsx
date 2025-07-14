@@ -1,20 +1,9 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, Suspense } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { AlertCircle } from 'lucide-react'
 import SimpleRevenueChart from '@/components/SimpleRevenueChart'
 import { getKPIsOptimized, getPreviousYearKPIsOptimized, type KPIData } from '@/lib/fetchers/getKpisOptimized'
 import { getProductData } from '@/lib/fetchers/getProductData'
-import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type CustomerSegmentData, type AICommentaryData } from '@/lib/fetchers/getDashboardData'
-import { 
-  getDailyRevenueBreakdown, 
-  getOrdersByProduct, 
-  getNewCustomersDetail, 
-  getAOVStats,
-  type DailyRevenueData,
-  type OrdersByProductData,
-  type NewCustomerData,
-  type AOVStatsData
-} from '@/lib/fetchers/getDetailedKPIData'
 import { 
   getDashboardChartsData, 
   getHourLabel, 
@@ -25,7 +14,7 @@ import {
 import { formatCurrency, getSettings, getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { getTopCustomersData, TopCustomer } from '@/lib/fetchers/getTopCustomersData'
-import { useDataFetcher, useMultipleDataFetchers } from '@/hooks/useDataFetcher'
+import { useDataFetcher } from '@/hooks/useDataFetcher'
 import { 
   LoadingOverlay, 
   KPICardSkeleton, 
@@ -92,19 +81,7 @@ const DashboardPage: React.FC = () => {
     })
   }, [filters])
 
-  // Memoize dashboard fetchers object
-  const dashboardFetchers = React.useMemo(() => ({
-    products: () => getProductData(filters, MERCHANT_ID).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
-    chartsData: () => getDashboardChartsData(MERCHANT_ID, filters, granularity as any).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: { dailyData: [], orderTimingData: [] }, error, success: false, loading: false })),
-    dailyRevenue: () => getDailyRevenueBreakdown(MERCHANT_ID, filters).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
-    ordersByProduct: () => getOrdersByProduct(MERCHANT_ID, filters).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
-    newCustomers: () => getNewCustomersDetail(MERCHANT_ID, filters).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
-    aovStats: () => getAOVStats(MERCHANT_ID, filters).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
-    topCustomers: () => getTopCustomersData(filters.startDate, filters.endDate).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
-    settings: () => getSettings().then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: { currency: 'GBP' }, error, success: false, loading: false }))
-  }), [filters, granularity])
-
-  // Optimized data fetching with proper error handling and loading states
+  // Essential data fetchers only - reduce concurrent requests
   const kpiDataFetcher = useDataFetcher(kpiFetchFunction, {
     enabled: true,
     refetchOnWindowFocus: false,
@@ -112,36 +89,66 @@ const DashboardPage: React.FC = () => {
   })
 
   const previousYearKpiDataFetcher = useDataFetcher(previousYearKpiFetchFunction, {
-    enabled: true,
+    enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
     refetchOnWindowFocus: false,
     onError: (error) => console.error('❌ Error loading previous year KPIs:', error)
   })
 
-  // Multiple data fetchers for dashboard components
-  const dashboardDataFetchers = useMultipleDataFetchers(dashboardFetchers, {
-    enabled: true,
-    onError: (error) => console.error('❌ Error loading dashboard data:', error)
-  })
+  // Charts data fetcher
+  const chartsDataFetcher = useDataFetcher(
+    useCallback(() => getDashboardChartsData(MERCHANT_ID, filters, granularity as any), [filters, granularity]),
+    {
+      enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
+      refetchOnWindowFocus: false,
+      onError: (error) => console.error('❌ Error loading charts data:', error)
+    }
+  )
+
+  // Products data fetcher
+  const productsDataFetcher = useDataFetcher(
+    useCallback(() => getProductData(filters, MERCHANT_ID), [filters]),
+    {
+      enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
+      refetchOnWindowFocus: false,
+      onError: (error) => console.error('❌ Error loading products data:', error)
+    }
+  )
+
+  // Top customers data fetcher
+  const topCustomersDataFetcher = useDataFetcher(
+    useCallback(() => getTopCustomersData(filters.startDate, filters.endDate), [filters]),
+    {
+      enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
+      refetchOnWindowFocus: false,
+      onError: (error) => console.error('❌ Error loading top customers data:', error)
+    }
+  )
+
+  // Settings data fetcher
+  const settingsDataFetcher = useDataFetcher(
+    useCallback(() => getSettings(), []),
+    {
+      enabled: true,
+      refetchOnWindowFocus: false,
+      onError: (error) => console.error('❌ Error loading settings:', error)
+    }
+  )
 
   // Update currency when settings load
   useEffect(() => {
-    if (dashboardDataFetchers.results.settings?.data?.currency) {
-      setCurrency(dashboardDataFetchers.results.settings.data.currency)
+    if (settingsDataFetcher.data?.currency) {
+      setCurrency(settingsDataFetcher.data.currency)
     }
-  }, [dashboardDataFetchers.results.settings?.data])
+  }, [settingsDataFetcher.data])
 
   // Extract data with fallbacks
   const kpiData = kpiDataFetcher.data
   const previousYearKpiData = previousYearKpiDataFetcher.data
-  const productData = dashboardDataFetchers.results.products?.data || []
-  const chartsData = dashboardDataFetchers.results.chartsData?.data || { dailyData: [], orderTimingData: [] }
+  const productData = productsDataFetcher.data || []
+  const chartsData = chartsDataFetcher.data || { dailyData: [], orderTimingData: [] }
   const dashboardChartData = chartsData.dailyData || []
   const orderTimingData = chartsData.orderTimingData || []
-  const dailyRevenueData = dashboardDataFetchers.results.dailyRevenue?.data || []
-  const ordersByProductData = dashboardDataFetchers.results.ordersByProduct?.data || []
-  const newCustomersData = dashboardDataFetchers.results.newCustomers?.data || []
-  const aovStatsData = dashboardDataFetchers.results.aovStats?.data || []
-  const topCustomersData = dashboardDataFetchers.results.topCustomers?.data || []
+  const topCustomersData = topCustomersDataFetcher.data || []
 
   // Debug KPI data
   console.log('🎯 Dashboard KPI Debug:', {
@@ -164,7 +171,7 @@ const DashboardPage: React.FC = () => {
 
 
   // Global loading state
-  const loading = kpiDataFetcher.loading || previousYearKpiDataFetcher.loading || dashboardDataFetchers.globalLoading
+  const loading = kpiDataFetcher.loading || settingsDataFetcher.loading
 
   // Data will automatically refetch when memoized functions change due to filter changes
   // No manual refetch needed as the hooks will detect the function changes
@@ -172,8 +179,11 @@ const DashboardPage: React.FC = () => {
   const handleRefresh = useCallback(() => {
     kpiDataFetcher.refetch()
     previousYearKpiDataFetcher.refetch()
-    dashboardDataFetchers.refetchAll()
-  }, [kpiDataFetcher, previousYearKpiDataFetcher, dashboardDataFetchers])
+    chartsDataFetcher.refetch()
+    productsDataFetcher.refetch()
+    topCustomersDataFetcher.refetch()
+    settingsDataFetcher.refetch()
+  }, [kpiDataFetcher, previousYearKpiDataFetcher, chartsDataFetcher, productsDataFetcher, topCustomersDataFetcher, settingsDataFetcher])
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-US').format(value)
@@ -230,13 +240,7 @@ const DashboardPage: React.FC = () => {
           <KPIGrid
             currentKpis={data}
             previousKpis={previousYearKpiData}
-            variant="detailed"
-            detailedData={{
-              revenue: dailyRevenueData,
-              orders: ordersByProductData,
-              customers: newCustomersData,
-              aov: aovStatsData
-            }}
+            variant="basic"
           />
         )}
       </DataStateWrapper>
@@ -245,7 +249,7 @@ const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* New Enhanced Revenue & Orders Chart */}
         <div className="w-full">
-          {dashboardDataFetchers.results.chartsData?.error ? (
+          {chartsDataFetcher.error ? (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-red-600">
@@ -255,10 +259,10 @@ const DashboardPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-gray-600 mb-4">
-                  Failed to load chart data: {dashboardDataFetchers.results.chartsData.error.message}
+                  Failed to load chart data: {chartsDataFetcher.error.message}
                 </p>
                 <Button 
-                  onClick={() => dashboardDataFetchers.refetchAll()}
+                  onClick={() => chartsDataFetcher.refetch()}
                   variant="outline"
                   size="sm"
                 >
@@ -271,7 +275,7 @@ const DashboardPage: React.FC = () => {
               data={dashboardChartData}
               granularity={granularity}
               currency={currency}
-              loading={dashboardDataFetchers.results.chartsData?.loading || false}
+              loading={chartsDataFetcher.loading}
             />
           )}
         </div>
@@ -279,9 +283,9 @@ const DashboardPage: React.FC = () => {
         {/* Order Timing Analysis */}
         <DataStateWrapper
           data={orderTimingData}
-          loading={dashboardDataFetchers.results.chartsData?.loading || false}
-          error={dashboardDataFetchers.results.chartsData?.error || null}
-          onRetry={() => dashboardDataFetchers.refetchAll()}
+          loading={chartsDataFetcher.loading}
+          error={chartsDataFetcher.error}
+          onRetry={() => chartsDataFetcher.refetch()}
           loadingComponent={<ChartSkeleton />}
           isEmpty={(data) => !data || data.length === 0}
           emptyComponent={
