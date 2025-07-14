@@ -24,12 +24,6 @@ export async function getDashboardChartsData(
   orderTimingData: OrderTimingData[]
 }> {
   try {
-    console.log('🔍 getDashboardChartsData called with:', {
-      merchant_id,
-      filters,
-      granularity
-    })
-
     // Build the base query for orders
     let query = supabase
       .from('orders')
@@ -43,15 +37,7 @@ export async function getDashboardChartsData(
       query = query.lte('created_at', filters.endDate)
     }
 
-    console.log('🔍 Executing orders query...')
     const { data: orders, error } = await query.order('created_at')
-
-    console.log('🔍 Orders query result:', {
-      ordersCount: orders?.length || 0,
-      error: error?.message,
-      firstOrder: orders?.[0],
-      lastOrder: orders?.[orders?.length - 1]
-    })
 
     if (error) {
       console.error('❌ Error fetching dashboard charts data:', error)
@@ -59,50 +45,7 @@ export async function getDashboardChartsData(
     }
 
     if (!orders || orders.length === 0) {
-      console.log('⚠️ No orders found for the given filters')
-      
-      // Temporary: Return sample data to test chart rendering
-      console.log('🔧 Returning sample data for testing...')
-      const sampleDailyData = [
-        { date: '2024-01', total_revenue: 15000, total_orders: 45 },
-        { date: '2024-02', total_revenue: 18000, total_orders: 52 },
-        { date: '2024-03', total_revenue: 22000, total_orders: 61 },
-        { date: '2024-04', total_revenue: 19500, total_orders: 48 },
-        { date: '2024-05', total_revenue: 25000, total_orders: 67 },
-        { date: '2024-06', total_revenue: 28000, total_orders: 73 }
-      ]
-      
-      const sampleOrderTimingData = [
-        { hour: 0, order_count: 2, percentage: 1.5 },
-        { hour: 1, order_count: 1, percentage: 0.8 },
-        { hour: 2, order_count: 0, percentage: 0 },
-        { hour: 3, order_count: 1, percentage: 0.8 },
-        { hour: 4, order_count: 0, percentage: 0 },
-        { hour: 5, order_count: 1, percentage: 0.8 },
-        { hour: 6, order_count: 3, percentage: 2.3 },
-        { hour: 7, order_count: 5, percentage: 3.8 },
-        { hour: 8, order_count: 8, percentage: 6.1 },
-        { hour: 9, order_count: 12, percentage: 9.2 },
-        { hour: 10, order_count: 15, percentage: 11.5 },
-        { hour: 11, order_count: 18, percentage: 13.8 },
-        { hour: 12, order_count: 20, percentage: 15.3 },
-        { hour: 13, order_count: 16, percentage: 12.3 },
-        { hour: 14, order_count: 14, percentage: 10.7 },
-        { hour: 15, order_count: 12, percentage: 9.2 },
-        { hour: 16, order_count: 10, percentage: 7.7 },
-        { hour: 17, order_count: 8, percentage: 6.1 },
-        { hour: 18, order_count: 6, percentage: 4.6 },
-        { hour: 19, order_count: 4, percentage: 3.1 },
-        { hour: 20, order_count: 3, percentage: 2.3 },
-        { hour: 21, order_count: 2, percentage: 1.5 },
-        { hour: 22, order_count: 1, percentage: 0.8 },
-        { hour: 23, order_count: 1, percentage: 0.8 }
-      ]
-      
-      return { 
-        dailyData: sampleDailyData, 
-        orderTimingData: sampleOrderTimingData 
-      }
+      return { dailyData: [], orderTimingData: [] }
     }
 
     // Process data based on granularity
@@ -161,8 +104,6 @@ export async function getDashboardChartsData(
       }
     }
 
-    console.log('🔍 Processing orders data...')
-    
     orders.forEach((order, index) => {
       try {
         const orderDate = new Date(order.created_at)
@@ -190,9 +131,6 @@ export async function getDashboardChartsData(
       }
     })
 
-    console.log('🔍 Period totals:', periodTotals)
-    console.log('🔍 Hourly totals:', hourlyTotals)
-
     // Convert period data to array format and sort properly
     const dailyData = Object.entries(periodTotals)
       .map(([periodKey, totals]) => ({
@@ -216,13 +154,6 @@ export async function getDashboardChartsData(
         percentage: totalOrders > 0 ? (count / totalOrders) * 100 : 0
       }))
       .sort((a, b) => a.hour - b.hour) // CRITICAL: Sort chronologically by hour (0-23), NOT by order count
-
-    console.log('🔍 Final processed data:', {
-      dailyDataLength: dailyData.length,
-      dailyDataSample: dailyData.slice(0, 3),
-      orderTimingDataLength: orderTimingData.length,
-      orderTimingDataSample: orderTimingData.slice(0, 5)
-    })
 
     return {
       dailyData,
