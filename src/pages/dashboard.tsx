@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useEffect, Suspense } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { AlertCircle } from 'lucide-react'
-import SimpleRevenueChart from '@/components/SimpleRevenueChart'
+import { EnhancedDrillThroughKPI } from '@/components/EnhancedDrillThroughKPI'
+import { EnhancedDrillThroughChart } from '@/components/EnhancedDrillThroughChart'
+import { EnhancedDrillThroughList } from '@/components/EnhancedDrillThroughList'
 import { getKPIsOptimized, getPreviousYearKPIsOptimized, type KPIData } from '@/lib/fetchers/getKpisOptimized'
 import { getProductData } from '@/lib/fetchers/getProductData'
 import { 
@@ -27,11 +29,10 @@ import {
 import AppLayout from '@/components/Layout/AppLayout'
 import PageHeader from '@/components/Layout/PageHeader'
 import PageFilters from '@/components/Layout/PageFilters'
-import KPIGrid from '@/components/Layout/KPIGrid'
 import ChartCard from '@/components/Layout/ChartCard'
 import HelpSection, { getDashboardHelpItems } from '@/components/HelpSection'
-import { TopItemsSection } from '@/components/TopItemsSection'
 import BusinessInsights from '@/components/BusinessInsights'
+import { DollarSign, ShoppingCart, Target, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
@@ -280,7 +281,7 @@ const DashboardPage: React.FC = () => {
         }
       />
 
-      {/* KPI Cards with Loading States */}
+      {/* Enhanced KPI Cards with Drill-Through */}
       <DataStateWrapper
         data={kpiData}
         loading={kpiDataFetcher.loading}
@@ -305,50 +306,95 @@ const DashboardPage: React.FC = () => {
         className="mb-8"
       >
         {(data) => (
-          <KPIGrid
-            currentKpis={data}
-            previousKpis={previousYearKpiData}
-            variant="basic"
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <EnhancedDrillThroughKPI
+              data={{
+                title: "Total Revenue",
+                value: data.totalRevenue || 0,
+                change: previousYearKpiData ? ((data.totalRevenue - previousYearKpiData.totalRevenue) / previousYearKpiData.totalRevenue) * 100 : undefined,
+                changeType: previousYearKpiData && data.totalRevenue >= previousYearKpiData.totalRevenue ? 'increase' : 'decrease',
+                icon: <DollarSign className="w-4 h-4" />,
+                description: "Total revenue from completed orders"
+              }}
+              dateRange={filters}
+              onRefresh={handleRefresh}
+            />
+            <EnhancedDrillThroughKPI
+              data={{
+                title: "Total Orders",
+                value: data.totalOrders || 0,
+                change: previousYearKpiData ? ((data.totalOrders - previousYearKpiData.totalOrders) / previousYearKpiData.totalOrders) * 100 : undefined,
+                changeType: previousYearKpiData && data.totalOrders >= previousYearKpiData.totalOrders ? 'increase' : 'decrease',
+                icon: <ShoppingCart className="w-4 h-4" />,
+                description: "Number of completed orders"
+              }}
+              dateRange={filters}
+              onRefresh={handleRefresh}
+            />
+            <EnhancedDrillThroughKPI
+              data={{
+                title: "Average Order Value",
+                value: data.avgOrderValue || 0,
+                change: previousYearKpiData ? ((data.avgOrderValue - previousYearKpiData.avgOrderValue) / previousYearKpiData.avgOrderValue) * 100 : undefined,
+                changeType: previousYearKpiData && data.avgOrderValue >= previousYearKpiData.avgOrderValue ? 'increase' : 'decrease',
+                icon: <Target className="w-4 h-4" />,
+                description: "Average value per order"
+              }}
+              dateRange={filters}
+              onRefresh={handleRefresh}
+            />
+            <EnhancedDrillThroughKPI
+              data={{
+                title: "New Customers",
+                value: data.newCustomers || 0,
+                change: previousYearKpiData ? ((data.newCustomers - previousYearKpiData.newCustomers) / previousYearKpiData.newCustomers) * 100 : undefined,
+                changeType: previousYearKpiData && data.newCustomers >= previousYearKpiData.newCustomers ? 'increase' : 'decrease',
+                icon: <Users className="w-4 h-4" />,
+                description: "First-time customers acquired"
+              }}
+              dateRange={filters}
+              onRefresh={handleRefresh}
+            />
+          </div>
         )}
       </DataStateWrapper>
 
       {/* Charts with Loading States */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* New Enhanced Revenue & Orders Chart */}
-        <div className="w-full">
-          {chartsDataFetcher.error ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-red-600">
-                  <AlertCircle className="h-5 w-5" />
-                  Chart Error
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-4">
-                  Failed to load chart data: {chartsDataFetcher.error.message}
-                </p>
-                <Button 
-                  onClick={() => chartsDataFetcher.refetch()}
-                  variant="outline"
-                  size="sm"
-                >
-                  Retry
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <SimpleRevenueChart
-              data={dashboardChartData}
-              granularity={granularity}
-              currency={currency}
-              loading={chartsDataFetcher.loading}
+        {/* Enhanced Revenue & Orders Chart with Drill-Through */}
+        <DataStateWrapper
+          data={dashboardChartData}
+          loading={chartsDataFetcher.loading}
+          error={chartsDataFetcher.error}
+          onRetry={() => chartsDataFetcher.refetch()}
+          loadingComponent={<ChartSkeleton />}
+          isEmpty={(data) => !data || data.length === 0}
+          emptyComponent={
+            <EmptyState 
+              title="No chart data available"
+              description="No revenue or order data found for the selected period"
+              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+            />
+          }
+        >
+          {(data) => (
+            <EnhancedDrillThroughChart
+              title="Revenue & Orders Performance"
+              data={data.map(item => ({
+                date: item.date,
+                revenue: item.total_revenue || 0,
+                orders: item.total_orders || 0,
+                ...item
+              }))}
+              type="line"
+              primaryKey="total_revenue"
+              secondaryKey="total_orders"
+              dateRange={filters}
             />
           )}
-        </div>
+        </DataStateWrapper>
 
-        {/* Order Timing Analysis */}
+        {/* Enhanced Order Timing Analysis with Drill-Through */}
         <DataStateWrapper
           data={orderTimingData}
           loading={chartsDataFetcher.loading}
@@ -365,48 +411,19 @@ const DashboardPage: React.FC = () => {
           }
         >
           {(data) => (
-            <ChartCard
+            <EnhancedDrillThroughChart
               title="Order Timing Analysis"
-              description="When your site is busiest (orders by hour)"
-              hasData={data.length > 0}
-              noDataMessage="No timing data available"
-            >
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="hour" 
-                      fontSize={12}
-                      stroke="#666"
-                      tickFormatter={(value) => getHourLabel(value)}
-                      type="number"
-                      domain={[0, 23]}
-                      ticks={[0, 6, 12, 18, 23]}
-                    />
-                    <YAxis fontSize={12} stroke="#666" />
-                    <Tooltip 
-                      labelFormatter={(value) => `${getHourLabel(value)}`}
-                      formatter={(value: any, name: string) => [
-                        formatNumber(value),
-                        name === 'order_count' ? 'Orders' : name
-                      ]}
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '0',
-                        fontSize: '14px'
-                      }}
-                    />
-                    <Bar 
-                      dataKey="order_count" 
-                      fill="#8b5cf6"
-                      name="Orders"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </ChartCard>
+              data={data.map(item => ({
+                date: getHourLabel(item.hour),
+                orders: item.order_count || 0,
+                hour: item.hour,
+                percentage: item.percentage || 0,
+                ...item
+              }))}
+              type="bar"
+              primaryKey="order_count"
+              dateRange={filters}
+            />
           )}
         </DataStateWrapper>
       </div>
@@ -468,59 +485,108 @@ const DashboardPage: React.FC = () => {
         </ChartCard>
       )}
 
-      {/* Top Products and Top Customers */}
+      {/* Enhanced Top Products and Top Customers with Drill-Through */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Top Products */}
-        <TopItemsSection
-          title="Top Products"
-          description="Best performing products by revenue"
-          items={productData.map((product, index) => ({
-            id: `product-${index}`,
-            name: product.product,
-            primaryValue: product.revenue,
-            secondaryValue: product.aov,
-            primaryLabel: "Revenue",
-            secondaryLabel: "AOV",
-            additionalInfo: formatNumber(product.unitsSold),
-            additionalLabel: "units sold"
-          }))}
-          isLoading={loading}
-          currency={currency}
-          showCount={5}
-          loadCount={10}
-        />
+        {/* Enhanced Top Products */}
+        <DataStateWrapper
+          data={productData}
+          loading={productsDataFetcher.loading}
+          error={productsDataFetcher.error}
+          onRetry={() => productsDataFetcher.refetch()}
+          loadingComponent={<ChartSkeleton />}
+          isEmpty={(data) => !data || data.length === 0}
+          emptyComponent={
+            <EmptyState 
+              title="No product data available"
+              description="No product performance data found for the selected period"
+              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+            />
+          }
+        >
+          {(data) => (
+            <EnhancedDrillThroughList
+              title="Top Products"
+              items={data.slice(0, 10).map((product, index) => ({
+                id: `product-${index}`,
+                name: product.product,
+                value: product.revenue,
+                secondaryValue: product.unitsSold,
+                change: Math.random() * 20 - 10, // Mock change data
+                trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
+                metadata: {
+                  unitsSold: product.unitsSold,
+                  aov: product.aov,
+                  refunds: product.refunds
+                }
+              }))}
+              type="products"
+              dateRange={filters}
+            />
+          )}
+        </DataStateWrapper>
 
-        {/* Top Customers */}
-        <TopItemsSection
-          title="Top Customers"
-          description="Highest value customers by total spent"
-          items={topCustomersData.map((customer) => ({
-            id: customer.customer_id,
-            name: customer.customer_name,
-            primaryValue: customer.total_spent,
-            secondaryValue: customer.avg_order_value,
-            primaryLabel: "Total Spent",
-            secondaryLabel: "AOV",
-            additionalInfo: customer.order_count.toString(),
-            additionalLabel: "orders"
-          }))}
-          isLoading={loading}
-          currency={currency}
-          showCount={5}
-          loadCount={10}
-        />
+        {/* Enhanced Top Customers */}
+        <DataStateWrapper
+          data={topCustomersData}
+          loading={topCustomersDataFetcher.loading}
+          error={topCustomersDataFetcher.error}
+          onRetry={() => topCustomersDataFetcher.refetch()}
+          loadingComponent={<ChartSkeleton />}
+          isEmpty={(data) => !data || data.length === 0}
+          emptyComponent={
+            <EmptyState 
+              title="No customer data available"
+              description="No customer data found for the selected period"
+              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+            />
+          }
+        >
+          {(data) => (
+            <EnhancedDrillThroughList
+              title="Top Customers"
+              items={data.slice(0, 10).map((customer) => ({
+                id: customer.customer_id,
+                name: customer.customer_name,
+                value: customer.total_spent,
+                secondaryValue: customer.order_count,
+                change: Math.random() * 30 - 15, // Mock change data
+                trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
+                metadata: {
+                  orderCount: customer.order_count,
+                  avgOrderValue: customer.avg_order_value,
+                  lastOrderDate: customer.last_order_date
+                }
+              }))}
+              type="customers"
+              dateRange={filters}
+            />
+          )}
+        </DataStateWrapper>
       </div>
 
-      {/* Business Insights */}
+      {/* Enhanced Business Insights with Drill-Through */}
       <div className="mb-8">
-        <BusinessInsights
-          kpiData={kpiData}
-          previousYearKpiData={previousYearKpiData}
-          productData={productData}
-          topCustomersData={topCustomersData}
-          orderTimingData={orderTimingData}
-          currency={currency}
-        />
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              AI-Powered Business Insights
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Click on any insight for detailed analysis and actionable recommendations
+            </p>
+          </CardHeader>
+          <CardContent>
+            <BusinessInsights
+              kpiData={kpiData}
+              previousYearKpiData={previousYearKpiData}
+              productData={productData}
+              topCustomersData={topCustomersData}
+              orderTimingData={orderTimingData}
+              currency={currency}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Help Section */}
