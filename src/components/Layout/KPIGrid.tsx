@@ -1,7 +1,7 @@
 import React from 'react'
 import { DollarSign, ShoppingCart, Target, Users } from 'lucide-react'
 import EnhancedKPICard from '@/components/EnhancedKPICard'
-import { KPIData } from '@/lib/fetchers/getKpis'
+import { KPIData } from '@/lib/fetchers/getKpisOptimized'
 
 interface DetailedData {
   revenue?: any[]
