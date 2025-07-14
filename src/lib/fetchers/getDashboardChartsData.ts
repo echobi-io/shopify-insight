@@ -119,28 +119,37 @@ export async function getDashboardChartsData(
       }
     }
 
+    console.log('🔍 Processing orders data...')
+    
     orders.forEach((order, index) => {
-      const orderDate = new Date(order.created_at)
-      
-      // Check for invalid dates
-      if (isNaN(orderDate.getTime())) {
-        console.warn(`⚠️ Invalid date found in order ${index}:`, order.created_at)
-        return
+      try {
+        const orderDate = new Date(order.created_at)
+        
+        // Check for invalid dates
+        if (isNaN(orderDate.getTime())) {
+          console.warn(`⚠️ Invalid date found in order ${index}:`, order.created_at)
+          return
+        }
+        
+        const periodKey = getPeriodKey(orderDate)
+        const hour = orderDate.getHours()
+        
+        // Period totals based on granularity
+        if (!periodTotals[periodKey]) {
+          periodTotals[periodKey] = { revenue: 0, orders: 0 }
+        }
+        periodTotals[periodKey].revenue += parseFloat(order.total_price) || 0
+        periodTotals[periodKey].orders += 1
+        
+        // Hourly totals (always by hour regardless of granularity)
+        hourlyTotals[hour] += 1
+      } catch (error) {
+        console.error(`❌ Error processing order ${index}:`, error, order)
       }
-      
-      const periodKey = getPeriodKey(orderDate)
-      const hour = orderDate.getHours()
-      
-      // Period totals based on granularity
-      if (!periodTotals[periodKey]) {
-        periodTotals[periodKey] = { revenue: 0, orders: 0 }
-      }
-      periodTotals[periodKey].revenue += parseFloat(order.total_price) || 0
-      periodTotals[periodKey].orders += 1
-      
-      // Hourly totals (always by hour regardless of granularity)
-      hourlyTotals[hour] += 1
     })
+
+    console.log('🔍 Period totals:', periodTotals)
+    console.log('🔍 Hourly totals:', hourlyTotals)
 
     // Convert period data to array format and sort properly
     const dailyData = Object.entries(periodTotals)
@@ -166,7 +175,12 @@ export async function getDashboardChartsData(
       }))
       .sort((a, b) => a.hour - b.hour) // CRITICAL: Sort chronologically by hour (0-23), NOT by order count
 
-
+    console.log('🔍 Final processed data:', {
+      dailyDataLength: dailyData.length,
+      dailyDataSample: dailyData.slice(0, 3),
+      orderTimingDataLength: orderTimingData.length,
+      orderTimingDataSample: orderTimingData.slice(0, 5)
+    })
 
     return {
       dailyData,
