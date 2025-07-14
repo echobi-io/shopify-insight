@@ -39,6 +39,17 @@ export function useDataFetcher<T>(
   const abortControllerRef = useRef<AbortController | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
+  const fetchFunctionRef = useRef(fetchFunction)
+  const onSuccessRef = useRef(onSuccess)
+  const onErrorRef = useRef(onError)
+
+  // Update refs when values change
+  useEffect(() => {
+    fetchFunctionRef.current = fetchFunction
+    onSuccessRef.current = onSuccess
+    onErrorRef.current = onError
+  })
+
   const executeFetch = useCallback(async (isRefetch = false) => {
     if (!enabled) return
 
@@ -56,7 +67,7 @@ export function useDataFetcher<T>(
         setLoading(true)
       }
 
-      const result = await fetchFunction()
+      const result = await fetchFunctionRef.current()
 
       // Check if request was aborted
       if (abortControllerRef.current?.signal.aborted) {
@@ -69,12 +80,12 @@ export function useDataFetcher<T>(
       setFromCache(result.fromCache || false)
       setLastFetched(new Date())
 
-      if (result.success && result.data && onSuccess) {
-        onSuccess(result.data)
+      if (result.success && result.data && onSuccessRef.current) {
+        onSuccessRef.current(result.data)
       }
 
-      if (!result.success && result.error && onError) {
-        onError(result.error)
+      if (!result.success && result.error && onErrorRef.current) {
+        onErrorRef.current(result.error)
       }
 
     } catch (err) {
@@ -83,14 +94,14 @@ export function useDataFetcher<T>(
       setSuccess(false)
       setFromCache(false)
       
-      if (onError) {
-        onError(error)
+      if (onErrorRef.current) {
+        onErrorRef.current(error)
       }
     } finally {
       setLoading(false)
       setIsRefetching(false)
     }
-  }, [enabled, fetchFunction, onSuccess, onError])
+  }, [enabled])
 
   const refetch = useCallback(async () => {
     await executeFetch(true)
@@ -163,12 +174,20 @@ export function useMultipleDataFetchers<T extends Record<string, any>>(
   const [globalLoading, setGlobalLoading] = useState(false)
   const [globalError, setGlobalError] = useState<Error | null>(null)
 
+  const fetchersRef = useRef(fetchers)
+  
+  // Update ref when fetchers change
+  useEffect(() => {
+    fetchersRef.current = fetchers
+  })
+
   const fetchAll = useCallback(async () => {
     setGlobalLoading(true)
     setGlobalError(null)
 
     try {
-      const fetchPromises = Object.entries(fetchers).map(async ([key, fetchFn]) => {
+      const currentFetchers = fetchersRef.current
+      const fetchPromises = Object.entries(currentFetchers).map(async ([key, fetchFn]) => {
         const result = await fetchFn()
         return [key, result] as [keyof T, DataFetcherResult<any>]
       })
@@ -180,7 +199,7 @@ export function useMultipleDataFetchers<T extends Record<string, any>>(
         newResults[key] = {
           ...result,
           refetch: async () => {
-            const newResult = await fetchers[key]()
+            const newResult = await fetchersRef.current[key]()
             setResults(prev => ({
               ...prev,
               [key]: { ...prev[key], ...newResult }
@@ -205,13 +224,14 @@ export function useMultipleDataFetchers<T extends Record<string, any>>(
     } finally {
       setGlobalLoading(false)
     }
-  }, [fetchers])
+  }, [])
 
+  // Trigger refetch when fetchers change
   useEffect(() => {
     if (options.enabled !== false) {
       fetchAll()
     }
-  }, [fetchAll, options.enabled])
+  }, [fetchAll, options.enabled, fetchers])
 
   return {
     results,

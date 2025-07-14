@@ -63,42 +63,34 @@ const DashboardPage: React.FC = () => {
   const [customEndDate, setCustomEndDate] = useState('')
   const [currency, setCurrency] = useState('GBP')
 
-  // Calculate date filters
-  const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
-  const filters = {
-    startDate: formatDateForSQL(dateRange.startDate),
-    endDate: formatDateForSQL(dateRange.endDate)
-  }
+  // Calculate date filters - memoize to prevent recreation
+  const filters = React.useMemo(() => {
+    const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
+    return {
+      startDate: formatDateForSQL(dateRange.startDate),
+      endDate: formatDateForSQL(dateRange.endDate)
+    }
+  }, [timeframe, customStartDate, customEndDate])
 
-  // Optimized data fetching with proper error handling and loading states
-  const kpiDataFetcher = useDataFetcher(
-    () => getKPIsOptimized(filters, MERCHANT_ID, {
+  // Memoize fetch functions to prevent recreation on every render
+  const kpiFetchFunction = useCallback(() => {
+    return getKPIsOptimized(filters, MERCHANT_ID, {
       cacheKey: `kpis_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
       timeout: 20000,
       retries: 3
-    }).then(result => result),
-    {
-      enabled: true,
-      refetchOnWindowFocus: false,
-      onError: (error) => console.error('❌ Error loading current KPIs:', error)
-    }
-  )
+    })
+  }, [filters])
 
-  const previousYearKpiDataFetcher = useDataFetcher(
-    () => getPreviousYearKPIsOptimized(filters, MERCHANT_ID, {
+  const previousYearKpiFetchFunction = useCallback(() => {
+    return getPreviousYearKPIsOptimized(filters, MERCHANT_ID, {
       cacheKey: `kpis_py_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
       timeout: 20000,
       retries: 3
-    }).then(result => result),
-    {
-      enabled: true,
-      refetchOnWindowFocus: false,
-      onError: (error) => console.error('❌ Error loading previous year KPIs:', error)
-    }
-  )
+    })
+  }, [filters])
 
-  // Multiple data fetchers for dashboard components
-  const dashboardDataFetchers = useMultipleDataFetchers({
+  // Memoize dashboard fetchers object
+  const dashboardFetchers = React.useMemo(() => ({
     products: () => getProductData(filters, MERCHANT_ID).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
     chartsData: () => getDashboardChartsData(MERCHANT_ID, filters, granularity as any).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: { dailyData: [], orderTimingData: [] }, error, success: false, loading: false })),
     dailyRevenue: () => getDailyRevenueBreakdown(MERCHANT_ID, filters).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
@@ -107,7 +99,23 @@ const DashboardPage: React.FC = () => {
     aovStats: () => getAOVStats(MERCHANT_ID, filters).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
     topCustomers: () => getTopCustomersData(filters.startDate, filters.endDate).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
     settings: () => getSettings().then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: { currency: 'GBP' }, error, success: false, loading: false }))
-  }, {
+  }), [filters, granularity])
+
+  // Optimized data fetching with proper error handling and loading states
+  const kpiDataFetcher = useDataFetcher(kpiFetchFunction, {
+    enabled: true,
+    refetchOnWindowFocus: false,
+    onError: (error) => console.error('❌ Error loading current KPIs:', error)
+  })
+
+  const previousYearKpiDataFetcher = useDataFetcher(previousYearKpiFetchFunction, {
+    enabled: true,
+    refetchOnWindowFocus: false,
+    onError: (error) => console.error('❌ Error loading previous year KPIs:', error)
+  })
+
+  // Multiple data fetchers for dashboard components
+  const dashboardDataFetchers = useMultipleDataFetchers(dashboardFetchers, {
     enabled: true,
     onError: (error) => console.error('❌ Error loading dashboard data:', error)
   })
@@ -135,12 +143,8 @@ const DashboardPage: React.FC = () => {
   // Global loading state
   const loading = kpiDataFetcher.loading || previousYearKpiDataFetcher.loading || dashboardDataFetchers.globalLoading
 
-  // Refetch all data when filters change
-  useEffect(() => {
-    kpiDataFetcher.refetch()
-    previousYearKpiDataFetcher.refetch()
-    dashboardDataFetchers.refetchAll()
-  }, [timeframe, granularity, customStartDate, customEndDate])
+  // Data will automatically refetch when memoized functions change due to filter changes
+  // No manual refetch needed as the hooks will detect the function changes
 
   const handleRefresh = useCallback(() => {
     kpiDataFetcher.refetch()
