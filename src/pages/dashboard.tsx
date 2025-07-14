@@ -140,6 +140,24 @@ const DashboardPage: React.FC = () => {
   const aovStatsData = dashboardDataFetchers.results.aovStats?.data || []
   const topCustomersData = dashboardDataFetchers.results.topCustomers?.data || []
 
+  // Debug KPI data
+  console.log('🎯 Dashboard KPI Debug:', {
+    kpiDataExists: !!kpiData,
+    kpiData: kpiData,
+    kpiDataFetcherLoading: kpiDataFetcher.loading,
+    kpiDataFetcherError: kpiDataFetcher.error,
+    previousYearKpiDataExists: !!previousYearKpiData,
+    previousYearKpiData: previousYearKpiData
+  })
+
+  // Debug chart data
+  console.log('📊 Dashboard Chart Debug:', {
+    chartsDataExists: !!chartsData,
+    dashboardChartDataLength: dashboardChartData.length,
+    dashboardChartData: dashboardChartData.slice(0, 3),
+    orderTimingDataLength: orderTimingData.length
+  })
+
 
 
   // Global loading state
