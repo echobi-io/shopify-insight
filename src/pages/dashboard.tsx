@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { AlertCircle } from 'lucide-react'
+import RevenueOrdersChart from '@/components/RevenueOrdersChart'
 import { getKPIsOptimized, getPreviousYearKPIsOptimized, type KPIData } from '@/lib/fetchers/getKpisOptimized'
 import { getProductData } from '@/lib/fetchers/getProductData'
 import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type CustomerSegmentData, type AICommentaryData } from '@/lib/fetchers/getDashboardData'
@@ -240,105 +241,13 @@ const DashboardPage: React.FC = () => {
 
       {/* Charts with Loading States */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Combined Revenue & Orders Chart */}
-        <DataStateWrapper
+        {/* New Enhanced Revenue & Orders Chart */}
+        <RevenueOrdersChart
           data={dashboardChartData}
+          granularity={granularity}
+          currency={currency}
           loading={dashboardDataFetchers.results.chartsData?.loading || false}
-          error={dashboardDataFetchers.results.chartsData?.error || null}
-          onRetry={() => dashboardDataFetchers.refetchAll()}
-          loadingComponent={<ChartSkeleton />}
-          isEmpty={(data) => !data || data.length === 0}
-          emptyComponent={
-            <EmptyState 
-              title="No chart data available"
-              description="No revenue or order data found for the selected period"
-              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-            />
-          }
-        >
-          {(data) => (
-            <ChartCard
-              title="Revenue & Orders Trend"
-              description={`${granularity.charAt(0).toUpperCase() + granularity.slice(1)} performance overview`}
-              hasData={data.length > 0}
-            >
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="date" 
-                      fontSize={12}
-                      stroke="#666"
-                      tickFormatter={(value) => {
-                        if (granularity === 'daily') {
-                          return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                        } else if (granularity === 'weekly') {
-                          return value.replace('Week of ', '')
-                        } else if (granularity === 'monthly') {
-                          const [year, month] = value.split('-')
-                          return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-                        } else if (granularity === 'quarterly') {
-                          return value
-                        } else if (granularity === 'yearly') {
-                          return value
-                        }
-                        return value
-                      }}
-                    />
-                    <YAxis yAxisId="revenue" orientation="left" fontSize={12} stroke="#3b82f6" />
-                    <YAxis yAxisId="orders" orientation="right" fontSize={12} stroke="#10b981" />
-                    <Tooltip 
-                      labelFormatter={(value) => {
-                        if (granularity === 'daily') {
-                          return new Date(value).toLocaleDateString()
-                        } else if (granularity === 'weekly') {
-                          return value
-                        } else if (granularity === 'monthly') {
-                          const [year, month] = value.split('-')
-                          return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                        } else if (granularity === 'quarterly') {
-                          return value
-                        } else if (granularity === 'yearly') {
-                          return value
-                        }
-                        return value
-                      }}
-                      formatter={(value: any, name: string) => [
-                        name === 'total_revenue' ? formatCurrency(value) : formatNumber(value),
-                        name === 'total_revenue' ? 'Revenue' : 'Orders'
-                      ]}
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '0',
-                        fontSize: '14px'
-                      }}
-                    />
-                    <Line 
-                      yAxisId="revenue"
-                      type="monotone" 
-                      dataKey="total_revenue" 
-                      stroke="#3b82f6" 
-                      strokeWidth={2}
-                      dot={false}
-                      name="Revenue"
-                    />
-                    <Line 
-                      yAxisId="orders"
-                      type="monotone" 
-                      dataKey="total_orders" 
-                      stroke="#10b981" 
-                      strokeWidth={2}
-                      dot={false}
-                      name="Orders"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </ChartCard>
-          )}
-        </DataStateWrapper>
+        />
 
         {/* Order Timing Analysis */}
         <DataStateWrapper
