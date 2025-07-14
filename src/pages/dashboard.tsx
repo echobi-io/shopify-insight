@@ -65,20 +65,50 @@ const DashboardPage: React.FC = () => {
   }, [timeframe, customStartDate, customEndDate])
 
   // Memoize fetch functions to prevent recreation on every render
-  const kpiFetchFunction = useCallback(() => {
-    return getKPIsOptimized(filters, MERCHANT_ID, {
-      cacheKey: `kpis_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
-      timeout: 20000,
-      retries: 3
-    })
+  const kpiFetchFunction = useCallback(async () => {
+    try {
+      const data = await getKPIsOptimized(filters, MERCHANT_ID, {
+        cacheKey: `kpis_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
+        timeout: 20000,
+        retries: 3
+      })
+      return {
+        data,
+        error: null,
+        loading: false,
+        success: true
+      }
+    } catch (error) {
+      return {
+        data: null,
+        error: error instanceof Error ? error : new Error(String(error)),
+        loading: false,
+        success: false
+      }
+    }
   }, [filters])
 
-  const previousYearKpiFetchFunction = useCallback(() => {
-    return getPreviousYearKPIsOptimized(filters, MERCHANT_ID, {
-      cacheKey: `kpis_py_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
-      timeout: 20000,
-      retries: 3
-    })
+  const previousYearKpiFetchFunction = useCallback(async () => {
+    try {
+      const data = await getPreviousYearKPIsOptimized(filters, MERCHANT_ID, {
+        cacheKey: `kpis_py_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
+        timeout: 20000,
+        retries: 3
+      })
+      return {
+        data,
+        error: null,
+        loading: false,
+        success: true
+      }
+    } catch (error) {
+      return {
+        data: null,
+        error: error instanceof Error ? error : new Error(String(error)),
+        loading: false,
+        success: false
+      }
+    }
   }, [filters])
 
   // Essential data fetchers only - reduce concurrent requests
@@ -96,7 +126,24 @@ const DashboardPage: React.FC = () => {
 
   // Charts data fetcher
   const chartsDataFetcher = useDataFetcher(
-    useCallback(() => getDashboardChartsData(MERCHANT_ID, filters, granularity as any), [filters, granularity]),
+    useCallback(async () => {
+      try {
+        const data = await getDashboardChartsData(MERCHANT_ID, filters, granularity as any)
+        return {
+          data,
+          error: null,
+          loading: false,
+          success: true
+        }
+      } catch (error) {
+        return {
+          data: null,
+          error: error instanceof Error ? error : new Error(String(error)),
+          loading: false,
+          success: false
+        }
+      }
+    }, [filters, granularity]),
     {
       enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
       refetchOnWindowFocus: false,
@@ -106,7 +153,24 @@ const DashboardPage: React.FC = () => {
 
   // Products data fetcher
   const productsDataFetcher = useDataFetcher(
-    useCallback(() => getProductData(filters, MERCHANT_ID), [filters]),
+    useCallback(async () => {
+      try {
+        const data = await getProductData(filters, MERCHANT_ID)
+        return {
+          data,
+          error: null,
+          loading: false,
+          success: true
+        }
+      } catch (error) {
+        return {
+          data: null,
+          error: error instanceof Error ? error : new Error(String(error)),
+          loading: false,
+          success: false
+        }
+      }
+    }, [filters]),
     {
       enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
       refetchOnWindowFocus: false,
@@ -116,7 +180,24 @@ const DashboardPage: React.FC = () => {
 
   // Top customers data fetcher
   const topCustomersDataFetcher = useDataFetcher(
-    useCallback(() => getTopCustomersData(filters.startDate, filters.endDate), [filters]),
+    useCallback(async () => {
+      try {
+        const data = await getTopCustomersData(filters.startDate, filters.endDate)
+        return {
+          data,
+          error: null,
+          loading: false,
+          success: true
+        }
+      } catch (error) {
+        return {
+          data: null,
+          error: error instanceof Error ? error : new Error(String(error)),
+          loading: false,
+          success: false
+        }
+      }
+    }, [filters]),
     {
       enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
       refetchOnWindowFocus: false,
@@ -126,7 +207,24 @@ const DashboardPage: React.FC = () => {
 
   // Settings data fetcher
   const settingsDataFetcher = useDataFetcher(
-    useCallback(() => getSettings(), []),
+    useCallback(async () => {
+      try {
+        const data = await getSettings()
+        return {
+          data,
+          error: null,
+          loading: false,
+          success: true
+        }
+      } catch (error) {
+        return {
+          data: null,
+          error: error instanceof Error ? error : new Error(String(error)),
+          loading: false,
+          success: false
+        }
+      }
+    }, []),
     {
       enabled: true,
       refetchOnWindowFocus: false,
