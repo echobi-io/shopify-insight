@@ -95,12 +95,14 @@ export function getDateRangeFromTimeframe(timeframe: string, customStartDate?: s
       const now = new Date();
       const currentYear = now.getFullYear();
       
-      // For calendar year financial years (Jan 1 - Dec 31), always use current calendar year
-      // This ensures we get 2024 data when we're in 2024
-      const financialYear = getFinancialYearDates(currentYear);
+      // TEMPORARY FIX: Since sample data is from 2024, force use 2024 for now
+      // TODO: Remove this once we have proper current year data
+      const dataYear = 2024;
+      const financialYear = getFinancialYearDates(dataYear);
       
       console.log('🗓️ Financial year calculation:', {
         currentYear,
+        dataYear,
         now: now.toISOString(),
         financialYearStart: financialYear.startDate.toISOString(),
         financialYearEnd: financialYear.endDate.toISOString()
