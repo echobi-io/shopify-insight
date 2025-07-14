@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts'
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package, Star, RefreshCw, AlertCircle, Search, Filter } from 'lucide-react'
-import { getProductPerformanceDataOptimized, type ProductPerformanceData, type ProductMetrics, type ProductTrend } from '@/lib/fetchers/getProductPerformanceDataOptimized'
+import { getProductPerformanceDataSimple, type ProductPerformanceData, type ProductMetrics, type ProductTrend } from '@/lib/fetchers/getProductPerformanceDataSimple'
 import { getReturnedProductsData, type ReturnedProductsData } from '@/lib/fetchers/getReturnedProductsData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency, getInitialTimeframe } from '@/lib/utils/settingsUtils'
@@ -65,10 +65,10 @@ const ProductInsightsPage: React.FC = () => {
           loading: false
         })
       }
-      return getProductPerformanceDataOptimized(merchantId, filters, {
-        cacheKey: `product_performance_${merchantId}_${filters.startDate}_${filters.endDate}`,
-        timeout: 30000, // 30 seconds for product data
-        retries: 3
+      return getProductPerformanceDataSimple(merchantId, filters, {
+        cacheKey: `product_performance_simple_${merchantId}_${filters.startDate}_${filters.endDate}`,
+        timeout: 15000, // 15 seconds for simple data
+        retries: 2
       }).then(result => ({ data: result, error: null, success: true, loading: false }))
     },
     {

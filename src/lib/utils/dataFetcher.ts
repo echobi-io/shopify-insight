@@ -209,9 +209,20 @@ export async function executeQuery<T>(
       })
     }
 
-    // Apply ordering
+    // Apply ordering - clean column name and handle foreign table references
     if (config.orderBy) {
-      query = query.order(config.orderBy.column, { ascending: config.orderBy.ascending ?? true })
+      let columnName = config.orderBy.column
+      
+      // Remove any .asc or .desc suffixes that might cause parsing errors
+      columnName = columnName.replace(/\.(asc|desc)$/i, '')
+      
+      // For foreign table references like 'orders.created_at', use the referenced column
+      if (columnName.includes('.')) {
+        const parts = columnName.split('.')
+        columnName = parts[parts.length - 1] // Use the last part (actual column name)
+      }
+      
+      query = query.order(columnName, { ascending: config.orderBy.ascending ?? true })
     }
 
     // Apply limit
