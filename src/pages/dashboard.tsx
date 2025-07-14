@@ -43,6 +43,8 @@ import ChartCard from '@/components/Layout/ChartCard'
 import HelpSection, { getDashboardHelpItems } from '@/components/HelpSection'
 import { TopItemsSection } from '@/components/TopItemsSection'
 import { SupabaseDiagnostic } from '@/components/SupabaseDiagnostic'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -242,12 +244,37 @@ const DashboardPage: React.FC = () => {
       {/* Charts with Loading States */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* New Enhanced Revenue & Orders Chart */}
-        <RevenueOrdersChart
-          data={dashboardChartData}
-          granularity={granularity}
-          currency={currency}
-          loading={dashboardDataFetchers.results.chartsData?.loading || false}
-        />
+        <div className="w-full">
+          {dashboardDataFetchers.results.chartsData?.error ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-600">
+                  <AlertCircle className="h-5 w-5" />
+                  Chart Error
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600 mb-4">
+                  Failed to load chart data: {dashboardDataFetchers.results.chartsData.error.message}
+                </p>
+                <Button 
+                  onClick={() => dashboardDataFetchers.refetchAll()}
+                  variant="outline"
+                  size="sm"
+                >
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <RevenueOrdersChart
+              data={dashboardChartData}
+              granularity={granularity}
+              currency={currency}
+              loading={dashboardDataFetchers.results.chartsData?.loading || false}
+            />
+          )}
+        </div>
 
         {/* Order Timing Analysis */}
         <DataStateWrapper

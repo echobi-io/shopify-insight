@@ -32,6 +32,15 @@ const RevenueOrdersChart: React.FC<RevenueOrdersChartProps> = ({
   const [selectedDataPoint, setSelectedDataPoint] = useState<ChartDataPoint | null>(null)
   const [drillDownOpen, setDrillDownOpen] = useState(false)
 
+  // Debug logging
+  console.log('🔍 RevenueOrdersChart Debug:', {
+    dataLength: data?.length || 0,
+    data: data?.slice(0, 3),
+    granularity,
+    currency,
+    loading
+  })
+
   // Calculate insights from the data
   const insights = useMemo(() => {
     if (!data || data.length === 0) return null
