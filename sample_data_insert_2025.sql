@@ -172,7 +172,7 @@ UPDATE customers SET
   )
 WHERE merchant_id = '11111111-1111-1111-1111-111111111111';
 
--- Insert settings for the merchant
+-- Update settings for the merchant (ensure 2025 is current financial year)
 INSERT INTO settings (merchant_id, financial_year_start, financial_year_end, default_date_range, timezone, currency, churn_period_days, cost_of_acquisition, gross_profit_margin, created_at, updated_at)
 VALUES (
   '11111111-1111-1111-1111-111111111111',
