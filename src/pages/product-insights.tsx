@@ -8,10 +8,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts'
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package, Star, RefreshCw, AlertCircle, Search, Filter } from 'lucide-react'
-import { getProductPerformanceData, type ProductPerformanceData, type ProductMetrics, type ProductTrend } from '@/lib/fetchers/getProductPerformanceData'
+import { getProductPerformanceDataOptimized, type ProductPerformanceData, type ProductMetrics, type ProductTrend } from '@/lib/fetchers/getProductPerformanceDataOptimized'
 import { getReturnedProductsData, type ReturnedProductsData } from '@/lib/fetchers/getReturnedProductsData'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { formatCurrency, getInitialTimeframe } from '@/lib/utils/settingsUtils'
+import { useDataFetcher } from '@/hooks/useDataFetcher'
+import { 
+  LoadingOverlay, 
+  KPICardSkeleton, 
+  ChartSkeleton, 
+  ErrorState, 
+  EmptyState,
+  DataStateWrapper,
+  ConnectionStatus
+} from '@/components/ui/loading-states'
 import AppLayout from '@/components/Layout/AppLayout'
 import PageHeader from '@/components/Layout/PageHeader'
 import PageFilters from '@/components/Layout/PageFilters'
@@ -25,10 +35,6 @@ import { useAuth } from '@/contexts/AuthContext'
 
 
 const ProductInsightsPage: React.FC = () => {
-  const [data, setData] = useState<ProductPerformanceData | null>(null)
-  const [returnedProductsData, setReturnedProductsData] = useState<ReturnedProductsData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const { merchantId } = useAuth()
   
   // Filter states
@@ -41,38 +47,70 @@ const ProductInsightsPage: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [activeTab, setActiveTab] = useState('overview')
 
+  // Calculate date filters
+  const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
+  const filters = {
+    startDate: formatDateForSQL(dateRange.startDate),
+    endDate: formatDateForSQL(dateRange.endDate)
+  }
+
+  // Optimized data fetching with proper error handling and loading states
+  const productDataFetcher = useDataFetcher(
+    () => {
+      if (!merchantId) {
+        return Promise.resolve({
+          data: null,
+          error: new Error('No merchant ID available'),
+          success: false,
+          loading: false
+        })
+      }
+      return getProductPerformanceDataOptimized(merchantId, filters, {
+        cacheKey: `product_performance_${merchantId}_${filters.startDate}_${filters.endDate}`,
+        timeout: 30000, // 30 seconds for product data
+        retries: 3
+      }).then(result => ({ data: result, error: null, success: true, loading: false }))
+    },
+    {
+      enabled: !!merchantId,
+      refetchOnWindowFocus: false,
+      onError: (error) => console.error('❌ Error loading product performance data:', error)
+    }
+  )
+
+  const returnedProductsDataFetcher = useDataFetcher(
+    () => {
+      if (!merchantId) {
+        return Promise.resolve({
+          data: null,
+          error: new Error('No merchant ID available'),
+          success: false,
+          loading: false
+        })
+      }
+      return getReturnedProductsData(merchantId, filters).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: null, error, success: false, loading: false }))
+    },
+    {
+      enabled: !!merchantId,
+      refetchOnWindowFocus: false,
+      onError: (error) => console.error('❌ Error loading returned products data:', error)
+    }
+  )
+
+  // Extract data with fallbacks
+  const data = productDataFetcher.data
+  const returnedProductsData = returnedProductsDataFetcher.data
+  const loading = productDataFetcher.loading || returnedProductsDataFetcher.loading
+
+  // Refetch data when filters change
   useEffect(() => {
-    loadData()
+    productDataFetcher.refetch()
+    returnedProductsDataFetcher.refetch()
   }, [timeframe, customStartDate, customEndDate])
 
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
-      const filters = {
-        startDate: formatDateForSQL(dateRange.startDate),
-        endDate: formatDateForSQL(dateRange.endDate)
-      }
-
-      console.log('🔄 Loading product insights data with filters:', filters)
-      
-      if (!merchantId) return
-      // Load both product performance and returned products data in parallel
-      const [performanceResult, returnsResult] = await Promise.all([
-        getProductPerformanceData(merchantId, filters),
-        getReturnedProductsData(merchantId, filters)
-      ])
-      
-      setData(performanceResult)
-      setReturnedProductsData(returnsResult)
-    } catch (err) {
-      console.error('Error loading product insights data:', err)
-      setError('Failed to load product insights data')
-    } finally {
-      setLoading(false)
-    }
+  const handleRefresh = () => {
+    productDataFetcher.refetch()
+    returnedProductsDataFetcher.refetch()
   }
 
   const getProductHelpItems = () => [
@@ -135,10 +173,12 @@ const ProductInsightsPage: React.FC = () => {
 
   return (
     <AppLayout loading={loading} loadingMessage="Loading product insights...">
+      <ConnectionStatus />
+      
       <PageHeader
         title="Product Insights"
         description="Product performance analytics and inventory insights"
-        onRefresh={loadData}
+        onRefresh={handleRefresh}
         loading={loading}
         actions={
           <PageFilters
@@ -153,55 +193,70 @@ const ProductInsightsPage: React.FC = () => {
         }
       />
 
-      {error && (
-        <div className="mb-6">
-          <div className="text-center">
-            <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-4" />
-            <p className="text-red-600 mb-4 font-light">{error}</p>
-            <Button onClick={loadData} className="font-light">Retry</Button>
-          </div>
-        </div>
-      )}
-
-      {!data && !loading && (
-        <div className="text-center py-12">
-          <p className="text-gray-600 font-light">No product data available for the selected period.</p>
-        </div>
-      )}
-
-      {data && (
-        <>
-          {/* KPI Cards */}
+      {/* KPI Cards with Loading States */}
+      <DataStateWrapper
+        data={data}
+        loading={productDataFetcher.loading}
+        error={productDataFetcher.error}
+        onRetry={productDataFetcher.refetch}
+        loadingComponent={
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <EnhancedKPICard
-              title="Total Products"
-              value={data.summary.totalProducts}
-              previousValue={data.summary.previousTotalProducts}
-              icon={<Package className="w-5 h-5" />}
-              isMonetary={false}
-            />
-            <EnhancedKPICard
-              title="Total Revenue"
-              value={data.summary.totalRevenue}
-              previousValue={data.summary.previousTotalRevenue}
-              icon={<DollarSign className="w-5 h-5" />}
-              isMonetary={true}
-            />
-            <EnhancedKPICard
-              title="Units Sold"
-              value={data.summary.totalUnitsSold}
-              previousValue={data.summary.previousTotalUnitsSold}
-              icon={<ShoppingCart className="w-5 h-5" />}
-              isMonetary={false}
-            />
-            <EnhancedKPICard
-              title="Avg Profit Margin"
-              value={data.summary.avgProfitMargin}
-              previousValue={data.summary.previousAvgProfitMargin}
-              icon={<TrendingUp className="w-5 h-5" />}
-              isMonetary={false}
-            />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <KPICardSkeleton key={i} />
+            ))}
           </div>
+        }
+        errorComponent={
+          <ErrorState 
+            error={productDataFetcher.error!} 
+            onRetry={productDataFetcher.refetch}
+            title="Failed to load product data"
+            description="Unable to fetch product performance information"
+            showDetails={true}
+          />
+        }
+        emptyComponent={
+          <EmptyState 
+            title="No product data available"
+            description="No product data found for the selected period"
+            icon={<Package className="h-12 w-12 text-muted-foreground" />}
+          />
+        }
+        className="mb-8"
+      >
+        {(data) => (
+          <>
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <EnhancedKPICard
+                title="Total Products"
+                value={data.summary.totalProducts}
+                previousValue={data.summary.previousTotalProducts}
+                icon={<Package className="w-5 h-5" />}
+                isMonetary={false}
+              />
+              <EnhancedKPICard
+                title="Total Revenue"
+                value={data.summary.totalRevenue}
+                previousValue={data.summary.previousTotalRevenue}
+                icon={<DollarSign className="w-5 h-5" />}
+                isMonetary={true}
+              />
+              <EnhancedKPICard
+                title="Units Sold"
+                value={data.summary.totalUnitsSold}
+                previousValue={data.summary.previousTotalUnitsSold}
+                icon={<ShoppingCart className="w-5 h-5" />}
+                isMonetary={false}
+              />
+              <EnhancedKPICard
+                title="Avg Profit Margin"
+                value={data.summary.avgProfitMargin}
+                previousValue={data.summary.previousAvgProfitMargin}
+                icon={<TrendingUp className="w-5 h-5" />}
+                isMonetary={false}
+              />
+            </div>
 
           {/* Tabs for different views */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">

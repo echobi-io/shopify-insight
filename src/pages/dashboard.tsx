@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { AlertCircle } from 'lucide-react'
-import { getKPIs, getPreviousYearKPIs, type KPIData } from '@/lib/fetchers/getKpis'
+import { getKPIsOptimized, getPreviousYearKPIsOptimized, type KPIData } from '@/lib/fetchers/getKpisOptimized'
 import { getProductData } from '@/lib/fetchers/getProductData'
 import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type CustomerSegmentData, type AICommentaryData } from '@/lib/fetchers/getDashboardData'
 import { 
@@ -24,6 +24,16 @@ import {
 import { formatCurrency, getSettings, getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
 import { getTopCustomersData, TopCustomer } from '@/lib/fetchers/getTopCustomersData'
+import { useDataFetcher, useMultipleDataFetchers } from '@/hooks/useDataFetcher'
+import { 
+  LoadingOverlay, 
+  KPICardSkeleton, 
+  ChartSkeleton, 
+  ErrorState, 
+  EmptyState,
+  DataStateWrapper,
+  ConnectionStatus
+} from '@/components/ui/loading-states'
 import AppLayout from '@/components/Layout/AppLayout'
 import PageHeader from '@/components/Layout/PageHeader'
 import PageFilters from '@/components/Layout/PageFilters'
@@ -46,110 +56,97 @@ interface ProductData {
 }
 
 const DashboardPage: React.FC = () => {
-  // Data states
-  const [kpiData, setKpiData] = useState<KPIData | null>(null)
-  const [previousYearKpiData, setPreviousYearKpiData] = useState<KPIData | null>(null)
-  const [productData, setProductData] = useState<ProductData[]>([])
-  const [dashboardChartData, setDashboardChartData] = useState<DashboardChartData[]>([])
-  const [orderTimingData, setOrderTimingData] = useState<OrderTimingData[]>([])
-  const [dailyRevenueData, setDailyRevenueData] = useState<DailyRevenueData[]>([])
-  const [ordersByProductData, setOrdersByProductData] = useState<OrdersByProductData[]>([])
-  const [newCustomersData, setNewCustomersData] = useState<NewCustomerData[]>([])
-  const [aovStatsData, setAovStatsData] = useState<AOVStatsData[]>([])
-  const [topCustomersData, setTopCustomersData] = useState<TopCustomer[]>([])
-  const [currency, setCurrency] = useState('GBP')
-
   // Filter states
-  const [loading, setLoading] = useState(true)
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())
   const [granularity, setGranularity] = useState('monthly')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
+  const [currency, setCurrency] = useState('GBP')
 
+  // Calculate date filters
+  const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
+  const filters = {
+    startDate: formatDateForSQL(dateRange.startDate),
+    endDate: formatDateForSQL(dateRange.endDate)
+  }
+
+  // Optimized data fetching with proper error handling and loading states
+  const kpiDataFetcher = useDataFetcher(
+    () => getKPIsOptimized(filters, MERCHANT_ID, {
+      cacheKey: `kpis_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
+      timeout: 20000,
+      retries: 3
+    }).then(result => result),
+    {
+      enabled: true,
+      refetchOnWindowFocus: false,
+      onError: (error) => console.error('❌ Error loading current KPIs:', error)
+    }
+  )
+
+  const previousYearKpiDataFetcher = useDataFetcher(
+    () => getPreviousYearKPIsOptimized(filters, MERCHANT_ID, {
+      cacheKey: `kpis_py_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
+      timeout: 20000,
+      retries: 3
+    }).then(result => result),
+    {
+      enabled: true,
+      refetchOnWindowFocus: false,
+      onError: (error) => console.error('❌ Error loading previous year KPIs:', error)
+    }
+  )
+
+  // Multiple data fetchers for dashboard components
+  const dashboardDataFetchers = useMultipleDataFetchers({
+    products: () => getProductData(filters, MERCHANT_ID).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
+    chartsData: () => getDashboardChartsData(MERCHANT_ID, filters, granularity as any).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: { dailyData: [], orderTimingData: [] }, error, success: false, loading: false })),
+    dailyRevenue: () => getDailyRevenueBreakdown(MERCHANT_ID, filters).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
+    ordersByProduct: () => getOrdersByProduct(MERCHANT_ID, filters).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
+    newCustomers: () => getNewCustomersDetail(MERCHANT_ID, filters).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
+    aovStats: () => getAOVStats(MERCHANT_ID, filters).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
+    topCustomers: () => getTopCustomersData(filters.startDate, filters.endDate).then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: [], error, success: false, loading: false })),
+    settings: () => getSettings().then(data => ({ data, error: null, success: true, loading: false })).catch(error => ({ data: { currency: 'GBP' }, error, success: false, loading: false }))
+  }, {
+    enabled: true,
+    onError: (error) => console.error('❌ Error loading dashboard data:', error)
+  })
+
+  // Update currency when settings load
   useEffect(() => {
-    loadData()
+    if (dashboardDataFetchers.results.settings?.data?.currency) {
+      setCurrency(dashboardDataFetchers.results.settings.data.currency)
+    }
+  }, [dashboardDataFetchers.results.settings?.data])
+
+  // Extract data with fallbacks
+  const kpiData = kpiDataFetcher.data
+  const previousYearKpiData = previousYearKpiDataFetcher.data
+  const productData = dashboardDataFetchers.results.products?.data || []
+  const chartsData = dashboardDataFetchers.results.chartsData?.data || { dailyData: [], orderTimingData: [] }
+  const dashboardChartData = chartsData.dailyData || []
+  const orderTimingData = chartsData.orderTimingData || []
+  const dailyRevenueData = dashboardDataFetchers.results.dailyRevenue?.data || []
+  const ordersByProductData = dashboardDataFetchers.results.ordersByProduct?.data || []
+  const newCustomersData = dashboardDataFetchers.results.newCustomers?.data || []
+  const aovStatsData = dashboardDataFetchers.results.aovStats?.data || []
+  const topCustomersData = dashboardDataFetchers.results.topCustomers?.data || []
+
+  // Global loading state
+  const loading = kpiDataFetcher.loading || previousYearKpiDataFetcher.loading || dashboardDataFetchers.globalLoading
+
+  // Refetch all data when filters change
+  useEffect(() => {
+    kpiDataFetcher.refetch()
+    previousYearKpiDataFetcher.refetch()
+    dashboardDataFetchers.refetchAll()
   }, [timeframe, granularity, customStartDate, customEndDate])
 
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      console.log('🔄 Loading dashboard data...')
-
-      const dateRange = getDateRangeFromTimeframe(timeframe, customStartDate, customEndDate)
-      const filters = {
-        startDate: formatDateForSQL(dateRange.startDate),
-        endDate: formatDateForSQL(dateRange.endDate)
-      }
-
-      // Load all data in parallel
-      const [
-        currentKpis, 
-        previousYearKpis, 
-        products, 
-        chartsData,
-        dailyRevenue,
-        ordersByProduct,
-        newCustomers,
-        aovStats,
-        topCustomers,
-        settings
-      ] = await Promise.all([
-        getKPIs(filters, MERCHANT_ID).catch(err => {
-          console.error('❌ Error loading current KPIs:', err)
-          return null
-        }),
-        getPreviousYearKPIs(filters, MERCHANT_ID).catch(err => {
-          console.error('❌ Error loading previous year KPIs:', err)
-          return null
-        }),
-        getProductData(filters, MERCHANT_ID),
-        getDashboardChartsData(MERCHANT_ID, filters, granularity as any).catch(err => {
-          console.error('❌ Error loading dashboard charts data:', err)
-          return { dailyData: [], orderTimingData: [] }
-        }),
-        getDailyRevenueBreakdown(MERCHANT_ID, filters).catch(err => {
-          console.error('❌ Error loading daily revenue data:', err)
-          return []
-        }),
-        getOrdersByProduct(MERCHANT_ID, filters).catch(err => {
-          console.error('❌ Error loading orders by product data:', err)
-          return []
-        }),
-        getNewCustomersDetail(MERCHANT_ID, filters).catch(err => {
-          console.error('❌ Error loading new customers data:', err)
-          return []
-        }),
-        getAOVStats(MERCHANT_ID, filters).catch(err => {
-          console.error('❌ Error loading AOV stats data:', err)
-          return []
-        }),
-        getTopCustomersData(filters.startDate, filters.endDate).catch(err => {
-          console.error('❌ Error loading top customers data:', err)
-          return []
-        }),
-        getSettings().catch(err => {
-          console.error('❌ Error loading settings:', err)
-          return { currency: 'GBP' }
-        })
-      ])
-
-      setKpiData(currentKpis)
-      setPreviousYearKpiData(previousYearKpis)
-      setProductData(products)
-      setDashboardChartData(chartsData.dailyData)
-      setOrderTimingData(chartsData.orderTimingData)
-      setDailyRevenueData(dailyRevenue)
-      setOrdersByProductData(ordersByProduct)
-      setNewCustomersData(newCustomers)
-      setAovStatsData(aovStats)
-      setTopCustomersData(topCustomers)
-      setCurrency(settings.currency || 'GBP')
-    } catch (err) {
-      console.error('Error loading dashboard data:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const handleRefresh = useCallback(() => {
+    kpiDataFetcher.refetch()
+    previousYearKpiDataFetcher.refetch()
+    dashboardDataFetchers.refetchAll()
+  }, [kpiDataFetcher, previousYearKpiDataFetcher, dashboardDataFetchers])
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-US').format(value)
@@ -157,10 +154,12 @@ const DashboardPage: React.FC = () => {
 
   return (
     <AppLayout loading={loading} loadingMessage="Loading dashboard data...">
+      <ConnectionStatus />
+      
       <PageHeader
         title="Dashboard"
         description="Business performance overview"
-        onRefresh={loadData}
+        onRefresh={handleRefresh}
         loading={loading}
         actions={
           <PageFilters
@@ -176,146 +175,208 @@ const DashboardPage: React.FC = () => {
         }
       />
 
-      {/* KPI Cards */}
-      <KPIGrid
-        currentKpis={kpiData}
-        previousKpis={previousYearKpiData}
-        variant="detailed"
-        detailedData={{
-          revenue: dailyRevenueData,
-          orders: ordersByProductData,
-          customers: newCustomersData,
-          aov: aovStatsData
-        }}
-      />
+      {/* KPI Cards with Loading States */}
+      <DataStateWrapper
+        data={kpiData}
+        loading={kpiDataFetcher.loading}
+        error={kpiDataFetcher.error}
+        onRetry={kpiDataFetcher.refetch}
+        loadingComponent={
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <KPICardSkeleton key={i} />
+            ))}
+          </div>
+        }
+        errorComponent={
+          <ErrorState 
+            error={kpiDataFetcher.error!} 
+            onRetry={kpiDataFetcher.refetch}
+            title="Failed to load KPI data"
+            description="Unable to fetch key performance indicators"
+            showDetails={true}
+          />
+        }
+        className="mb-8"
+      >
+        {(data) => (
+          <KPIGrid
+            currentKpis={data}
+            previousKpis={previousYearKpiData}
+            variant="detailed"
+            detailedData={{
+              revenue: dailyRevenueData,
+              orders: ordersByProductData,
+              customers: newCustomersData,
+              aov: aovStatsData
+            }}
+          />
+        )}
+      </DataStateWrapper>
 
-      {/* Charts */}
+      {/* Charts with Loading States */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Combined Revenue & Orders Chart */}
-        <ChartCard
-          title="Revenue & Orders Trend"
-          description={`${granularity.charAt(0).toUpperCase() + granularity.slice(1)} performance overview`}
-          hasData={dashboardChartData.length > 0}
+        <DataStateWrapper
+          data={dashboardChartData}
+          loading={dashboardDataFetchers.results.chartsData?.loading || false}
+          error={dashboardDataFetchers.results.chartsData?.error || null}
+          onRetry={() => dashboardDataFetchers.refetchAll()}
+          loadingComponent={<ChartSkeleton />}
+          isEmpty={(data) => !data || data.length === 0}
+          emptyComponent={
+            <EmptyState 
+              title="No chart data available"
+              description="No revenue or order data found for the selected period"
+              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+            />
+          }
         >
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dashboardChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="date" 
-                  fontSize={12}
-                  stroke="#666"
-                  tickFormatter={(value) => {
-                    if (granularity === 'daily') {
-                      return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    } else if (granularity === 'weekly') {
-                      return value.replace('Week of ', '')
-                    } else if (granularity === 'monthly') {
-                      const [year, month] = value.split('-')
-                      return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-                    } else if (granularity === 'quarterly') {
-                      return value
-                    } else if (granularity === 'yearly') {
-                      return value
-                    }
-                    return value
-                  }}
-                />
-                <YAxis yAxisId="revenue" orientation="left" fontSize={12} stroke="#3b82f6" />
-                <YAxis yAxisId="orders" orientation="right" fontSize={12} stroke="#10b981" />
-                <Tooltip 
-                  labelFormatter={(value) => {
-                    if (granularity === 'daily') {
-                      return new Date(value).toLocaleDateString()
-                    } else if (granularity === 'weekly') {
-                      return value
-                    } else if (granularity === 'monthly') {
-                      const [year, month] = value.split('-')
-                      return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                    } else if (granularity === 'quarterly') {
-                      return value
-                    } else if (granularity === 'yearly') {
-                      return value
-                    }
-                    return value
-                  }}
-                  formatter={(value: any, name: string) => [
-                    name === 'total_revenue' ? formatCurrency(value) : formatNumber(value),
-                    name === 'total_revenue' ? 'Revenue' : 'Orders'
-                  ]}
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0',
-                    fontSize: '14px'
-                  }}
-                />
-                <Line 
-                  yAxisId="revenue"
-                  type="monotone" 
-                  dataKey="total_revenue" 
-                  stroke="#3b82f6" 
-                  strokeWidth={2}
-                  dot={false}
-                  name="Revenue"
-                />
-                <Line 
-                  yAxisId="orders"
-                  type="monotone" 
-                  dataKey="total_orders" 
-                  stroke="#10b981" 
-                  strokeWidth={2}
-                  dot={false}
-                  name="Orders"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </ChartCard>
+          {(data) => (
+            <ChartCard
+              title="Revenue & Orders Trend"
+              description={`${granularity.charAt(0).toUpperCase() + granularity.slice(1)} performance overview`}
+              hasData={data.length > 0}
+            >
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="date" 
+                      fontSize={12}
+                      stroke="#666"
+                      tickFormatter={(value) => {
+                        if (granularity === 'daily') {
+                          return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        } else if (granularity === 'weekly') {
+                          return value.replace('Week of ', '')
+                        } else if (granularity === 'monthly') {
+                          const [year, month] = value.split('-')
+                          return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+                        } else if (granularity === 'quarterly') {
+                          return value
+                        } else if (granularity === 'yearly') {
+                          return value
+                        }
+                        return value
+                      }}
+                    />
+                    <YAxis yAxisId="revenue" orientation="left" fontSize={12} stroke="#3b82f6" />
+                    <YAxis yAxisId="orders" orientation="right" fontSize={12} stroke="#10b981" />
+                    <Tooltip 
+                      labelFormatter={(value) => {
+                        if (granularity === 'daily') {
+                          return new Date(value).toLocaleDateString()
+                        } else if (granularity === 'weekly') {
+                          return value
+                        } else if (granularity === 'monthly') {
+                          const [year, month] = value.split('-')
+                          return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                        } else if (granularity === 'quarterly') {
+                          return value
+                        } else if (granularity === 'yearly') {
+                          return value
+                        }
+                        return value
+                      }}
+                      formatter={(value: any, name: string) => [
+                        name === 'total_revenue' ? formatCurrency(value) : formatNumber(value),
+                        name === 'total_revenue' ? 'Revenue' : 'Orders'
+                      ]}
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '0',
+                        fontSize: '14px'
+                      }}
+                    />
+                    <Line 
+                      yAxisId="revenue"
+                      type="monotone" 
+                      dataKey="total_revenue" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      dot={false}
+                      name="Revenue"
+                    />
+                    <Line 
+                      yAxisId="orders"
+                      type="monotone" 
+                      dataKey="total_orders" 
+                      stroke="#10b981" 
+                      strokeWidth={2}
+                      dot={false}
+                      name="Orders"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+          )}
+        </DataStateWrapper>
 
         {/* Order Timing Analysis */}
-        <ChartCard
-          title="Order Timing Analysis"
-          description="When your site is busiest (orders by hour)"
-          hasData={orderTimingData.length > 0}
-          noDataMessage="No timing data available"
+        <DataStateWrapper
+          data={orderTimingData}
+          loading={dashboardDataFetchers.results.chartsData?.loading || false}
+          error={dashboardDataFetchers.results.chartsData?.error || null}
+          onRetry={() => dashboardDataFetchers.refetchAll()}
+          loadingComponent={<ChartSkeleton />}
+          isEmpty={(data) => !data || data.length === 0}
+          emptyComponent={
+            <EmptyState 
+              title="No timing data available"
+              description="No order timing data found for the selected period"
+              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+            />
+          }
         >
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={orderTimingData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="hour" 
-                  fontSize={12}
-                  stroke="#666"
-                  tickFormatter={(value) => getHourLabel(value)}
-                  type="number"
-                  domain={[0, 23]}
-                  ticks={[0, 6, 12, 18, 23]}
-                />
-                <YAxis fontSize={12} stroke="#666" />
-                <Tooltip 
-                  labelFormatter={(value) => `${getHourLabel(value)}`}
-                  formatter={(value: any, name: string) => [
-                    formatNumber(value),
-                    name === 'order_count' ? 'Orders' : name
-                  ]}
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0',
-                    fontSize: '14px'
-                  }}
-                />
-                <Bar 
-                  dataKey="order_count" 
-                  fill="#8b5cf6"
-                  name="Orders"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </ChartCard>
+          {(data) => (
+            <ChartCard
+              title="Order Timing Analysis"
+              description="When your site is busiest (orders by hour)"
+              hasData={data.length > 0}
+              noDataMessage="No timing data available"
+            >
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="hour" 
+                      fontSize={12}
+                      stroke="#666"
+                      tickFormatter={(value) => getHourLabel(value)}
+                      type="number"
+                      domain={[0, 23]}
+                      ticks={[0, 6, 12, 18, 23]}
+                    />
+                    <YAxis fontSize={12} stroke="#666" />
+                    <Tooltip 
+                      labelFormatter={(value) => `${getHourLabel(value)}`}
+                      formatter={(value: any, name: string) => [
+                        formatNumber(value),
+                        name === 'order_count' ? 'Orders' : name
+                      ]}
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '0',
+                        fontSize: '14px'
+                      }}
+                    />
+                    <Bar 
+                      dataKey="order_count" 
+                      fill="#8b5cf6"
+                      name="Orders"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+          )}
+        </DataStateWrapper>
       </div>
 
       {/* Order Timing Insights */}
