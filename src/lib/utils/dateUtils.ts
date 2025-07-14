@@ -11,10 +11,8 @@ export function getDateRangeFromTimeframe(timeframe: string, customStartDate?: s
 
   // Handle undefined or null timeframe
   if (!timeframe) {
-    // TEMPORARY FIX: Default to 2024 to match sample data
-    // TODO: Remove this once we have proper current year data
-    const dataYear = 2024;
-    const financialYear = getFinancialYearDates(dataYear);
+    const currentYear = new Date().getFullYear();
+    const financialYear = getFinancialYearDates(currentYear);
     return { 
       startDate: new Date(financialYear.startDate), 
       endDate: new Date(financialYear.endDate) 
@@ -93,21 +91,8 @@ export function getDateRangeFromTimeframe(timeframe: string, customStartDate?: s
       endDate.setHours(23, 59, 59, 999);
       return { startDate, endDate };
     case 'financial_current': {
-      const now = new Date();
-      const currentYear = now.getFullYear();
-      
-      // TEMPORARY FIX: Since sample data is from 2024, force use 2024 for now
-      // TODO: Remove this once we have proper current year data
-      const dataYear = 2024;
-      const financialYear = getFinancialYearDates(dataYear);
-      
-      console.log('🗓️ Financial year calculation:', {
-        currentYear,
-        dataYear,
-        now: now.toISOString(),
-        financialYearStart: financialYear.startDate.toISOString(),
-        financialYearEnd: financialYear.endDate.toISOString()
-      });
+      const currentYear = new Date().getFullYear();
+      const financialYear = getFinancialYearDates(currentYear);
       
       return { 
         startDate: new Date(financialYear.startDate), 
@@ -132,10 +117,8 @@ export function getDateRangeFromTimeframe(timeframe: string, customStartDate?: s
       startDate.setMonth(endDate.getMonth() - 6); // Last 6 months for monthly view
       break;
     default:
-      // TEMPORARY FIX: Default to 2024 to match sample data
-      // TODO: Remove this once we have proper current year data
-      const dataYear = 2024;
-      const financialYear = getFinancialYearDates(dataYear);
+      const currentYear = new Date().getFullYear();
+      const financialYear = getFinancialYearDates(currentYear);
       return { 
         startDate: new Date(financialYear.startDate), 
         endDate: new Date(financialYear.endDate) 
