@@ -65,50 +65,20 @@ const DashboardPage: React.FC = () => {
   }, [timeframe, customStartDate, customEndDate])
 
   // Memoize fetch functions to prevent recreation on every render
-  const kpiFetchFunction = useCallback(async () => {
-    try {
-      const data = await getKPIsOptimized(filters, MERCHANT_ID, {
-        cacheKey: `kpis_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
-        timeout: 20000,
-        retries: 3
-      })
-      return {
-        data,
-        error: null,
-        loading: false,
-        success: true
-      }
-    } catch (error) {
-      return {
-        data: null,
-        error: error instanceof Error ? error : new Error(String(error)),
-        loading: false,
-        success: false
-      }
-    }
+  const kpiFetchFunction = useCallback(() => {
+    return getKPIsOptimized(filters, MERCHANT_ID, {
+      cacheKey: `kpis_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
+      timeout: 20000,
+      retries: 3
+    })
   }, [filters])
 
-  const previousYearKpiFetchFunction = useCallback(async () => {
-    try {
-      const data = await getPreviousYearKPIsOptimized(filters, MERCHANT_ID, {
-        cacheKey: `kpis_py_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
-        timeout: 20000,
-        retries: 3
-      })
-      return {
-        data,
-        error: null,
-        loading: false,
-        success: true
-      }
-    } catch (error) {
-      return {
-        data: null,
-        error: error instanceof Error ? error : new Error(String(error)),
-        loading: false,
-        success: false
-      }
-    }
+  const previousYearKpiFetchFunction = useCallback(() => {
+    return getPreviousYearKPIsOptimized(filters, MERCHANT_ID, {
+      cacheKey: `kpis_py_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
+      timeout: 20000,
+      retries: 3
+    })
   }, [filters])
 
   // Essential data fetchers only - reduce concurrent requests

@@ -1,4 +1,4 @@
-import { executeQuery, fetchBatch, aggregateData, DataFetcherOptions } from '@/lib/utils/dataFetcher'
+import { executeQuery, fetchBatch, aggregateData, DataFetcherOptions, fetchWithRetry, DataFetcherResult } from '@/lib/utils/dataFetcher'
 
 export interface FilterState {
   startDate: string
@@ -31,10 +31,10 @@ export async function getKPIsOptimized(
   filters: FilterState, 
   merchantId?: string,
   options: DataFetcherOptions = {}
-): Promise<KPIData> {
-  console.log('🔍 Fetching optimized KPIs with filters:', filters, 'merchant_id:', merchantId)
+): Promise<DataFetcherResult<KPIData>> {
+  return fetchWithRetry(async () => {
+    console.log('🔍 Fetching optimized KPIs with filters:', filters, 'merchant_id:', merchantId)
 
-  try {
     // First try materialized view with timeout and retry
     const materializedViewResult = await executeQuery<any[]>({
       table: 'daily_revenue_summary',
@@ -48,8 +48,7 @@ export async function getKPIsOptimized(
       retries: 2,
       cacheKey: `kpis_mv_${merchantId}_${filters.startDate}_${filters.endDate}`,
       cacheTTL: 180000, // 3 minutes
-      fallbackData: null,
-      ...options
+      fallbackData: null
     })
 
     if (materializedViewResult.success && materializedViewResult.data && materializedViewResult.data.length > 0) {
@@ -177,11 +176,10 @@ export async function getKPIsOptimized(
 
     console.log('✅ KPIs calculated from direct queries:', result)
     return result
-
-  } catch (error) {
-    console.error('❌ Error fetching optimized KPIs:', error)
-    return EMPTY_KPI_DATA
-  }
+  }, {
+    fallbackData: EMPTY_KPI_DATA,
+    ...options
+  })
 }
 
 // Helper function to calculate KPIs from materialized view
@@ -206,7 +204,7 @@ export async function getPreviousKPIsOptimized(
   filters: FilterState, 
   merchantId?: string,
   options: DataFetcherOptions = {}
-): Promise<KPIData> {
+): Promise<DataFetcherResult<KPIData>> {
   try {
     // Calculate previous period dates
     const startDate = new Date(filters.startDate)
@@ -228,7 +226,12 @@ export async function getPreviousKPIsOptimized(
     })
   } catch (error) {
     console.error('❌ Error fetching previous KPIs:', error)
-    return EMPTY_KPI_DATA
+    return {
+      data: EMPTY_KPI_DATA,
+      error: error instanceof Error ? error : new Error(String(error)),
+      loading: false,
+      success: false
+    }
   }
 }
 
@@ -237,7 +240,7 @@ export async function getPreviousYearKPIsOptimized(
   filters: FilterState, 
   merchantId?: string,
   options: DataFetcherOptions = {}
-): Promise<KPIData> {
+): Promise<DataFetcherResult<KPIData>> {
   try {
     // Calculate previous year dates
     const startDate = new Date(filters.startDate)
@@ -267,7 +270,12 @@ export async function getPreviousYearKPIsOptimized(
     })
   } catch (error) {
     console.error('❌ Error fetching previous year KPIs:', error)
-    return EMPTY_KPI_DATA
+    return {
+      data: EMPTY_KPI_DATA,
+      error: error instanceof Error ? error : new Error(String(error)),
+      loading: false,
+      success: false
+    }
   }
 }
 
