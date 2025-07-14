@@ -545,8 +545,9 @@ const ProductInsightsPage: React.FC = () => {
             items={getProductHelpItems()}
             defaultOpen={false}
           />
-        </>
-      )}
+          </>
+        )}
+      </DataStateWrapper>
     </AppLayout>
   )
 }
