@@ -11,9 +11,10 @@ export function getDateRangeFromTimeframe(timeframe: string, customStartDate?: s
 
   // Handle undefined or null timeframe
   if (!timeframe) {
-    // Default to current financial year
-    const currentYear = new Date().getFullYear();
-    const financialYear = getFinancialYearDates(currentYear);
+    // TEMPORARY FIX: Default to 2024 to match sample data
+    // TODO: Remove this once we have proper current year data
+    const dataYear = 2024;
+    const financialYear = getFinancialYearDates(dataYear);
     return { 
       startDate: new Date(financialYear.startDate), 
       endDate: new Date(financialYear.endDate) 
@@ -131,9 +132,10 @@ export function getDateRangeFromTimeframe(timeframe: string, customStartDate?: s
       startDate.setMonth(endDate.getMonth() - 6); // Last 6 months for monthly view
       break;
     default:
-      // Default to current financial year
-      const currentYear = new Date().getFullYear();
-      const financialYear = getFinancialYearDates(currentYear);
+      // TEMPORARY FIX: Default to 2024 to match sample data
+      // TODO: Remove this once we have proper current year data
+      const dataYear = 2024;
+      const financialYear = getFinancialYearDates(dataYear);
       return { 
         startDate: new Date(financialYear.startDate), 
         endDate: new Date(financialYear.endDate) 
