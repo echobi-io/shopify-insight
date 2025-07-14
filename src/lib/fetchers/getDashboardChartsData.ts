@@ -24,6 +24,12 @@ export async function getDashboardChartsData(
   orderTimingData: OrderTimingData[]
 }> {
   try {
+    console.log('🔍 getDashboardChartsData called with:', {
+      merchant_id,
+      filters,
+      granularity
+    })
+
     // Build the base query for orders
     let query = supabase
       .from('orders')
@@ -37,7 +43,15 @@ export async function getDashboardChartsData(
       query = query.lte('created_at', filters.endDate)
     }
 
+    console.log('🔍 Executing orders query...')
     const { data: orders, error } = await query.order('created_at')
+
+    console.log('🔍 Orders query result:', {
+      ordersCount: orders?.length || 0,
+      error: error?.message,
+      firstOrder: orders?.[0],
+      lastOrder: orders?.[orders?.length - 1]
+    })
 
     if (error) {
       console.error('❌ Error fetching dashboard charts data:', error)
@@ -45,6 +59,7 @@ export async function getDashboardChartsData(
     }
 
     if (!orders || orders.length === 0) {
+      console.log('⚠️ No orders found for the given filters')
       return { dailyData: [], orderTimingData: [] }
     }
 
