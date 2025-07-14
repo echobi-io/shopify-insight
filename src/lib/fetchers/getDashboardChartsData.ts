@@ -150,6 +150,12 @@ export async function getDashboardChartsData(
       }
     })
 
+    console.log('📊 Period totals processed:', {
+      periodTotalsCount: Object.keys(periodTotals).length,
+      periodTotals: Object.entries(periodTotals).slice(0, 5), // Show first 5 entries
+      granularity
+    })
+
     // Convert period data to array format and sort properly
     const dailyData = Object.entries(periodTotals)
       .map(([periodKey, totals]) => ({
@@ -164,6 +170,12 @@ export async function getDashboardChartsData(
       })
       .map(({ periodKey, ...rest }) => rest) // Remove periodKey from final result
 
+    console.log('📈 Final dailyData result:', {
+      dailyDataCount: dailyData.length,
+      firstFewEntries: dailyData.slice(0, 5),
+      granularity
+    })
+
     // Convert hourly data to array format with percentages - ALWAYS sort chronologically
     const totalOrders = orders.length
     const orderTimingData = Object.entries(hourlyTotals)
@@ -173,6 +185,11 @@ export async function getDashboardChartsData(
         percentage: totalOrders > 0 ? (count / totalOrders) * 100 : 0
       }))
       .sort((a, b) => a.hour - b.hour) // CRITICAL: Sort chronologically by hour (0-23), NOT by order count
+
+    console.log('⏰ Final orderTimingData result:', {
+      orderTimingDataCount: orderTimingData.length,
+      totalOrdersProcessed: totalOrders
+    })
 
     return {
       dailyData,
