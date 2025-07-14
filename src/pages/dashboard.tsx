@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { AlertCircle } from 'lucide-react'
-import RevenueOrdersChart from '@/components/RevenueOrdersChart'
+import SimpleRevenueChart from '@/components/SimpleRevenueChart'
 import { getKPIsOptimized, getPreviousYearKPIsOptimized, type KPIData } from '@/lib/fetchers/getKpisOptimized'
 import { getProductData } from '@/lib/fetchers/getProductData'
 import { getAllDashboardData, type DashboardKPIs, type DashboardTrendData, type CustomerSegmentData, type AICommentaryData } from '@/lib/fetchers/getDashboardData'
@@ -267,7 +267,7 @@ const DashboardPage: React.FC = () => {
               </CardContent>
             </Card>
           ) : (
-            <RevenueOrdersChart
+            <SimpleRevenueChart
               data={dashboardChartData}
               granularity={granularity}
               currency={currency}
