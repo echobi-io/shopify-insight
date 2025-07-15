@@ -70,14 +70,23 @@ Guidelines:
 Return only the JSON array, no additional text.
 `;
 
-    const completion = await openai.completions.create({
-      model: "gpt-3.5-turbo-instruct",
-      prompt: `You are a business intelligence expert specializing in e-commerce analytics. Provide actionable insights based on data analysis.\n\n${prompt}`,
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini-realtime-preview-2024-12-17",
+      messages: [
+        {
+          role: "system",
+          content: "You are a business intelligence expert specializing in e-commerce analytics. Provide actionable insights based on data analysis."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
       temperature: 0.7,
       max_tokens: 1500,
     });
 
-    const aiResponse = completion.choices[0]?.text;
+    const aiResponse = completion.choices[0]?.message?.content;
     
     if (!aiResponse) {
       throw new Error('No response from OpenAI');
