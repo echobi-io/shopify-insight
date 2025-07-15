@@ -71,7 +71,7 @@ Return only the JSON array, no additional text.
 `;
 
     const completion = await openai.completions.create({
-      model: "text-davinci-003",
+      model: "gpt-3.5-turbo-instruct",
       prompt: `You are a business intelligence expert specializing in e-commerce analytics. Provide actionable insights based on data analysis.\n\n${prompt}`,
       temperature: 0.7,
       max_tokens: 1500,
