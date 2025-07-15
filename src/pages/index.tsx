@@ -15,7 +15,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center">
                 <BarChart3 className="h-5 w-5 text-white" />
               </div>
               <span className="text-xl font-bold text-gray-900">echoSignal</span>
@@ -30,7 +30,7 @@ export default function LandingPage() {
               </Button>
               <Button 
                 onClick={() => router.push('/dashboard')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+                className="bg-teal-600 hover:bg-teal-700 text-white px-6"
               >
                 Get Started
               </Button>
@@ -43,14 +43,14 @@ export default function LandingPage() {
       <section className="relative overflow-hidden bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-50 text-blue-700 text-sm font-medium mb-8">
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-teal-50 text-teal-700 text-sm font-medium mb-8">
               <Star className="w-4 h-4 mr-2" />
               Trusted by 1000+ Shopify stores
             </div>
             
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
               Shopify Analytics
-              <span className="text-blue-600 block">Made Simple</span>
+              <span className="text-teal-600 block">Made Simple</span>
             </h1>
             
             <p className="text-xl text-gray-600 mb-10 leading-relaxed max-w-2xl mx-auto">
@@ -61,7 +61,7 @@ export default function LandingPage() {
               <Button 
                 size="lg"
                 onClick={() => router.push('/dashboard')}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg"
+                className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-4 text-lg"
               >
                 Try for Free
               </Button>
@@ -111,10 +111,10 @@ export default function LandingPage() {
                       <div>
                         <p className="text-sm text-gray-600 mb-1">Orders</p>
                         <p className="text-2xl font-bold text-gray-900">2,847</p>
-                        <p className="text-sm text-blue-600">+8.2%</p>
+                        <p className="text-sm text-teal-600">+8.2%</p>
                       </div>
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <ShoppingCart className="h-6 w-6 text-blue-600" />
+                      <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
+                        <ShoppingCart className="h-6 w-6 text-teal-600" />
                       </div>
                     </div>
                   </div>
@@ -151,7 +151,7 @@ export default function LandingPage() {
                     {[40, 65, 45, 80, 60, 90, 75, 95, 70, 85, 100, 90].map((height, i) => (
                       <div
                         key={i}
-                        className="bg-blue-600 rounded-t-sm"
+                        className="bg-teal-600 rounded-t-sm"
                         style={{ height: `${height}%`, width: '6%' }}
                       ></div>
                     ))}
@@ -186,8 +186,8 @@ export default function LandingPage() {
             ].map((feature, index) => (
               <Card key={index} className="border-gray-200 hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                    <feature.icon className="h-6 w-6 text-blue-600" />
+                  <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center mb-4">
+                    <feature.icon className="h-6 w-6 text-teal-600" />
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{feature.title}</h3>
                   <p className="text-gray-600">{feature.desc}</p>
@@ -211,7 +211,7 @@ export default function LandingPage() {
             <Button 
               size="lg"
               onClick={() => router.push('/dashboard')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg"
+              className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-4 text-lg"
             >
               Start Free Trial
             </Button>
@@ -234,7 +234,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-3 mb-4 md:mb-0">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center">
                 <BarChart3 className="h-5 w-5 text-white" />
               </div>
               <span className="text-xl font-bold text-gray-900">echoSignal</span>
