@@ -507,7 +507,7 @@ const DashboardPage: React.FC = () => {
         >
           {(data) => (
             <EnhancedDrillThroughList
-              title="Top Products"
+              title="Top 10 Products"
               items={data.slice(0, 10).map((product, index) => ({
                 id: `product-${index}`,
                 name: product.product,

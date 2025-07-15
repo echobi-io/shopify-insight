@@ -101,7 +101,7 @@ export async function getProductData(filters: FilterState, merchant_id?: string)
       }
     })
 
-    return result.sort((a, b) => b.revenue - a.revenue).slice(0, 10) // Top 10 products
+    return result.sort((a, b) => b.revenue - a.revenue).slice(0, 20) // Top 20 products
   } catch (error) {
     console.error('Error fetching product data:', error)
     throw error
