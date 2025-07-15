@@ -125,7 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-gray-900 tracking-tight">EchoIQ</h1>
+            <h1 className="text-xl font-semibold text-gray-900 tracking-tight">echoSignal</h1>
             <p className="text-xs text-gray-500 mt-0.5">AI-Powered Analytics</p>
           </div>
         </div>
@@ -178,7 +178,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
       <div className="p-4 border-t border-gray-200 bg-gray-50">
         <div className="text-center">
           <div className="text-xs text-gray-500">
-            <p className="font-medium">EchoIQ Analytics</p>
+            <p className="font-medium">echoSignal Analytics</p>
             <p className="mt-1">© 2024 • v2.1.0</p>
           </div>
         </div>

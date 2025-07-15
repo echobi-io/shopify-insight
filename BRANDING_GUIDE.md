@@ -1,12 +1,12 @@
-# EchoIQ Branding Guide
+# echoSignal Branding Guide
 
-This document contains the complete branding guidelines for EchoIQ that can be used across multiple applications.
+This document contains the complete branding guidelines for echoSignal that can be used across multiple applications.
 
 ## Logo & Brand Identity
 
 ### Logo Component (React/Next.js)
 ```jsx
-const EchoIQLogo = () => {
+const echoSignalLogo = () => {
   return (
     <div className="flex items-center space-x-3">
       {/* Pulsing Logo */}
@@ -17,7 +17,7 @@ const EchoIQLogo = () => {
         <div className="absolute inset-0 w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg animate-pulse opacity-30"></div>
       </div>
       <div>
-        <h1 className="text-2xl font-light text-black tracking-tight">EchoIQ</h1>
+        <h1 className="text-2xl font-light text-black tracking-tight">echoSignal</h1>
         <p className="text-sm font-light text-gray-600 mt-1">Intelligent Analytics</p>
       </div>
     </div>
@@ -26,8 +26,8 @@ const EchoIQLogo = () => {
 ```
 
 ### Logo Variations
-- **Full Logo**: Logo mark + "EchoIQ" + tagline
-- **Logo + Name**: Logo mark + "EchoIQ" only
+- **Full Logo**: Logo mark + "echoSignal" + tagline
+- **Logo + Name**: Logo mark + "echoSignal" only
 - **Logo Mark Only**: Just the pulsing gradient square
 
 ## Color Palette
@@ -225,9 +225,9 @@ p { font-weight: 300; }
 ```
 /branding/
   /logos/
-    - echoiq-logo.svg
-    - echoiq-logo-mark.svg
-    - echoiq-logo-white.svg
+    - echosignal-logo.svg
+    - echosignal-logo-mark.svg
+    - echosignal-logo-white.svg
   /colors/
     - palette.css
     - tailwind-config.js
@@ -239,4 +239,4 @@ p { font-weight: 300; }
     - BrandCard.tsx
 ```
 
-This branding guide ensures consistency across all EchoIQ applications and provides a professional, modern aesthetic focused on data analytics and intelligence.
+This branding guide ensures consistency across all echoSignal applications and provides a professional, modern aesthetic focused on data analytics and intelligence.

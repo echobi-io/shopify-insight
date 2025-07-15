@@ -18,7 +18,7 @@ export default function LandingPage() {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <BarChart3 className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">EchoIQ</span>
+              <span className="text-xl font-bold text-gray-900">echoSignal</span>
             </div>
             <div className="flex items-center space-x-4">
               <Button 
@@ -86,7 +86,7 @@ export default function LandingPage() {
                   <div className="w-3 h-3 bg-green-400 rounded-full"></div>
                 </div>
                 <div className="flex-1 bg-white rounded-md px-3 py-1 text-sm text-gray-500 ml-4">
-                  app.echoiq.com/dashboard
+                  app.echosignal.com/dashboard
                 </div>
               </div>
 
@@ -205,7 +205,7 @@ export default function LandingPage() {
             Ready to get started?
           </h3>
           <p className="text-lg text-gray-600 mb-10">
-            Join thousands of merchants using EchoIQ
+            Join thousands of merchants using echoSignal
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <Button 
@@ -237,7 +237,7 @@ export default function LandingPage() {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <BarChart3 className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">EchoIQ</span>
+              <span className="text-xl font-bold text-gray-900">echoSignal</span>
             </div>
             <div className="flex items-center space-x-8 text-sm text-gray-600">
               <a href="#" className="hover:text-gray-900">Privacy</a>
@@ -246,7 +246,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-gray-200 mt-8 pt-8 text-center text-sm text-gray-500">
-            <p>© 2024 EchoIQ. All rights reserved.</p>
+            <p>© 2024 echoSignal. All rights reserved.</p>
           </div>
         </div>
       </footer>
