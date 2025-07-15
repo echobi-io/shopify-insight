@@ -589,6 +589,7 @@ const DashboardPage: React.FC = () => {
               topCustomersData={topCustomersData}
               orderTimingData={orderTimingData}
               currency={currency}
+              dateRange={filters}
             />
           </CardContent>
         </Card>

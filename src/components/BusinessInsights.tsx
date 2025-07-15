@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { TrendingUp, TrendingDown, AlertTriangle, Target, Users, ShoppingCart, DollarSign, Clock } from 'lucide-react'
+import { TrendingUp, TrendingDown, AlertTriangle, Target, Users, ShoppingCart, DollarSign, Clock, Loader2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils/settingsUtils'
+import { generateAIInsights } from '@/lib/utils/aiInsights'
 
 interface BusinessInsightsProps {
   kpiData?: any
@@ -11,6 +12,10 @@ interface BusinessInsightsProps {
   topCustomersData?: any[]
   orderTimingData?: any[]
   currency?: string
+  dateRange?: {
+    startDate: string
+    endDate: string
+  }
 }
 
 interface Insight {
@@ -29,162 +34,79 @@ const BusinessInsights: React.FC<BusinessInsightsProps> = ({
   productData = [],
   topCustomersData = [],
   orderTimingData = [],
-  currency = 'GBP'
+  currency = 'GBP',
+  dateRange
 }) => {
-  const insights: Insight[] = []
+  const [insights, setInsights] = useState<Insight[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+=======
 
-  // Revenue Growth Insight
-  if (kpiData?.totalRevenue && previousYearKpiData?.totalRevenue) {
-    const revenueGrowth = ((kpiData.totalRevenue - previousYearKpiData.totalRevenue) / previousYearKpiData.totalRevenue) * 100
-    if (revenueGrowth > 10) {
-      insights.push({
-        id: 'revenue-growth',
-        type: 'positive',
-        icon: <TrendingUp className="h-4 w-4" />,
-        title: 'Strong Revenue Growth',
-        description: `Revenue has increased by ${revenueGrowth.toFixed(1)}% compared to the same period last year`,
-        value: `+${revenueGrowth.toFixed(1)}%`,
-        trend: 'up'
-      })
-    } else if (revenueGrowth < -5) {
-      insights.push({
-        id: 'revenue-decline',
-        type: 'warning',
-        icon: <TrendingDown className="h-4 w-4" />,
-        title: 'Revenue Decline',
-        description: `Revenue has decreased by ${Math.abs(revenueGrowth).toFixed(1)}% compared to last year`,
-        value: `${revenueGrowth.toFixed(1)}%`,
-        trend: 'down'
-      })
-    }
-  }
+  // Generate AI insights when data changes
+  useEffect(() => {
+    const generateInsights = async () => {
+      if (!kpiData && !productData.length && !topCustomersData.length) {
+        setLoading(false)
+        return
+      }
 
-  // AOV Insight
-  if (kpiData?.averageOrderValue && previousYearKpiData?.averageOrderValue) {
-    const aovChange = ((kpiData.averageOrderValue - previousYearKpiData.averageOrderValue) / previousYearKpiData.averageOrderValue) * 100
-    if (aovChange > 5) {
-      insights.push({
-        id: 'aov-increase',
-        type: 'positive',
-        icon: <DollarSign className="h-4 w-4" />,
-        title: 'Higher Order Values',
-        description: `Average order value has increased by ${aovChange.toFixed(1)}%, indicating customers are spending more per purchase`,
-        value: formatCurrency(kpiData.averageOrderValue, currency),
-        trend: 'up'
-      })
-    }
-  }
+      setLoading(true)
+      setError(null)
 
-  // Customer Growth Insight
-  if (kpiData?.totalCustomers && previousYearKpiData?.totalCustomers) {
-    const customerGrowth = ((kpiData.totalCustomers - previousYearKpiData.totalCustomers) / previousYearKpiData.totalCustomers) * 100
-    if (customerGrowth > 15) {
-      insights.push({
-        id: 'customer-growth',
-        type: 'positive',
-        icon: <Users className="h-4 w-4" />,
-        title: 'Customer Base Expansion',
-        description: `Customer base has grown by ${customerGrowth.toFixed(1)}%, showing strong market penetration`,
-        value: `+${customerGrowth.toFixed(1)}%`,
-        trend: 'up'
-      })
-    }
-  }
-
-  // Top Product Performance
-  if (productData.length > 0) {
-    const topProduct = productData[0]
-    if (topProduct?.revenue > 0) {
-      const totalRevenue = productData.reduce((sum, p) => sum + (p.revenue || 0), 0)
-      const topProductShare = (topProduct.revenue / totalRevenue) * 100
-      
-      if (topProductShare > 30) {
-        insights.push({
-          id: 'product-concentration',
-          type: 'warning',
-          icon: <AlertTriangle className="h-4 w-4" />,
-          title: 'Revenue Concentration Risk',
-          description: `${topProduct.product} accounts for ${topProductShare.toFixed(1)}% of total revenue. Consider diversifying your product mix`,
-          value: `${topProductShare.toFixed(1)}%`
+      try {
+        const aiInsights = await generateAIInsights({
+          kpiData,
+          previousYearKpiData,
+          productData,
+          topCustomersData,
+          orderTimingData,
+          currency,
+          dateRange
         })
-      } else {
-        insights.push({
-          id: 'top-product',
-          type: 'positive',
+
+        // Convert AI insights to component format
+        const formattedInsights: Insight[] = aiInsights.map(insight => ({
+          id: insight.id,
+          type: insight.type,
+          icon: getInsightIcon(insight.type),
+          title: insight.title,
+          description: insight.description,
+          value: insight.value,
+          trend: insight.trend
+        }))
+
+        setInsights(formattedInsights)
+      } catch (err) {
+        console.error('Failed to generate AI insights:', err)
+        setError('Failed to generate insights')
+        
+        // Fallback insight
+        setInsights([{
+          id: 'ai-error',
+          type: 'neutral',
           icon: <Target className="h-4 w-4" />,
-          title: 'Top Performer',
-          description: `${topProduct.product} is your best-selling product with ${formatCurrency(topProduct.revenue, currency)} in revenue`,
-          value: formatCurrency(topProduct.revenue, currency)
-        })
+          title: 'AI Analysis Unavailable',
+          description: 'Unable to generate AI insights at this time. Please check your connection and try again.',
+        }])
+      } finally {
+        setLoading(false)
       }
     }
-  }
 
-  // Peak Hours Insight
-  if (orderTimingData.length > 0) {
-    const totalOrders = orderTimingData.reduce((sum, d) => sum + d.order_count, 0)
-    const peakHour = orderTimingData.reduce((max, current) => 
-      current.order_count > max.order_count ? current : max
-    )
-    
-    if (peakHour.order_count > 0) {
-      const peakPercentage = (peakHour.order_count / totalOrders) * 100
-      const hourLabel = peakHour.hour === 0 ? '12:00 AM' : 
-                       peakHour.hour < 12 ? `${peakHour.hour}:00 AM` : 
-                       peakHour.hour === 12 ? '12:00 PM' : 
-                       `${peakHour.hour - 12}:00 PM`
-      
-      insights.push({
-        id: 'peak-hours',
-        type: 'neutral',
-        icon: <Clock className="h-4 w-4" />,
-        title: 'Peak Shopping Hour',
-        description: `Most orders (${peakPercentage.toFixed(1)}%) come in around ${hourLabel}. Consider timing promotions accordingly`,
-        value: hourLabel
-      })
+    generateInsights()
+  }, [kpiData, previousYearKpiData, productData, topCustomersData, orderTimingData, currency, dateRange])
+
+  const getInsightIcon = (type: string) => {
+    switch (type) {
+      case 'positive':
+        return <TrendingUp className="h-4 w-4" />
+      case 'negative':
+        return <TrendingDown className="h-4 w-4" />
+      case 'warning':
+        return <AlertTriangle className="h-4 w-4" />
+      default:
+        return <Target className="h-4 w-4" />
     }
-  }
-
-  // Customer Loyalty Insight
-  if (topCustomersData.length > 0) {
-    const topCustomer = topCustomersData[0]
-    if (topCustomer?.total_spent > 0) {
-      insights.push({
-        id: 'top-customer',
-        type: 'positive',
-        icon: <Users className="h-4 w-4" />,
-        title: 'Loyal Customer',
-        description: `Your top customer has spent ${formatCurrency(topCustomer.total_spent, currency)} across ${topCustomer.order_count} orders`,
-        value: formatCurrency(topCustomer.total_spent, currency)
-      })
-    }
-  }
-
-  // Order Volume Insight
-  if (kpiData?.totalOrders && previousYearKpiData?.totalOrders) {
-    const orderGrowth = ((kpiData.totalOrders - previousYearKpiData.totalOrders) / previousYearKpiData.totalOrders) * 100
-    if (orderGrowth > 20) {
-      insights.push({
-        id: 'order-growth',
-        type: 'positive',
-        icon: <ShoppingCart className="h-4 w-4" />,
-        title: 'Order Volume Surge',
-        description: `Order volume has increased by ${orderGrowth.toFixed(1)}%, indicating strong demand`,
-        value: `+${orderGrowth.toFixed(1)}%`,
-        trend: 'up'
-      })
-    }
-  }
-
-  // If no insights, show default message
-  if (insights.length === 0) {
-    insights.push({
-      id: 'no-insights',
-      type: 'neutral',
-      icon: <Target className="h-4 w-4" />,
-      title: 'Analyzing Your Data',
-      description: 'We\'re analyzing your business data to provide personalized insights. Check back as more data becomes available.',
-    })
   }
 
   const getInsightStyle = (type: Insight['type']) => {
@@ -225,37 +147,52 @@ const BusinessInsights: React.FC<BusinessInsightsProps> = ({
         </p>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {insights.slice(0, 6).map((insight) => (
-            <div
-              key={insight.id}
-              className={`p-4 rounded-lg border ${getInsightStyle(insight.type)}`}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  {insight.icon}
-                  <h3 className="font-medium text-sm">{insight.title}</h3>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            <span className="text-sm text-muted-foreground">Generating AI insights...</span>
+          </div>
+        ) : insights.length === 0 ? (
+          <div className="text-center py-8">
+            <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-sm font-medium mb-2">No Data Available</h3>
+            <p className="text-sm text-muted-foreground">
+              We need more business data to generate meaningful insights. Check back once you have orders and customer data.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {insights.slice(0, 6).map((insight) => (
+              <div
+                key={insight.id}
+                className={`p-4 rounded-lg border ${getInsightStyle(insight.type)}`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    {insight.icon}
+                    <h3 className="font-medium text-sm">{insight.title}</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {insight.value && (
+                      <span className="text-sm font-medium">{insight.value}</span>
+                    )}
+                    {insight.trend && (
+                      <div className="flex items-center">
+                        {insight.trend === 'up' ? (
+                          <TrendingUp className="h-3 w-3 text-green-600" />
+                        ) : insight.trend === 'down' ? (
+                          <TrendingDown className="h-3 w-3 text-red-600" />
+                        ) : null}
+                      </div>
+                    )}
+                    {getInsightBadge(insight.type)}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {insight.value && (
-                    <span className="text-sm font-medium">{insight.value}</span>
-                  )}
-                  {insight.trend && (
-                    <div className="flex items-center">
-                      {insight.trend === 'up' ? (
-                        <TrendingUp className="h-3 w-3 text-green-600" />
-                      ) : insight.trend === 'down' ? (
-                        <TrendingDown className="h-3 w-3 text-red-600" />
-                      ) : null}
-                    </div>
-                  )}
-                  {getInsightBadge(insight.type)}
-                </div>
+                <p className="text-sm text-muted-foreground">{insight.description}</p>
               </div>
-              <p className="text-sm text-muted-foreground">{insight.description}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

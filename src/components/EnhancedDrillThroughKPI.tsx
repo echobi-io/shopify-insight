@@ -48,153 +48,98 @@ export const EnhancedDrillThroughKPI: React.FC<EnhancedDrillThroughKPIProps> = (
     }
     
     // Generate comprehensive drill-through data based on KPI type
-    const drillData = generateDrillThroughData(data, detailedData);
+    const drillData = await generateDrillThroughData(data, detailedData);
     setDrillThroughData(drillData);
     setShowDrillThrough(true);
   };
 
-  const generateDrillThroughData = (kpiData: KPIData, detailed: any) => {
+  const generateDrillThroughData = async (kpiData: KPIData, detailed: any) => {
     const baseData = {
       title: kpiData.title,
       value: kpiData.value,
       change: kpiData.change,
       changeType: kpiData.changeType,
+      timeSeriesData: detailed?.timeSeries || generateMockTimeSeries(),
+      topItems: detailed?.topItems || [],
+      breakdown: detailed?.breakdown || [],
     };
 
-    // Customize based on KPI type
-    switch (kpiData.title.toLowerCase()) {
+    // Generate AI insights and recommendations
+    try {
+      const aiResponse = await fetch('/api/ai-drill-through', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          kpiType: kpiData.title,
+          currentValue: kpiData.value,
+          change: kpiData.change,
+          changeType: kpiData.changeType,
+          timeSeriesData: baseData.timeSeriesData,
+          topItems: baseData.topItems,
+          dateRange: dateRange,
+          currency: 'GBP'
+        }),
+      });
+
+      if (aiResponse.ok) {
+        const aiData = await aiResponse.json();
+        return {
+          ...baseData,
+          insights: aiData.insights || [],
+          recommendations: aiData.recommendations || [],
+          explanation: getKPIExplanation(kpiData.title)
+        };
+      }
+    } catch (error) {
+      console.error('Failed to generate AI insights for drill-through:', error);
+    }
+
+    // Fallback to basic structure if AI fails
+    return {
+      ...baseData,
+      insights: [
+        { type: 'neutral', message: 'AI analysis is temporarily unavailable for detailed insights.', impact: 'low' }
+      ],
+      recommendations: [
+        { priority: 'medium', action: 'Monitor this metric and compare with historical trends', impact: 'Helps identify patterns and opportunities' }
+      ],
+      explanation: getKPIExplanation(kpiData.title)
+    };
+  };
+
+  const getKPIExplanation = (kpiTitle: string) => {
+    switch (kpiTitle.toLowerCase()) {
       case 'total revenue':
         return {
-          ...baseData,
-          timeSeriesData: detailed?.revenueTimeSeries || generateMockTimeSeries(),
-          topItems: detailed?.topRevenueProducts || [
-            { name: 'Product A', value: 15000, percentage: 25, trend: 'up' },
-            { name: 'Product B', value: 12000, percentage: 20, trend: 'stable' },
-            { name: 'Product C', value: 9000, percentage: 15, trend: 'down' },
-          ],
-          breakdown: [
-            { category: 'Online Sales', value: 35000, color: '#3b82f6' },
-            { category: 'In-Store Sales', value: 25000, color: '#10b981' },
-            { category: 'Mobile App', value: 15000, color: '#f59e0b' },
-          ],
-          insights: [
-            { type: 'positive', message: 'Revenue growth is accelerating with 15% increase this month', impact: 'high' },
-            { type: 'neutral', message: 'Mobile sales are growing faster than other channels', impact: 'medium' },
-            { type: 'negative', message: 'In-store sales showing slight decline', impact: 'low' },
-          ],
-          recommendations: [
-            { priority: 'high', action: 'Invest more in mobile marketing', impact: 'Could increase mobile revenue by 20%' },
-            { priority: 'medium', action: 'Analyze in-store customer experience', impact: 'May help reverse declining trend' },
-          ],
-          explanation: {
-            calculation: 'Total Revenue = Sum of all completed orders within the selected time period',
-            factors: ['Order value', 'Number of transactions', 'Refunds and returns', 'Payment processing fees'],
-            interpretation: 'Higher revenue indicates better business performance, but should be analyzed alongside profit margins and customer acquisition costs.'
-          }
+          calculation: 'Total Revenue = Sum of all completed orders within the selected time period',
+          factors: ['Order value', 'Number of transactions', 'Refunds and returns', 'Payment processing fees'],
+          interpretation: 'Higher revenue indicates better business performance, but should be analyzed alongside profit margins and customer acquisition costs.'
         };
-
       case 'total orders':
         return {
-          ...baseData,
-          timeSeriesData: detailed?.ordersTimeSeries || generateMockTimeSeries(),
-          topItems: detailed?.topOrderSources || [
-            { name: 'Organic Search', value: 450, percentage: 35, trend: 'up' },
-            { name: 'Direct Traffic', value: 320, percentage: 25, trend: 'stable' },
-            { name: 'Social Media', value: 280, percentage: 22, trend: 'up' },
-          ],
-          breakdown: [
-            { category: 'New Customers', value: 650, color: '#3b82f6' },
-            { category: 'Returning Customers', value: 400, color: '#10b981' },
-          ],
-          insights: [
-            { type: 'positive', message: 'Order volume increased by 12% compared to last month', impact: 'high' },
-            { type: 'positive', message: 'New customer acquisition is strong', impact: 'medium' },
-            { type: 'neutral', message: 'Average order frequency is stable', impact: 'low' },
-          ],
-          recommendations: [
-            { priority: 'high', action: 'Focus on converting new customers to repeat buyers', impact: 'Could increase customer lifetime value by 30%' },
-            { priority: 'medium', action: 'Optimize checkout process to reduce cart abandonment', impact: 'May increase conversion rate by 5-10%' },
-          ],
-          explanation: {
-            calculation: 'Total Orders = Count of all completed orders within the selected time period',
-            factors: ['Website traffic', 'Conversion rate', 'Marketing campaigns', 'Seasonal trends'],
-            interpretation: 'More orders generally indicate business growth, but should be balanced with average order value and customer satisfaction.'
-          }
+          calculation: 'Total Orders = Count of all completed orders within the selected time period',
+          factors: ['Website traffic', 'Conversion rate', 'Marketing campaigns', 'Seasonal trends'],
+          interpretation: 'More orders generally indicate business growth, but should be balanced with average order value and customer satisfaction.'
         };
-
       case 'average order value':
         return {
-          ...baseData,
-          timeSeriesData: detailed?.aovTimeSeries || generateMockTimeSeries(),
-          topItems: detailed?.highValueProducts || [
-            { name: 'Premium Package', value: 299, percentage: 15, trend: 'up' },
-            { name: 'Bundle Deal', value: 199, percentage: 25, trend: 'stable' },
-            { name: 'Standard Product', value: 99, percentage: 60, trend: 'down' },
-          ],
-          breakdown: [
-            { category: '$0-$50', value: 200, color: '#ef4444' },
-            { category: '$51-$100', value: 350, color: '#f59e0b' },
-            { category: '$101-$200', value: 280, color: '#10b981' },
-            { category: '$200+', value: 120, color: '#3b82f6' },
-          ],
-          insights: [
-            { type: 'positive', message: 'AOV increased by 8% due to successful upselling campaigns', impact: 'high' },
-            { type: 'neutral', message: 'Premium products are gaining traction', impact: 'medium' },
-            { type: 'negative', message: 'Too many low-value orders may indicate pricing issues', impact: 'medium' },
-          ],
-          recommendations: [
-            { priority: 'high', action: 'Implement cross-selling recommendations', impact: 'Could increase AOV by 15-20%' },
-            { priority: 'medium', action: 'Create more bundle offers', impact: 'May encourage higher-value purchases' },
-          ],
-          explanation: {
-            calculation: 'AOV = Total Revenue ÷ Total Number of Orders',
-            factors: ['Product pricing', 'Upselling effectiveness', 'Customer purchasing behavior', 'Promotional strategies'],
-            interpretation: 'Higher AOV means customers are spending more per transaction, which improves profitability and customer lifetime value.'
-          }
+          calculation: 'AOV = Total Revenue ÷ Total Number of Orders',
+          factors: ['Product pricing', 'Upselling effectiveness', 'Customer purchasing behavior', 'Promotional strategies'],
+          interpretation: 'Higher AOV means customers are spending more per transaction, which improves profitability and customer lifetime value.'
         };
-
       case 'conversion rate':
         return {
-          ...baseData,
-          timeSeriesData: detailed?.conversionTimeSeries || generateMockTimeSeries(),
-          topItems: detailed?.topConvertingPages || [
-            { name: 'Product Page A', value: 4.2, percentage: 15, trend: 'up' },
-            { name: 'Landing Page B', value: 3.8, percentage: 12, trend: 'stable' },
-            { name: 'Category Page C', value: 2.9, percentage: 8, trend: 'down' },
-          ],
-          breakdown: [
-            { category: 'Desktop', value: 3.5, color: '#3b82f6' },
-            { category: 'Mobile', value: 2.8, color: '#10b981' },
-            { category: 'Tablet', value: 3.1, color: '#f59e0b' },
-          ],
-          insights: [
-            { type: 'positive', message: 'Overall conversion rate improved by 0.3% this month', impact: 'high' },
-            { type: 'negative', message: 'Mobile conversion rate is significantly lower than desktop', impact: 'high' },
-            { type: 'neutral', message: 'Tablet users show good engagement', impact: 'low' },
-          ],
-          recommendations: [
-            { priority: 'high', action: 'Optimize mobile checkout experience', impact: 'Could increase mobile conversions by 25%' },
-            { priority: 'high', action: 'A/B test product page layouts', impact: 'May improve overall conversion rate' },
-          ],
-          explanation: {
-            calculation: 'Conversion Rate = (Number of Orders ÷ Number of Visitors) × 100',
-            factors: ['Website usability', 'Product appeal', 'Pricing competitiveness', 'Trust signals'],
-            interpretation: 'Higher conversion rates indicate that more visitors are becoming customers, which improves marketing ROI and business efficiency.'
-          }
+          calculation: 'Conversion Rate = (Number of Orders ÷ Number of Visitors) × 100',
+          factors: ['Website usability', 'Product appeal', 'Pricing competitiveness', 'Trust signals'],
+          interpretation: 'Higher conversion rates indicate that more visitors are becoming customers, which improves marketing ROI and business efficiency.'
         };
-
       default:
         return {
-          ...baseData,
-          timeSeriesData: generateMockTimeSeries(),
-          insights: [
-            { type: 'neutral', message: 'This metric is performing within expected ranges', impact: 'medium' },
-          ],
-          explanation: {
-            calculation: 'Calculation method varies based on the specific metric',
-            factors: ['Multiple factors contribute to this metric'],
-            interpretation: 'Monitor trends and compare with industry benchmarks for best results.'
-          }
+          calculation: 'Calculation method varies based on the specific metric',
+          factors: ['Multiple factors contribute to this metric'],
+          interpretation: 'Monitor trends and compare with industry benchmarks for best results.'
         };
     }
   };
