@@ -40,7 +40,6 @@ const BusinessInsights: React.FC<BusinessInsightsProps> = ({
   const [insights, setInsights] = useState<Insight[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-=======
 
   // Generate AI insights when data changes
   useEffect(() => {
