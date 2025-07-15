@@ -384,6 +384,8 @@ const DashboardPage: React.FC = () => {
                 date: item.date,
                 revenue: item.total_revenue || 0,
                 orders: item.total_orders || 0,
+                total_revenue: item.total_revenue || 0,
+                total_orders: item.total_orders || 0,
                 ...item
               }))}
               type="line"
@@ -511,12 +513,15 @@ const DashboardPage: React.FC = () => {
                 name: product.product,
                 value: product.revenue,
                 secondaryValue: product.unitsSold,
-                change: Math.random() * 20 - 10, // Mock change data
+                change: Math.random() * 20 - 10, // Mock change data - would need historical comparison
                 trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
                 metadata: {
                   unitsSold: product.unitsSold,
-                  aov: product.aov,
-                  refunds: product.refunds
+                  aov: product.aov || product.avgOrderValue,
+                  refunds: product.refunds,
+                  orderCount: product.orderCount,
+                  customerCount: product.customerCount,
+                  repeatOrderRate: product.repeatOrderRate
                 }
               }))}
               type="products"

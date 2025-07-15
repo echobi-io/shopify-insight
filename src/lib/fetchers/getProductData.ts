@@ -93,7 +93,11 @@ export async function getProductData(filters: FilterState, merchant_id?: string)
         aov: parseFloat((group.revenue / group.orders.size).toFixed(2)),
         refunds: productRefunds,
         repeatOrderRate: parseFloat(repeatOrderRate.toFixed(1)),
-        trend
+        trend,
+        // Additional metadata for drill-through
+        orderCount: totalOrders,
+        customerCount: customerOrderCounts,
+        avgOrderValue: parseFloat((group.revenue / group.orders.size).toFixed(2))
       }
     })
 

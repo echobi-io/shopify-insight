@@ -47,13 +47,12 @@ export async function getDetailedKPIData(
 
 async function getRevenueDetailedData(startDate: string, endDate: string): Promise<DataFetcherResult<DetailedKPIData>> {
   try {
-    // Get daily revenue time series
+    // Get daily revenue time series using correct column names
     const { data: revenueData, error: revenueError } = await supabase
       .from('orders')
-      .select('created_at, total_amount')
+      .select('created_at, total_price')
       .gte('created_at', startDate)
       .lte('created_at', endDate)
-      .eq('status', 'completed')
       .order('created_at');
 
     if (revenueError) throw revenueError;
@@ -61,7 +60,7 @@ async function getRevenueDetailedData(startDate: string, endDate: string): Promi
     // Process revenue time series
     const revenueByDate = revenueData?.reduce((acc: Record<string, number>, order) => {
       const date = order.created_at.split('T')[0];
-      acc[date] = (acc[date] || 0) + (order.total_amount || 0);
+      acc[date] = (acc[date] || 0) + (parseFloat(order.total_price) || 0);
       return acc;
     }, {}) || {};
 
@@ -70,23 +69,24 @@ async function getRevenueDetailedData(startDate: string, endDate: string): Promi
       value: Number(value)
     })).sort((a, b) => a.date.localeCompare(b.date));
 
-    // Get top revenue products
+    // Get top revenue products using correct joins
     const { data: productData, error: productError } = await supabase
       .from('order_items')
       .select(`
         product_id,
         quantity,
         price,
-        products!inner(name)
+        products!inner(name),
+        orders!inner(created_at)
       `)
-      .gte('created_at', startDate)
-      .lte('created_at', endDate);
+      .gte('orders.created_at', startDate)
+      .lte('orders.created_at', endDate);
 
     if (productError) throw productError;
 
     const productRevenue = productData?.reduce((acc: Record<string, { name: string; value: number }>, item) => {
       const productId = item.product_id;
-      const revenue = (item.quantity || 0) * (item.price || 0);
+      const revenue = (item.quantity || 0) * (parseFloat(item.price) || 0);
       
       if (!acc[productId]) {
         acc[productId] = {
@@ -105,7 +105,7 @@ async function getRevenueDetailedData(startDate: string, endDate: string): Promi
       .map(product => ({
         name: product.name,
         value: product.value,
-        percentage: (product.value / totalRevenue) * 100,
+        percentage: totalRevenue > 0 ? (product.value / totalRevenue) * 100 : 0,
         trend: 'stable' as const // Would need historical data to determine actual trend
       }));
 
@@ -135,7 +135,6 @@ async function getOrdersDetailedData(startDate: string, endDate: string): Promis
       .select('created_at, customer_id')
       .gte('created_at', startDate)
       .lte('created_at', endDate)
-      .eq('status', 'completed')
       .order('created_at');
 
     if (ordersError) throw ordersError;
@@ -152,13 +151,22 @@ async function getOrdersDetailedData(startDate: string, endDate: string): Promis
       value: Number(value)
     })).sort((a, b) => a.date.localeCompare(b.date));
 
-    // Analyze order sources (mock data for now)
+    // Get actual customer breakdown (new vs returning)
+    const { data: customerData, error: customerError } = await supabase
+      .from('customers')
+      .select('id, created_at')
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
+
+    if (customerError) throw customerError;
+
+    const newCustomersCount = customerData?.length || 0;
+    const totalOrdersCount = ordersData?.length || 0;
+    const returningCustomerOrders = Math.max(0, totalOrdersCount - newCustomersCount);
+
     const topOrderSources = [
-      { name: 'Organic Search', value: 450, percentage: 35, trend: 'up' as const },
-      { name: 'Direct Traffic', value: 320, percentage: 25, trend: 'stable' as const },
-      { name: 'Social Media', value: 280, percentage: 22, trend: 'up' as const },
-      { name: 'Email Marketing', value: 150, percentage: 12, trend: 'stable' as const },
-      { name: 'Paid Ads', value: 80, percentage: 6, trend: 'down' as const },
+      { name: 'New Customers', value: newCustomersCount, percentage: totalOrdersCount > 0 ? (newCustomersCount / totalOrdersCount) * 100 : 0, trend: 'up' as const },
+      { name: 'Returning Customers', value: returningCustomerOrders, percentage: totalOrdersCount > 0 ? (returningCustomerOrders / totalOrdersCount) * 100 : 0, trend: 'stable' as const },
     ];
 
     return {
@@ -181,13 +189,12 @@ async function getOrdersDetailedData(startDate: string, endDate: string): Promis
 
 async function getAOVDetailedData(startDate: string, endDate: string): Promise<DataFetcherResult<DetailedKPIData>> {
   try {
-    // Get daily AOV time series
+    // Get daily AOV time series using correct column name
     const { data: ordersData, error: ordersError } = await supabase
       .from('orders')
-      .select('created_at, total_amount')
+      .select('created_at, total_price')
       .gte('created_at', startDate)
       .lte('created_at', endDate)
-      .eq('status', 'completed')
       .order('created_at');
 
     if (ordersError) throw ordersError;
@@ -196,7 +203,7 @@ async function getAOVDetailedData(startDate: string, endDate: string): Promise<D
     const aovByDate = ordersData?.reduce((acc: Record<string, { total: number; count: number }>, order) => {
       const date = order.created_at.split('T')[0];
       if (!acc[date]) acc[date] = { total: 0, count: 0 };
-      acc[date].total += order.total_amount || 0;
+      acc[date].total += parseFloat(order.total_price) || 0;
       acc[date].count += 1;
       return acc;
     }, {}) || {};
@@ -213,16 +220,17 @@ async function getAOVDetailedData(startDate: string, endDate: string): Promise<D
         product_id,
         quantity,
         price,
-        products!inner(name)
+        products!inner(name),
+        orders!inner(created_at)
       `)
-      .gte('created_at', startDate)
-      .lte('created_at', endDate);
+      .gte('orders.created_at', startDate)
+      .lte('orders.created_at', endDate);
 
     if (productError) throw productError;
 
     const productAOV = productData?.reduce((acc: Record<string, { name: string; totalValue: number; orderCount: number }>, item) => {
       const productId = item.product_id;
-      const value = (item.quantity || 0) * (item.price || 0);
+      const value = (item.quantity || 0) * (parseFloat(item.price) || 0);
       
       if (!acc[productId]) {
         acc[productId] = {
@@ -236,11 +244,12 @@ async function getAOVDetailedData(startDate: string, endDate: string): Promise<D
       return acc;
     }, {}) || {};
 
+    const totalProductValue = Object.values(productAOV).reduce((sum, product) => sum + product.totalValue, 0);
     const highValueProducts = Object.values(productAOV)
       .map(product => ({
         name: product.name,
         value: product.orderCount > 0 ? product.totalValue / product.orderCount : 0,
-        percentage: 0, // Would need more complex calculation
+        percentage: totalProductValue > 0 ? (product.totalValue / totalProductValue) * 100 : 0,
         trend: 'stable' as const
       }))
       .sort((a, b) => b.value - a.value)
