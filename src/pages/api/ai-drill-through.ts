@@ -90,23 +90,14 @@ Guidelines:
 Return only the JSON response, no additional text.
 `;
 
-    const completion = await openai.chat.completions.create({
+    const completion = await openai.completions.create({
       model: "gpt-4o-mini-realtime-preview-2024-12-17",
-      messages: [
-        {
-          role: "system",
-          content: "You are a business intelligence expert specializing in e-commerce KPI analysis. Provide actionable insights and recommendations based on drill-through data."
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
+      prompt: `You are a business intelligence expert specializing in e-commerce KPI analysis. Provide actionable insights and recommendations based on drill-through data.\n\n${prompt}`,
       temperature: 0.7,
       max_tokens: 1000,
     });
 
-    const aiResponse = completion.choices[0]?.message?.content;
+    const aiResponse = completion.choices[0]?.text;
     
     if (!aiResponse) {
       throw new Error('No response from OpenAI');

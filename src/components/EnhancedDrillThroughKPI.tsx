@@ -160,9 +160,20 @@ export const EnhancedDrillThroughKPI: React.FC<EnhancedDrillThroughKPIProps> = (
 
   const formatValue = (value: string | number) => {
     if (typeof value === 'number') {
-      if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-      if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-      return `$${value.toFixed(0)}`;
+      // Check if this is a monetary KPI
+      const isMonetary = data.title.toLowerCase().includes('revenue') || 
+                        data.title.toLowerCase().includes('value') ||
+                        data.title.toLowerCase().includes('aov') ||
+                        data.title.toLowerCase().includes('average order');
+      
+      if (isMonetary) {
+        if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
+        return `$${value.toFixed(0)}`;
+      } else {
+        // Format as regular number for non-monetary values
+        return new Intl.NumberFormat('en-US').format(Math.round(value));
+      }
     }
     return value;
   };
