@@ -66,44 +66,30 @@ export async function getProductPerformanceDataSimple(
   filters: { startDate: string; endDate: string },
   options: DataFetcherOptions = {}
 ): Promise<ProductPerformanceData> {
-  console.log('🔄 Fetching simple product performance data for merchant:', merchantId, 'filters:', filters)
-
   try {
-    // Step 1: Get basic products list (limited to prevent timeout)
+    // Step 1: Get basic products list
     const productsResult = await executeQuery<any[]>({
       table: 'products',
       select: 'id, name, shopify_product_id, category, price, is_active',
       filters: { is_active: true },
-      limit: 100, // Reasonable limit
       orderBy: { column: 'created_at', ascending: false }
     }, merchantId, {
-      timeout: 8000,
-      retries: 1,
+      timeout: 15000,
+      retries: 2,
       fallbackData: [],
       ...options
     })
 
-    console.log('📦 Products query result:', { 
-      success: productsResult.success, 
-      dataLength: productsResult.data?.length,
-      error: productsResult.error?.message 
-    })
-
     if (!productsResult.success || !productsResult.data) {
-      console.error('❌ Failed to fetch products:', productsResult.error?.message)
       return EMPTY_PRODUCT_DATA
     }
 
     const products = productsResult.data
-    console.log(`📦 Found ${products.length} products`)
-
-    // Show products even if there are no sales - this helps with debugging
     if (products.length === 0) {
-      console.log('📭 No products found in database')
       return EMPTY_PRODUCT_DATA
     }
 
-    // Step 2: Get order items for the current period (with strict limits)
+    // Step 2: Get order items for the current period
     const orderItemsResult = await executeQuery<any[]>({
       table: 'order_items',
       select: `
@@ -116,17 +102,15 @@ export async function getProductPerformanceDataSimple(
         'gte_orders.created_at': filters.startDate,
         'lte_orders.created_at': filters.endDate
       },
-      limit: 2000, // Strict limit to prevent timeout
       orderBy: { column: 'created_at', ascending: false }
     }, merchantId, {
-      timeout: 10000,
-      retries: 1,
+      timeout: 15000,
+      retries: 2,
       fallbackData: [],
       ...options
     })
 
     const orderItems = orderItemsResult.data || []
-    console.log(`📊 Found ${orderItems.length} order items`)
 
     // Step 3: Process data efficiently
     const productSalesMap = new Map<string, { revenue: number; units: number; prices: number[] }>()
@@ -146,10 +130,11 @@ export async function getProductPerformanceDataSimple(
       })
     })
 
-    // Step 4: Create product metrics - include all products, not just those with sales
+    // Step 4: Create product metrics - only include products with sales data
     const productMetrics: ProductMetrics[] = products
       .map((product: any) => {
-        const salesData = productSalesMap.get(product.id) || { revenue: 0, units: 0, prices: [] }
+        const salesData = productSalesMap.get(product.id)
+        if (!salesData || salesData.revenue === 0) return null
         
         // Calculate average price from actual sales or fallback to product price
         const avgPrice = salesData.prices.length > 0 
@@ -157,7 +142,7 @@ export async function getProductPerformanceDataSimple(
           : product.price || 0
         
         // Simple performance score based on revenue ranking
-        const performanceScore = salesData.revenue > 0 ? Math.min(100, (salesData.revenue / 1000) * 10) : 0
+        const performanceScore = Math.min(100, (salesData.revenue / 1000) * 10)
         
         return {
           id: product.id,
@@ -172,16 +157,8 @@ export async function getProductPerformanceDataSimple(
           performanceScore: performanceScore
         }
       })
-      .sort((a, b) => {
-        // Sort by revenue first, then by name for products with no sales
-        if (a.totalRevenue !== b.totalRevenue) {
-          return b.totalRevenue - a.totalRevenue
-        }
-        return a.name.localeCompare(b.name)
-      })
-      .slice(0, 50) // Limit to top 50 products
-
-    console.log(`📈 Processed ${productMetrics.length} products (${productSalesMap.size} with sales data)`)
+      .filter((product): product is ProductMetrics => product !== null)
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
 
     // Step 5: Calculate category performance
     const categoryMap = new Map<string, { revenue: number; units: number }>()
@@ -205,7 +182,6 @@ export async function getProductPerformanceDataSimple(
         percentage: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0
       }))
       .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10) // Top 10 categories
 
     // Step 6: Create simple trend data (daily aggregation for top 5 products)
     const topProductIds = productMetrics.slice(0, 5).map(p => p.id)
@@ -231,11 +207,10 @@ export async function getProductPerformanceDataSimple(
         units: data.units
       }))
       .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-30) // Last 30 days
 
-    // Step 7: Calculate summary - use all products, not just those with sales
+    // Step 7: Calculate summary
     const summary: ProductSummary = {
-      totalProducts: products.length, // Use all products from database
+      totalProducts: productMetrics.length,
       totalRevenue: totalRevenue,
       totalUnitsSold: productMetrics.reduce((sum, p) => sum + p.unitsSold, 0),
       avgProfitMargin: productMetrics.length > 0 
@@ -247,14 +222,6 @@ export async function getProductPerformanceDataSimple(
       previousTotalUnitsSold: 0,
       previousAvgProfitMargin: 0
     }
-
-    console.log('✅ Simple product performance data processed successfully:', {
-      totalProducts: summary.totalProducts,
-      productsWithSales: productMetrics.length,
-      totalRevenue: summary.totalRevenue,
-      categoriesCount: categoryPerformance.length,
-      trendDataPoints: topProductsTrend.length
-    })
 
     return {
       summary,
