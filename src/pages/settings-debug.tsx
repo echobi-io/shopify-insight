@@ -99,26 +99,60 @@ const SettingsDebugPage: React.FC = () => {
       setLoading(true)
       setError(null)
       
-      // Try to create the table using raw SQL
-      const { data, error } = await supabase.rpc('exec_sql', {
-        sql: `
-          CREATE TABLE IF NOT EXISTS settings (
-            id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-            merchant_id UUID NOT NULL,
-            financial_year_start VARCHAR(5) NOT NULL DEFAULT '01-01',
-            financial_year_end VARCHAR(5) NOT NULL DEFAULT '12-31',
-            default_date_range VARCHAR(50) NOT NULL DEFAULT 'financial_current',
-            timezone VARCHAR(50) NOT NULL DEFAULT 'UTC',
-            currency VARCHAR(3) NOT NULL DEFAULT 'USD',
-            churn_period_days INTEGER NOT NULL DEFAULT 180,
-            cost_of_acquisition DECIMAL(10,2) NOT NULL DEFAULT 50.00,
-            gross_profit_margin DECIMAL(5,2) NOT NULL DEFAULT 30.00,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            UNIQUE(merchant_id)
-          );
-        `
-      })
+      // Create the table with all required columns
+      const createTableSQL = `
+        CREATE TABLE IF NOT EXISTS settings (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          merchant_id UUID NOT NULL,
+          financial_year_start VARCHAR(5) NOT NULL DEFAULT '01-01',
+          financial_year_end VARCHAR(5) NOT NULL DEFAULT '12-31',
+          default_date_range VARCHAR(50) NOT NULL DEFAULT 'financial_current',
+          timezone VARCHAR(50) NOT NULL DEFAULT 'UTC',
+          currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+          churn_period_days INTEGER NOT NULL DEFAULT 180,
+          cost_of_acquisition DECIMAL(10,2) NOT NULL DEFAULT 50.00,
+          gross_profit_margin DECIMAL(5,2) NOT NULL DEFAULT 30.00,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          UNIQUE(merchant_id)
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_settings_merchant_id ON settings(merchant_id);
+        
+        INSERT INTO settings (
+          merchant_id,
+          financial_year_start,
+          financial_year_end,
+          default_date_range,
+          timezone,
+          currency,
+          churn_period_days,
+          cost_of_acquisition,
+          gross_profit_margin
+        ) VALUES (
+          '11111111-1111-1111-1111-111111111111'::uuid,
+          '01-01',
+          '12-31',
+          'financial_current',
+          'UTC',
+          'USD',
+          180,
+          50.00,
+          30.00
+        ) ON CONFLICT (merchant_id) DO UPDATE SET
+          financial_year_start = EXCLUDED.financial_year_start,
+          financial_year_end = EXCLUDED.financial_year_end,
+          default_date_range = EXCLUDED.default_date_range,
+          timezone = EXCLUDED.timezone,
+          currency = EXCLUDED.currency,
+          churn_period_days = EXCLUDED.churn_period_days,
+          cost_of_acquisition = EXCLUDED.cost_of_acquisition,
+          gross_profit_margin = EXCLUDED.gross_profit_margin,
+          updated_at = NOW();
+      `
+      
+      // Execute the SQL directly using supabase client
+      const { data, error } = await supabase.rpc('exec_sql', { sql: createTableSQL })
       
       if (error) {
         console.error('Create table error:', error)
@@ -126,11 +160,50 @@ const SettingsDebugPage: React.FC = () => {
       } else {
         console.log('Table created successfully')
         await checkTableExists()
+        await loadSettings() // Reload settings after creating table
       }
       
     } catch (err) {
       console.error('Create table exception:', err)
       setError(`Create table failed: ${err}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fixMissingColumns = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // Add missing columns if they don't exist
+      const addColumnsSQL = `
+        DO $$ 
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'settings' AND column_name = 'cost_of_acquisition') THEN
+            ALTER TABLE settings ADD COLUMN cost_of_acquisition DECIMAL(10,2) NOT NULL DEFAULT 50.00;
+          END IF;
+          
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'settings' AND column_name = 'gross_profit_margin') THEN
+            ALTER TABLE settings ADD COLUMN gross_profit_margin DECIMAL(5,2) NOT NULL DEFAULT 30.00;
+          END IF;
+        END $$;
+      `
+      
+      const { data, error } = await supabase.rpc('exec_sql', { sql: addColumnsSQL })
+      
+      if (error) {
+        console.error('Add columns error:', error)
+        setError(`Add columns error: ${error.message}`)
+      } else {
+        console.log('Columns added successfully')
+        await checkTableExists()
+        await loadSettings()
+      }
+      
+    } catch (err) {
+      console.error('Add columns exception:', err)
+      setError(`Add columns failed: ${err}`)
     } finally {
       setLoading(false)
     }
@@ -202,16 +275,21 @@ const SettingsDebugPage: React.FC = () => {
           <CardHeader>
             <CardTitle>Actions</CardTitle>
           </CardHeader>
-          <CardContent className="space-x-4">
-            <Button onClick={loadSettings} disabled={loading}>
-              Reload Settings
-            </Button>
-            <Button onClick={testSaveSettings} disabled={loading}>
-              Test Save Settings
-            </Button>
-            <Button onClick={checkTableExists} disabled={loading}>
-              Check Table
-            </Button>
+          <CardContent className="space-x-4 space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={loadSettings} disabled={loading}>
+                Reload Settings
+              </Button>
+              <Button onClick={testSaveSettings} disabled={loading}>
+                Test Save Settings
+              </Button>
+              <Button onClick={checkTableExists} disabled={loading}>
+                Check Table
+              </Button>
+              <Button onClick={fixMissingColumns} disabled={loading} variant="outline">
+                Fix Missing Columns
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
