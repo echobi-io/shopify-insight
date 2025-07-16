@@ -43,10 +43,7 @@ export default function LandingPage() {
       <section className="relative overflow-hidden bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-teal-50 text-teal-700 text-sm font-medium mb-8">
-              <Star className="w-4 h-4 mr-2" />
-              Trusted by 1000+ Shopify stores
-            </div>
+            
             
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
               Shopify Analytics
