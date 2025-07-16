@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, MoreHorizontal, Info } from 'lucide-react';
 import { DrillThroughModal } from './DrillThroughModal';
 import { useDataFetcher } from '@/hooks/useDataFetcher';
 import { getDetailedKPIData } from '@/lib/fetchers/getDetailedKPIData';
+import { safePercentage, safeNumber, formatCurrency, formatNumber, formatCompactNumber } from '@/lib/utils/numberUtils';
 
 interface KPIData {
   title: string;
@@ -167,12 +168,10 @@ export const EnhancedDrillThroughKPI: React.FC<EnhancedDrillThroughKPIProps> = (
                         data.title.toLowerCase().includes('average order');
       
       if (isMonetary) {
-        if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-        if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-        return `$${value.toFixed(0)}`;
+        return formatCurrency(value, 'GBP');
       } else {
         // Format as regular number for non-monetary values
-        return new Intl.NumberFormat('en-US').format(Math.round(value));
+        return formatNumber(value);
       }
     }
     return value;
@@ -214,7 +213,7 @@ export const EnhancedDrillThroughKPI: React.FC<EnhancedDrillThroughKPIProps> = (
                 <TrendingDown className="h-4 w-4" />
               )}
               <span>
-                {data.change > 0 ? '+' : ''}{data.change.toFixed(1)}% from last period
+                {safePercentage(data.change)} from last period
               </span>
             </div>
           )}

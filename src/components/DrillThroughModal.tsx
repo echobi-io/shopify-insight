@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Users, ShoppingCart, DollarSign, Package, Calendar, Info, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { safePercentage, safeNumber, formatCurrency, formatNumber, formatCompactNumber } from '@/lib/utils/numberUtils';
 
 interface DrillThroughData {
   title: string;
@@ -63,14 +64,13 @@ export const DrillThroughModal: React.FC<DrillThroughModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
-  const formatValue = (value: number) => {
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-    return `$${value.toFixed(0)}`;
+  const formatValue = (value: number | string) => {
+    if (typeof value === 'string') return value;
+    return formatCurrency(value, 'GBP');
   };
 
   const formatPercentage = (value: number) => {
-    return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+    return safePercentage(value);
   };
 
   const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
@@ -124,11 +124,19 @@ export const DrillThroughModal: React.FC<DrillThroughModalProps> = ({
                   <CardTitle className="text-lg">Current Performance</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold text-primary">{data.value}</div>
-                  {data.change !== undefined && (
+                  <div className="text-3xl font-bold text-primary">
+                    {typeof data.value === 'number' ? formatValue(data.value) : data.value}
+                  </div>
+                  {data.change !== undefined && !isNaN(data.change) && (
                     <div className={`flex items-center gap-1 mt-2 ${data.changeType === 'increase' ? 'text-green-600' : 'text-red-600'}`}>
                       {data.changeType === 'increase' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                       <span>{formatPercentage(data.change)} vs previous period</span>
+                    </div>
+                  )}
+                  {data.change !== undefined && isNaN(data.change) && (
+                    <div className="flex items-center gap-1 mt-2 text-gray-500">
+                      <Info className="h-4 w-4" />
+                      <span>No comparison data available</span>
                     </div>
                   )}
                 </CardContent>
@@ -179,7 +187,7 @@ export const DrillThroughModal: React.FC<DrillThroughModalProps> = ({
                           <div>
                             <div className="font-medium">{item.name}</div>
                             {item.percentage && (
-                              <div className="text-sm text-gray-500">{item.percentage.toFixed(1)}% of total</div>
+                              <div className="text-sm text-gray-500">{safePercentage(item.percentage)} of total</div>
                             )}
                           </div>
                         </div>

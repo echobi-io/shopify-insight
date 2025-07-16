@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/utils/settingsUtils';
+import { safePercentage, safeNumber, formatCurrency as safeCurrency, formatNumber } from '@/lib/utils/numberUtils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -38,10 +39,10 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
   const [helpExpanded, setHelpExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Calculate variance and percentage change
-  const variance = previousValue !== undefined ? value - previousValue : 0;
-  const percentageChange = previousValue !== undefined && previousValue !== 0 
-    ? ((value - previousValue) / previousValue) * 100 
+  // Calculate variance and percentage change using safe utilities
+  const variance = previousValue !== undefined ? safeNumber(value) - safeNumber(previousValue) : 0;
+  const percentageChange = previousValue !== undefined && safeNumber(previousValue) !== 0 
+    ? ((safeNumber(value) - safeNumber(previousValue)) / safeNumber(previousValue)) * 100 
     : 0;
 
   // Determine change type based on actual improvement/decline, not just variance sign
@@ -568,7 +569,7 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
                 <div>
                   <p className="font-semibold text-gray-900">{product.product_name || 'Unknown Product'}</p>
                   <p className="text-sm text-gray-600">
-                    {totalOrders > 0 ? ((product.orders_count || 0) / totalOrders * 100).toFixed(1) : 0}% of total orders
+                    {safePercentage(totalOrders > 0 ? ((product.orders_count || 0) / totalOrders * 100) : 0)} of total orders
                   </p>
                 </div>
               </div>
@@ -635,7 +636,7 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
           </div>
           <div className="bg-orange-50 p-4 rounded-lg text-center">
             <p className="text-sm text-orange-600 font-medium mb-1">Repeat Rate</p>
-            <p className="text-xl font-bold text-orange-800">{repeatRate.toFixed(1)}%</p>
+            <p className="text-xl font-bold text-orange-800">{safePercentage(repeatRate)}</p>
           </div>
         </div>
 
@@ -756,7 +757,7 @@ const EnhancedKPICard: React.FC<EnhancedKPICardProps> = ({
                     changeType === 'positive' ? 'text-green-600' :
                     changeType === 'negative' ? 'text-red-600' : 'text-gray-600'
                   }`}>
-                    {Math.abs(percentageChange).toFixed(1)}%
+                    {safePercentage(Math.abs(percentageChange))}
                   </span>
                 </div>
               </div>
