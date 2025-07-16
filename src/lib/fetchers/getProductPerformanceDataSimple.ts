@@ -66,7 +66,7 @@ export async function getProductPerformanceDataSimple(
   filters: { startDate: string; endDate: string },
   options: DataFetcherOptions = {}
 ): Promise<ProductPerformanceData> {
-  console.log('🔄 Fetching simple product performance data for merchant:', merchantId)
+  console.log('🔄 Fetching simple product performance data for merchant:', merchantId, 'filters:', filters)
 
   try {
     // Step 1: Get basic products list (limited to prevent timeout)
@@ -83,6 +83,12 @@ export async function getProductPerformanceDataSimple(
       ...options
     })
 
+    console.log('📦 Products query result:', { 
+      success: productsResult.success, 
+      dataLength: productsResult.data?.length,
+      error: productsResult.error?.message 
+    })
+
     if (!productsResult.success || !productsResult.data) {
       console.error('❌ Failed to fetch products:', productsResult.error?.message)
       return EMPTY_PRODUCT_DATA
@@ -91,7 +97,9 @@ export async function getProductPerformanceDataSimple(
     const products = productsResult.data
     console.log(`📦 Found ${products.length} products`)
 
+    // Show products even if there are no sales - this helps with debugging
     if (products.length === 0) {
+      console.log('📭 No products found in database')
       return EMPTY_PRODUCT_DATA
     }
 
@@ -138,7 +146,7 @@ export async function getProductPerformanceDataSimple(
       })
     })
 
-    // Step 4: Create product metrics
+    // Step 4: Create product metrics - include all products, not just those with sales
     const productMetrics: ProductMetrics[] = products
       .map((product: any) => {
         const salesData = productSalesMap.get(product.id) || { revenue: 0, units: 0, prices: [] }
@@ -154,7 +162,7 @@ export async function getProductPerformanceDataSimple(
         return {
           id: product.id,
           name: product.name || 'Unknown Product',
-          sku: product.shopify_product_id || '',
+          sku: product.shopify_product_id || product.id.substring(0, 8),
           category: product.category || 'Uncategorized',
           totalRevenue: salesData.revenue,
           unitsSold: salesData.units,
@@ -164,11 +172,16 @@ export async function getProductPerformanceDataSimple(
           performanceScore: performanceScore
         }
       })
-      .filter(p => p.totalRevenue > 0 || p.unitsSold > 0) // Only include products with sales
-      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .sort((a, b) => {
+        // Sort by revenue first, then by name for products with no sales
+        if (a.totalRevenue !== b.totalRevenue) {
+          return b.totalRevenue - a.totalRevenue
+        }
+        return a.name.localeCompare(b.name)
+      })
       .slice(0, 50) // Limit to top 50 products
 
-    console.log(`📈 Processed ${productMetrics.length} products with sales data`)
+    console.log(`📈 Processed ${productMetrics.length} products (${productSalesMap.size} with sales data)`)
 
     // Step 5: Calculate category performance
     const categoryMap = new Map<string, { revenue: number; units: number }>()
@@ -220,9 +233,9 @@ export async function getProductPerformanceDataSimple(
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-30) // Last 30 days
 
-    // Step 7: Calculate summary
+    // Step 7: Calculate summary - use all products, not just those with sales
     const summary: ProductSummary = {
-      totalProducts: productMetrics.length,
+      totalProducts: products.length, // Use all products from database
       totalRevenue: totalRevenue,
       totalUnitsSold: productMetrics.reduce((sum, p) => sum + p.unitsSold, 0),
       avgProfitMargin: productMetrics.length > 0 
@@ -235,7 +248,13 @@ export async function getProductPerformanceDataSimple(
       previousAvgProfitMargin: 0
     }
 
-    console.log('✅ Simple product performance data processed successfully')
+    console.log('✅ Simple product performance data processed successfully:', {
+      totalProducts: summary.totalProducts,
+      productsWithSales: productMetrics.length,
+      totalRevenue: summary.totalRevenue,
+      categoriesCount: categoryPerformance.length,
+      trendDataPoints: topProductsTrend.length
+    })
 
     return {
       summary,
