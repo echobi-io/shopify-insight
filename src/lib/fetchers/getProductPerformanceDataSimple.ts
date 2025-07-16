@@ -1,4 +1,4 @@
-import { executeQuery, DataFetcherOptions } from '@/lib/utils/dataFetcher'
+import { supabase } from '../supabaseClient'
 
 export interface ProductMetrics {
   id: string
@@ -63,117 +63,107 @@ const EMPTY_PRODUCT_DATA: ProductPerformanceData = {
 
 export async function getProductPerformanceDataSimple(
   merchantId: string,
-  filters: { startDate: string; endDate: string },
-  options: DataFetcherOptions = {}
+  filters: { startDate: string; endDate: string }
 ): Promise<ProductPerformanceData> {
   try {
-    // Step 1: Get basic products list
-    const productsResult = await executeQuery<any[]>({
-      table: 'products',
-      select: 'id, name, shopify_product_id, category, price, is_active',
-      filters: { is_active: true },
-      orderBy: { column: 'created_at', ascending: false }
-    }, merchantId, {
-      timeout: 15000,
-      retries: 2,
-      fallbackData: [],
-      ...options
-    })
+    console.log('🔄 Fetching product performance data for merchant:', merchantId, 'filters:', filters);
 
-    if (!productsResult.success || !productsResult.data) {
-      return EMPTY_PRODUCT_DATA
-    }
-
-    const products = productsResult.data
-    if (products.length === 0) {
-      return EMPTY_PRODUCT_DATA
-    }
-
-    // Step 2: Get order items for the current period
-    const orderItemsResult = await executeQuery<any[]>({
-      table: 'order_items',
-      select: `
+    // Step 1: Get order items with product and order data for the period
+    const { data: orderItems, error: orderItemsError } = await supabase
+      .from('order_items')
+      .select(`
         product_id,
         quantity,
         price,
+        products!inner(id, name, shopify_product_id, category, price),
         orders!inner(created_at, merchant_id)
-      `,
-      filters: {
-        'gte_orders.created_at': filters.startDate,
-        'lte_orders.created_at': filters.endDate
-      },
-      orderBy: { column: 'created_at', ascending: false }
-    }, merchantId, {
-      timeout: 15000,
-      retries: 2,
-      fallbackData: [],
-      ...options
-    })
+      `)
+      .eq('orders.merchant_id', merchantId)
+      .gte('orders.created_at', filters.startDate)
+      .lte('orders.created_at', filters.endDate);
 
-    const orderItems = orderItemsResult.data || []
+    if (orderItemsError) {
+      console.error('❌ Error fetching order items:', orderItemsError);
+      return EMPTY_PRODUCT_DATA;
+    }
 
-    // Step 3: Process data efficiently
-    const productSalesMap = new Map<string, { revenue: number; units: number; prices: number[] }>()
-    
-    // Aggregate sales data
+    if (!orderItems || orderItems.length === 0) {
+      console.log('📭 No order items found for the period');
+      return EMPTY_PRODUCT_DATA;
+    }
+
+    console.log(`📊 Found ${orderItems.length} order items`);
+
+    // Step 2: Process data to create product metrics
+    const productSalesMap = new Map<string, {
+      product: any;
+      revenue: number;
+      units: number;
+      prices: number[];
+    }>();
+
     orderItems.forEach((item: any) => {
-      const productId = item.product_id
-      if (!productId) return
+      const productId = item.product_id;
+      const product = item.products;
       
-      const revenue = (item.price || 0) * (item.quantity || 0)
-      const existing = productSalesMap.get(productId) || { revenue: 0, units: 0, prices: [] }
-      
+      if (!productId || !product) return;
+
+      const revenue = (item.price || 0) * (item.quantity || 0);
+      const existing = productSalesMap.get(productId) || {
+        product,
+        revenue: 0,
+        units: 0,
+        prices: []
+      };
+
       productSalesMap.set(productId, {
+        product,
         revenue: existing.revenue + revenue,
         units: existing.units + (item.quantity || 0),
         prices: [...existing.prices, item.price || 0]
-      })
-    })
+      });
+    });
 
-    // Step 4: Create product metrics - only include products with sales data
-    const productMetrics: ProductMetrics[] = products
-      .map((product: any) => {
-        const salesData = productSalesMap.get(product.id)
-        if (!salesData || salesData.revenue === 0) return null
-        
-        // Calculate average price from actual sales or fallback to product price
-        const avgPrice = salesData.prices.length > 0 
-          ? salesData.prices.reduce((sum, price) => sum + price, 0) / salesData.prices.length
-          : product.price || 0
-        
-        // Simple performance score based on revenue ranking
-        const performanceScore = Math.min(100, (salesData.revenue / 1000) * 10)
-        
+    // Step 3: Create product metrics array
+    const productMetrics: ProductMetrics[] = Array.from(productSalesMap.entries())
+      .map(([productId, data]) => {
+        const avgPrice = data.prices.length > 0
+          ? data.prices.reduce((sum, price) => sum + price, 0) / data.prices.length
+          : data.product.price || 0;
+
+        const performanceScore = Math.min(100, (data.revenue / 1000) * 10);
+
         return {
-          id: product.id,
-          name: product.name || 'Unknown Product',
-          sku: product.shopify_product_id || product.id.substring(0, 8),
-          category: product.category || 'Uncategorized',
-          totalRevenue: salesData.revenue,
-          unitsSold: salesData.units,
+          id: productId,
+          name: data.product.name || 'Unknown Product',
+          sku: data.product.shopify_product_id || productId.substring(0, 8),
+          category: data.product.category || 'Uncategorized',
+          totalRevenue: data.revenue,
+          unitsSold: data.units,
           avgPrice: avgPrice,
           profitMargin: avgPrice * 0.25, // Assume 25% margin
-          growthRate: 0, // Skip complex growth calculation for performance
+          growthRate: 0, // Skip complex growth calculation
           performanceScore: performanceScore
-        }
+        };
       })
-      .filter((product): product is ProductMetrics => product !== null)
-      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
-    // Step 5: Calculate category performance
-    const categoryMap = new Map<string, { revenue: number; units: number }>()
+    console.log(`📈 Processed ${productMetrics.length} products with sales`);
+
+    // Step 4: Calculate category performance
+    const categoryMap = new Map<string, { revenue: number; units: number }>();
     
     productMetrics.forEach(product => {
-      const category = product.category || 'Uncategorized'
-      const existing = categoryMap.get(category) || { revenue: 0, units: 0 }
+      const category = product.category || 'Uncategorized';
+      const existing = categoryMap.get(category) || { revenue: 0, units: 0 };
       
       categoryMap.set(category, {
         revenue: existing.revenue + product.totalRevenue,
         units: existing.units + product.unitsSold
-      })
-    })
+      });
+    });
 
-    const totalRevenue = productMetrics.reduce((sum, p) => sum + p.totalRevenue, 0)
+    const totalRevenue = productMetrics.reduce((sum, p) => sum + p.totalRevenue, 0);
     const categoryPerformance: CategoryPerformance[] = Array.from(categoryMap.entries())
       .map(([category, data]) => ({
         category,
@@ -181,24 +171,24 @@ export async function getProductPerformanceDataSimple(
         units: data.units,
         percentage: totalRevenue > 0 ? (data.revenue / totalRevenue) * 100 : 0
       }))
-      .sort((a, b) => b.revenue - a.revenue)
+      .sort((a, b) => b.revenue - a.revenue);
 
-    // Step 6: Create simple trend data (daily aggregation for top 5 products)
-    const topProductIds = productMetrics.slice(0, 5).map(p => p.id)
-    const trendMap = new Map<string, { revenue: number; units: number }>()
+    // Step 5: Create trend data for top products
+    const topProductIds = productMetrics.slice(0, 5).map(p => p.id);
+    const trendMap = new Map<string, { revenue: number; units: number }>();
     
     orderItems
       .filter((item: any) => topProductIds.includes(item.product_id))
       .forEach((item: any) => {
-        const date = new Date(item.orders.created_at).toISOString().split('T')[0]
-        const revenue = (item.price || 0) * (item.quantity || 0)
-        const existing = trendMap.get(date) || { revenue: 0, units: 0 }
+        const date = new Date(item.orders.created_at).toISOString().split('T')[0];
+        const revenue = (item.price || 0) * (item.quantity || 0);
+        const existing = trendMap.get(date) || { revenue: 0, units: 0 };
         
         trendMap.set(date, {
           revenue: existing.revenue + revenue,
           units: existing.units + (item.quantity || 0)
-        })
-      })
+        });
+      });
 
     const topProductsTrend: ProductTrend[] = Array.from(trendMap.entries())
       .map(([date, data]) => ({
@@ -206,9 +196,9 @@ export async function getProductPerformanceDataSimple(
         revenue: data.revenue,
         units: data.units
       }))
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
-    // Step 7: Calculate summary
+    // Step 6: Calculate summary
     const summary: ProductSummary = {
       totalProducts: productMetrics.length,
       totalRevenue: totalRevenue,
@@ -221,17 +211,24 @@ export async function getProductPerformanceDataSimple(
       previousTotalRevenue: 0,
       previousTotalUnitsSold: 0,
       previousAvgProfitMargin: 0
-    }
+    };
+
+    console.log('✅ Product performance data processed successfully:', {
+      totalProducts: summary.totalProducts,
+      totalRevenue: summary.totalRevenue,
+      categoriesCount: categoryPerformance.length,
+      trendDataPoints: topProductsTrend.length
+    });
 
     return {
       summary,
       products: productMetrics,
       categoryPerformance,
       topProductsTrend
-    }
+    };
 
   } catch (error) {
-    console.error('❌ Error in simple product performance data:', error)
-    return EMPTY_PRODUCT_DATA
+    console.error('❌ Error in product performance data:', error);
+    return EMPTY_PRODUCT_DATA;
   }
 }
