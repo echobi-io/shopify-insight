@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS settings (
     timezone VARCHAR(50) NOT NULL DEFAULT 'UTC',
     currency VARCHAR(3) NOT NULL DEFAULT 'USD',
     churn_period_days INTEGER NOT NULL DEFAULT 180,
+    cost_of_acquisition DECIMAL(10,2) NOT NULL DEFAULT 50.00,
+    gross_profit_margin DECIMAL(5,2) NOT NULL DEFAULT 30.00,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
@@ -39,7 +41,9 @@ INSERT INTO settings (
     default_date_range,
     timezone,
     currency,
-    churn_period_days
+    churn_period_days,
+    cost_of_acquisition,
+    gross_profit_margin
 ) VALUES (
     '11111111-1111-1111-1111-111111111111'::uuid,
     '01-01',
@@ -47,5 +51,7 @@ INSERT INTO settings (
     'financial_current',
     'UTC',
     'USD',
-    180
+    180,
+    50.00,
+    30.00
 ) ON CONFLICT (merchant_id) DO NOTHING;

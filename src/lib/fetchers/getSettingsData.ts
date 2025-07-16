@@ -52,8 +52,25 @@ export async function getSettings(merchant_id: string): Promise<AppSettings> {
       }
     }
 
-    console.log('✅ Settings loaded successfully')
-    return data
+    console.log('✅ Settings loaded successfully:', data)
+    
+    // Map database snake_case to camelCase interface
+    const mappedSettings: AppSettings = {
+      id: data.id,
+      merchant_id: data.merchant_id,
+      financialYearStart: data.financial_year_start || DEFAULT_SETTINGS.financialYearStart,
+      financialYearEnd: data.financial_year_end || DEFAULT_SETTINGS.financialYearEnd,
+      defaultDateRange: data.default_date_range || DEFAULT_SETTINGS.defaultDateRange,
+      timezone: data.timezone || DEFAULT_SETTINGS.timezone,
+      currency: data.currency || DEFAULT_SETTINGS.currency,
+      churnPeriodDays: data.churn_period_days || DEFAULT_SETTINGS.churnPeriodDays,
+      costOfAcquisition: data.cost_of_acquisition || DEFAULT_SETTINGS.costOfAcquisition,
+      grossProfitMargin: data.gross_profit_margin || DEFAULT_SETTINGS.grossProfitMargin,
+      created_at: data.created_at,
+      updated_at: data.updated_at
+    }
+
+    return mappedSettings
 
   } catch (error) {
     console.error('❌ Error fetching settings:', error)
@@ -68,18 +85,21 @@ export async function saveSettings(settings: AppSettings): Promise<boolean> {
   try {
     console.log('💾 Saving settings for merchant:', settings.merchant_id)
 
+    // Map camelCase interface to database snake_case
     const settingsData = {
       merchant_id: settings.merchant_id,
-      financialYearStart: settings.financialYearStart,
-      financialYearEnd: settings.financialYearEnd,
-      defaultDateRange: settings.defaultDateRange,
+      financial_year_start: settings.financialYearStart,
+      financial_year_end: settings.financialYearEnd,
+      default_date_range: settings.defaultDateRange,
       timezone: settings.timezone,
       currency: settings.currency,
-      churnPeriodDays: settings.churnPeriodDays,
-      costOfAcquisition: settings.costOfAcquisition,
-      grossProfitMargin: settings.grossProfitMargin,
+      churn_period_days: settings.churnPeriodDays,
+      cost_of_acquisition: settings.costOfAcquisition,
+      gross_profit_margin: settings.grossProfitMargin,
       updated_at: new Date().toISOString()
     }
+
+    console.log('💾 Mapped settings data:', settingsData)
 
     const { error } = await supabase
       .from('settings')
@@ -99,6 +119,11 @@ export async function saveSettings(settings: AppSettings): Promise<boolean> {
     console.error('❌ Error saving settings:', error)
     return false
   }
+}
+
+export function clearSettingsCache(): void {
+  // This function will be implemented in settingsUtils.ts
+  // It's here for backward compatibility
 }
 
 export function getCurrencySymbol(currency: string): string {
