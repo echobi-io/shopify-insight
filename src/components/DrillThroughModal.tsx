@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Users, ShoppingCart, DollarSign, Package, Calendar, Info, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { safePercentage, safeNumber, formatCurrency, formatNumber, formatCompactNumber } from '@/lib/utils/numberUtils';
+import { safePercentage, safeNumber, formatNumber, formatCompactNumber } from '@/lib/utils/numberUtils';
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 
 interface DrillThroughData {
   title: string;
@@ -66,7 +67,7 @@ export const DrillThroughModal: React.FC<DrillThroughModalProps> = ({
 
   const formatValue = (value: number | string) => {
     if (typeof value === 'string') return value;
-    return formatCurrency(value, 'GBP');
+    return formatCurrency(value);
   };
 
   const formatPercentage = (value: number) => {

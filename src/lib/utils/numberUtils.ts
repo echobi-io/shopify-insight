@@ -49,27 +49,14 @@ export function safeCalculateChange(
   return safeNumber(change);
 }
 
+// Import the unified currency formatter
+import { formatCurrency as formatCurrencyUnified } from './currencyUtils';
+
 export function formatCurrency(
   value: number | null | undefined, 
-  currency: string = 'USD',
-  fallback: string = '£0'
+  currency?: string
 ): string {
-  const safeCurrency = currency === 'GBP' ? 'GBP' : 'USD';
-  const safeValue = safeNumber(value);
-  
-  try {
-    const formatter = new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: safeCurrency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-    
-    return formatter.format(safeValue);
-  } catch (error) {
-    console.error('Error formatting currency:', error);
-    return fallback;
-  }
+  return formatCurrencyUnified(value, currency);
 }
 
 export function formatNumber(

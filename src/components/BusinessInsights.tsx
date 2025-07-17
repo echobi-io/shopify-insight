@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TrendingUp, TrendingDown, AlertTriangle, Target, Users, ShoppingCart, DollarSign, Clock, Loader2 } from 'lucide-react'
-import { formatCurrency } from '@/lib/utils/settingsUtils'
+import { formatCurrency } from '@/lib/utils/currencyUtils'
 import { generateAIInsights } from '@/lib/utils/aiInsights'
 
 interface BusinessInsightsProps {

@@ -5,6 +5,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { Toaster } from "@/components/ui/toaster"
 import { useEffect, useState } from 'react';
+import { initializeCurrencySettings } from '@/lib/utils/currencyUtils'
 
 export default function App({ Component, pageProps }: AppProps) {
   const [mounted, setMounted] = useState(false);
@@ -18,6 +19,12 @@ export default function App({ Component, pageProps }: AppProps) {
     } else {
       document.documentElement.classList.add('light');
     }
+    
+    // Initialize currency settings cache
+    initializeCurrencySettings().catch(error => {
+      console.error('Failed to initialize currency settings:', error);
+    });
+    
     setMounted(true);
   }, []);
 

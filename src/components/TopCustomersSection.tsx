@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TopCustomer } from '@/lib/fetchers/getTopCustomersData';
-import { formatCurrency } from '@/lib/utils/settingsUtils';
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 
 interface TopCustomersSectionProps {
   customers: TopCustomer[];

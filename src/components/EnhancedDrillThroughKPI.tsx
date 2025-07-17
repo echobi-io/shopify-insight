@@ -6,7 +6,8 @@ import { TrendingUp, TrendingDown, MoreHorizontal, Info } from 'lucide-react';
 import { DrillThroughModal } from './DrillThroughModal';
 import { useDataFetcher } from '@/hooks/useDataFetcher';
 import { getDetailedKPIData } from '@/lib/fetchers/getDetailedKPIData';
-import { safePercentage, safeNumber, formatCurrency, formatNumber, formatCompactNumber } from '@/lib/utils/numberUtils';
+import { safePercentage, safeNumber, formatNumber, formatCompactNumber } from '@/lib/utils/numberUtils';
+import { formatCurrency } from '@/lib/utils/currencyUtils';
 
 interface KPIData {
   title: string;
@@ -127,7 +128,7 @@ export const EnhancedDrillThroughKPI: React.FC<EnhancedDrillThroughKPIProps> = (
             timeSeriesData: baseData.timeSeriesData,
             topItems: baseData.topItems,
             dateRange: dateRange,
-            currency: 'GBP'
+            currency: undefined // Will use settings currency
           }),
         }),
         new Promise((_, reject) => setTimeout(() => reject(new Error('AI timeout')), 3000))
@@ -363,7 +364,7 @@ export const EnhancedDrillThroughKPI: React.FC<EnhancedDrillThroughKPIProps> = (
                         data.title.toLowerCase().includes('average order');
       
       if (isMonetary) {
-        return formatCurrency(value, 'GBP');
+        return formatCurrency(value);
       } else {
         // Format as regular number for non-monetary values
         return formatNumber(value);

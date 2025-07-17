@@ -61,20 +61,19 @@ export function getSettingsSync(): AppSettings {
   }
 }
 
+// Import unified currency utilities
+import { 
+  formatCurrency as formatCurrencyUnified, 
+  getCurrencySymbol as getCurrencySymbolUnified,
+  clearCurrencyCache
+} from './currencyUtils'
+
 export function getCurrencySymbol(currency: string): string {
-  return getCurrencySymbolFromDB(currency)
+  return getCurrencySymbolUnified(currency)
 }
 
 export function formatCurrency(value: number, currency?: string): string {
-  const settings = getSettingsSync()
-  const currencyCode = currency || settings.currency || DEFAULT_SETTINGS.currency
-  const symbol = getCurrencySymbol(currencyCode)
-  
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currencyCode,
-    currencyDisplay: 'symbol'
-  }).format(value).replace(/[A-Z]{3}/, symbol)
+  return formatCurrencyUnified(value, currency)
 }
 
 export function getFinancialYearDates(year: number, settings?: AppSettings): { startDate: Date; endDate: Date } {

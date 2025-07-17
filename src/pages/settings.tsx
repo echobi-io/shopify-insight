@@ -18,6 +18,7 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import { getSettings, saveSettings, AppSettings, DEFAULT_SETTINGS, clearSettingsCache } from '@/lib/fetchers/getSettingsData'
+import { clearCurrencyCache } from '@/lib/utils/currencyUtils'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -99,8 +100,9 @@ const SettingsPage: React.FC = () => {
       const success = await saveSettings(settings)
       
       if (success) {
-        // Clear cache to force reload of settings
+        // Clear both settings and currency cache to force reload
         clearSettingsCache()
+        clearCurrencyCache()
         
         // Also save to localStorage as backup
         localStorage.setItem('echobi-settings', JSON.stringify(settings))
