@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient'
+import { getAllRows, isLikelyHittingLimit, getTruncationWarning } from '../utils/supabaseUtils'
 
 export interface FilterState {
   startDate: string
@@ -64,17 +65,18 @@ export async function getKPIs(filters: FilterState, merchant_id?: string): Promi
         ordersQuery = ordersQuery.eq('merchant_id', merchant_id);
       }
 
-      const { data: orders, error: ordersError } = await ordersQuery;
+      // Use getAllRows to handle datasets larger than 1000 rows
+      const orders = await getAllRows(ordersQuery, 100000); // Allow up to 100k orders for KPIs
       
       console.log('📦 Direct orders query result:', { 
-        success: !ordersError, 
         count: orders?.length || 0,
-        error: ordersError?.message 
+        truncationWarning: getTruncationWarning(orders?.length || 0)
       });
 
-      if (ordersError) {
-        console.error('❌ Error fetching orders directly:', ordersError);
-        throw ordersError;
+      // Log warning if we might be hitting limits
+      const warning = getTruncationWarning(orders?.length || 0)
+      if (warning) {
+        console.warn('⚠️', warning)
       }
 
       if (!orders || orders.length === 0) {

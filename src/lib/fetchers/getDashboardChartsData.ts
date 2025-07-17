@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { FilterState } from './getKpis'
+import { getAllRows, isLikelyHittingLimit, getTruncationWarning } from '../utils/supabaseUtils'
 
 export interface DashboardChartData {
   date: string
@@ -49,18 +50,21 @@ export async function getDashboardChartsData(
       endDate: filters?.endDate
     })
 
-    const { data: orders, error } = await query.order('created_at')
-
-    if (error) {
-      console.error('❌ Error fetching dashboard charts data:', error)
-      return { dailyData: [], orderTimingData: [] }
-    }
+    // Use getAllRows to handle potential large datasets beyond 1000 rows
+    const orders = await getAllRows(query.order('created_at'), 50000) // Allow up to 50k orders for dashboard
 
     console.log('📈 Query result:', {
       ordersCount: orders?.length || 0,
       firstOrder: orders?.[0],
-      lastOrder: orders?.[orders?.length - 1]
+      lastOrder: orders?.[orders?.length - 1],
+      truncationWarning: getTruncationWarning(orders?.length || 0)
     })
+
+    // Log warning if we might be hitting limits
+    const warning = getTruncationWarning(orders?.length || 0)
+    if (warning) {
+      console.warn('⚠️', warning)
+    }
 
     if (!orders || orders.length === 0) {
       console.log('⚠️ No orders found for the given filters')

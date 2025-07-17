@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient'
 import { FilterState } from './getKpis'
+import { getAllRows, isLikelyHittingLimit, getTruncationWarning } from '../utils/supabaseUtils'
 
 export interface SalesAnalysisKPIs {
   totalRevenue: number | null
@@ -118,11 +119,18 @@ async function getSalesAnalysisKPIsFromOrders(filters: FilterState, merchant_id:
       currentQuery = currentQuery.eq('channel', filters.channel)
     }
 
-    const { data: currentOrders, error: currentError } = await currentQuery
+    // Use getAllRows to handle datasets larger than 1000 rows
+    const currentOrders = await getAllRows(currentQuery, 100000) // Allow up to 100k orders
 
-    if (currentError) {
-      console.error('❌ Error fetching orders:', currentError)
-      throw new Error(`Failed to fetch orders: ${currentError.message}`)
+    console.log('📦 Current orders query result:', { 
+      count: currentOrders?.length || 0,
+      truncationWarning: getTruncationWarning(currentOrders?.length || 0)
+    })
+
+    // Log warning if we might be hitting limits
+    const warning = getTruncationWarning(currentOrders?.length || 0)
+    if (warning) {
+      console.warn('⚠️', warning)
     }
 
     if (!currentOrders || currentOrders.length === 0) {
@@ -172,7 +180,8 @@ async function getSalesAnalysisKPIsFromOrders(filters: FilterState, merchant_id:
       prevQuery = prevQuery.eq('channel', filters.channel)
     }
 
-    const { data: prevOrders } = await prevQuery
+    // Use getAllRows for previous period data too
+    const prevOrders = await getAllRows(prevQuery, 100000) // Allow up to 100k orders for previous period
 
     let revenueGrowth = null
     let ordersGrowth = null
