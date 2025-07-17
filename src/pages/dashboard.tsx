@@ -393,64 +393,68 @@ const DashboardPage: React.FC = () => {
       {/* Charts with Loading States - Revenue & Orders Performance and Sales Origin */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Enhanced Revenue & Orders Chart with Drill-Through */}
-        <DataStateWrapper
-          data={dashboardChartData}
-          loading={chartsDataFetcher.loading}
-          error={chartsDataFetcher.error}
-          onRetry={() => chartsDataFetcher.refetch()}
-          loadingComponent={<ChartSkeleton />}
-          isEmpty={(data) => !data || data.length === 0}
-          emptyComponent={
-            <EmptyState 
-              title="No chart data available"
-              description="No revenue or order data found for the selected period"
-              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-            />
-          }
-        >
-          {(data) => (
-            <EnhancedDrillThroughChart
-              title="Revenue & Orders Performance"
-              data={data.map(item => ({
-                date: item.date,
-                revenue: item.total_revenue || 0,
-                orders: item.total_orders || 0,
-                total_revenue: item.total_revenue || 0,
-                total_orders: item.total_orders || 0,
-                ...item
-              }))}
-              type="line"
-              primaryKey="total_revenue"
-              secondaryKey="total_orders"
-              dateRange={filters}
-            />
-          )}
-        </DataStateWrapper>
+        <div className="h-[450px]">
+          <DataStateWrapper
+            data={dashboardChartData}
+            loading={chartsDataFetcher.loading}
+            error={chartsDataFetcher.error}
+            onRetry={() => chartsDataFetcher.refetch()}
+            loadingComponent={<ChartSkeleton />}
+            isEmpty={(data) => !data || data.length === 0}
+            emptyComponent={
+              <EmptyState 
+                title="No chart data available"
+                description="No revenue or order data found for the selected period"
+                icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+              />
+            }
+          >
+            {(data) => (
+              <EnhancedDrillThroughChart
+                title="Revenue & Orders Performance"
+                data={data.map(item => ({
+                  date: item.date,
+                  revenue: item.total_revenue || 0,
+                  orders: item.total_orders || 0,
+                  total_revenue: item.total_revenue || 0,
+                  total_orders: item.total_orders || 0,
+                  ...item
+                }))}
+                type="line"
+                primaryKey="total_revenue"
+                secondaryKey="total_orders"
+                dateRange={filters}
+              />
+            )}
+          </DataStateWrapper>
+        </div>
 
         {/* Sales Origin by Platform Chart */}
-        <DataStateWrapper
-          data={salesOriginData}
-          loading={salesOriginDataFetcher.loading}
-          error={salesOriginDataFetcher.error}
-          onRetry={() => salesOriginDataFetcher.refetch()}
-          loadingComponent={<ChartSkeleton />}
-          isEmpty={(data) => !data || data.length === 0}
-          emptyComponent={
-            <EmptyState 
-              title="No sales origin data available"
-              description="No sales channel data found for the selected period"
-              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-            />
-          }
-        >
-          {(data) => (
-            <SalesOriginChart
-              data={data}
-              currency={currency}
-              loading={salesOriginDataFetcher.loading}
-            />
-          )}
-        </DataStateWrapper>
+        <div className="h-[450px]">
+          <DataStateWrapper
+            data={salesOriginData}
+            loading={salesOriginDataFetcher.loading}
+            error={salesOriginDataFetcher.error}
+            onRetry={() => salesOriginDataFetcher.refetch()}
+            loadingComponent={<ChartSkeleton />}
+            isEmpty={(data) => !data || data.length === 0}
+            emptyComponent={
+              <EmptyState 
+                title="No sales origin data available"
+                description="No sales channel data found for the selected period"
+                icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+              />
+            }
+          >
+            {(data) => (
+              <SalesOriginChart
+                data={data}
+                currency={currency}
+                loading={salesOriginDataFetcher.loading}
+              />
+            )}
+          </DataStateWrapper>
+        </div>
       </div>
 
       {/* Order Timing Analysis and Peak Hours Insights - Side by Side */}
@@ -567,83 +571,87 @@ const DashboardPage: React.FC = () => {
       {/* Enhanced Top Products and Top Customers with Drill-Through */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 pt-4">
         {/* Enhanced Top Products */}
-        <DataStateWrapper
-          data={productData}
-          loading={productsDataFetcher.loading}
-          error={productsDataFetcher.error}
-          onRetry={() => productsDataFetcher.refetch()}
-          loadingComponent={<ChartSkeleton />}
-          isEmpty={(data) => !data || data.length === 0}
-          emptyComponent={
-            <EmptyState 
-              title="No product data available"
-              description="No product performance data found for the selected period"
-              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-            />
-          }
-        >
-          {(data) => (
-            <EnhancedDrillThroughList
-              title="Top 10 Products"
-              items={data.slice(0, 10).map((product, index) => ({
-                id: `product-${index}`,
-                name: product.product,
-                value: product.revenue,
-                secondaryValue: product.unitsSold,
-                change: Math.random() * 20 - 10, // Mock change data - would need historical comparison
-                trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
-                metadata: {
-                  unitsSold: product.unitsSold,
-                  aov: product.aov || product.avgOrderValue,
-                  refunds: product.refunds,
-                  orderCount: product.orderCount,
-                  customerCount: product.customerCount,
-                  repeatOrderRate: product.repeatOrderRate
-                }
-              }))}
-              type="products"
-              dateRange={filters}
-            />
-          )}
-        </DataStateWrapper>
+        <div className="h-[600px]">
+          <DataStateWrapper
+            data={productData}
+            loading={productsDataFetcher.loading}
+            error={productsDataFetcher.error}
+            onRetry={() => productsDataFetcher.refetch()}
+            loadingComponent={<ChartSkeleton />}
+            isEmpty={(data) => !data || data.length === 0}
+            emptyComponent={
+              <EmptyState 
+                title="No product data available"
+                description="No product performance data found for the selected period"
+                icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+              />
+            }
+          >
+            {(data) => (
+              <EnhancedDrillThroughList
+                title="Top 10 Products"
+                items={data.slice(0, 10).map((product, index) => ({
+                  id: `product-${index}`,
+                  name: product.product,
+                  value: product.revenue,
+                  secondaryValue: product.unitsSold,
+                  change: Math.random() * 20 - 10, // Mock change data - would need historical comparison
+                  trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
+                  metadata: {
+                    unitsSold: product.unitsSold,
+                    aov: product.aov || product.avgOrderValue,
+                    refunds: product.refunds,
+                    orderCount: product.orderCount,
+                    customerCount: product.customerCount,
+                    repeatOrderRate: product.repeatOrderRate
+                  }
+                }))}
+                type="products"
+                dateRange={filters}
+              />
+            )}
+          </DataStateWrapper>
+        </div>
 
         {/* Enhanced Top Customers */}
-        <DataStateWrapper
-          data={topCustomersData}
-          loading={topCustomersDataFetcher.loading}
-          error={topCustomersDataFetcher.error}
-          onRetry={() => topCustomersDataFetcher.refetch()}
-          loadingComponent={<ChartSkeleton />}
-          isEmpty={(data) => !data || data.length === 0}
-          emptyComponent={
-            <EmptyState 
-              title="No customer data available"
-              description="No customer data found for the selected period"
-              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-            />
-          }
-        >
-          {(data) => (
-            <EnhancedDrillThroughList
-              title="Top Customers"
-              items={data.slice(0, 10).map((customer) => ({
-                id: customer.customer_id,
-                name: customer.customer_name,
-                value: customer.total_spent,
-                secondaryValue: customer.order_count,
-                change: Math.random() * 30 - 15, // Mock change data
-                trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
-                metadata: {
-                  orderCount: customer.order_count,
-                  avgOrderValue: customer.avg_order_value,
-                  lastOrderDate: customer.last_order_date
-                }
-              }))}
-              type="customers"
-              dateRange={filters}
-            />
-          )}
-        </DataStateWrapper>
+        <div className="h-[600px]">
+          <DataStateWrapper
+            data={topCustomersData}
+            loading={topCustomersDataFetcher.loading}
+            error={topCustomersDataFetcher.error}
+            onRetry={() => topCustomersDataFetcher.refetch()}
+            loadingComponent={<ChartSkeleton />}
+            isEmpty={(data) => !data || data.length === 0}
+            emptyComponent={
+              <EmptyState 
+                title="No customer data available"
+                description="No customer data found for the selected period"
+                icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+              />
+            }
+          >
+            {(data) => (
+              <EnhancedDrillThroughList
+                title="Top Customers"
+                items={data.slice(0, 10).map((customer) => ({
+                  id: customer.customer_id,
+                  name: customer.customer_name,
+                  value: customer.total_spent,
+                  secondaryValue: customer.order_count,
+                  change: Math.random() * 30 - 15, // Mock change data
+                  trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
+                  metadata: {
+                    orderCount: customer.order_count,
+                    avgOrderValue: customer.avg_order_value,
+                    lastOrderDate: customer.last_order_date
+                  }
+                }))}
+                type="customers"
+                dateRange={filters}
+              />
+            )}
+          </DataStateWrapper>
+        </div>
       </div>
 
       {/* Enhanced Business Insights with Drill-Through */}

@@ -94,30 +94,30 @@ const SalesOriginChart: React.FC<SalesOriginChartProps> = ({
   }
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader>
+    <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
+      <CardHeader className="flex-shrink-0">
         <CardTitle>Sales Origin by Platform</CardTitle>
         <p className="text-sm text-muted-foreground">
           Distribution of orders and revenue across different sales channels
         </p>
       </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="pie" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+      <CardContent className="flex-1 flex flex-col">
+        <Tabs defaultValue="pie" className="w-full flex-1 flex flex-col">
+          <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
             <TabsTrigger value="pie">Distribution</TabsTrigger>
             <TabsTrigger value="bar">Comparison</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="pie" className="space-y-4">
-            <div className="h-64">
+          <TabsContent value="pie" className="flex-1 flex flex-col space-y-4">
+            <div className="flex-1 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={chartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
+                    innerRadius={50}
+                    outerRadius={80}
                     paddingAngle={2}
                     dataKey="order_count"
                   >
@@ -132,14 +132,14 @@ const SalesOriginChart: React.FC<SalesOriginChartProps> = ({
             </div>
           </TabsContent>
           
-          <TabsContent value="bar" className="space-y-4">
-            <div className="h-64">
+          <TabsContent value="bar" className="flex-1 flex flex-col space-y-4">
+            <div className="flex-1 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="displayName" 
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 11 }}
                     angle={-45}
                     textAnchor="end"
                     height={60}
@@ -161,15 +161,15 @@ const SalesOriginChart: React.FC<SalesOriginChartProps> = ({
         </Tabs>
 
         {/* Summary Stats */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2 flex-shrink-0">
           {chartData.slice(0, 3).map((item, index) => (
-            <div key={item.channel} className="p-3 bg-gray-50 rounded-lg">
+            <div key={item.channel} className="p-2 bg-gray-50 rounded-lg">
               <div className="flex items-center space-x-2 mb-1">
                 <div 
-                  className="w-3 h-3 rounded-full" 
+                  className="w-2 h-2 rounded-full" 
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="font-medium text-sm">{item.displayName}</span>
+                <span className="font-medium text-xs">{item.displayName}</span>
               </div>
               <div className="text-xs text-muted-foreground">
                 {formatNumber(item.order_count)} orders ({item.percentage.toFixed(1)}%)
