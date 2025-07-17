@@ -391,9 +391,9 @@ const DashboardPage: React.FC = () => {
       </DataStateWrapper>
 
       {/* Revenue & Orders Chart and Sales by Source - Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Revenue & Orders Chart - Half Width */}
-        <div className="h-[550px]">
+        <div className="h-[500px]">
           <DataStateWrapper
             data={dashboardChartData}
             loading={chartsDataFetcher.loading}
@@ -430,7 +430,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Sales by Source Chart - Half Width */}
-        <div className="h-[550px]">
+        <div className="h-[500px]">
           <DataStateWrapper
             data={salesOriginData}
             loading={salesOriginDataFetcher.loading}
@@ -458,9 +458,9 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* Order Timing Analysis and Peak Hours - Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* Order Timing Analysis - Takes 2/3 width with increased height */}
-        <div className="lg:col-span-2 h-[750px]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Order Timing Analysis - Takes 2/3 width */}
+        <div className="lg:col-span-2 h-[600px]">
           <DataStateWrapper
             data={orderTimingData}
             loading={chartsDataFetcher.loading}
@@ -496,8 +496,8 @@ const DashboardPage: React.FC = () => {
           </DataStateWrapper>
         </div>
 
-        {/* Peak Hours Table - Takes 1/3 width with matching height */}
-        <div className="lg:col-span-1 h-[750px]">
+        {/* Peak Hours Table - Takes 1/3 width */}
+        <div className="lg:col-span-1 h-[600px]">
           {orderTimingData.length > 0 && (
             <ChartCard
               title="Peak Hours Insights"
@@ -567,9 +567,9 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* Enhanced Top Products and Top Customers with Drill-Through */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 pt-4">
-        {/* Enhanced Top Products */}
-        <div className="h-[600px]">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="pt-6">
+          <div className="h-[600px]">
           <DataStateWrapper
             data={productData}
             loading={productsDataFetcher.loading}
@@ -611,8 +611,9 @@ const DashboardPage: React.FC = () => {
           </DataStateWrapper>
         </div>
 
-        {/* Enhanced Top Customers */}
-        <div className="h-[600px]">
+        </div>
+        <div className="pt-6">
+          <div className="h-[600px]">
           <DataStateWrapper
             data={topCustomersData}
             loading={topCustomersDataFetcher.loading}
@@ -649,6 +650,7 @@ const DashboardPage: React.FC = () => {
               />
             )}
           </DataStateWrapper>
+          </div>
         </div>
       </div>
 
