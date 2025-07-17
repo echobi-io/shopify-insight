@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 import { MoreHorizontal, TrendingUp, Info } from 'lucide-react';
 import { DrillThroughModal } from './DrillThroughModal';
 
@@ -15,7 +15,7 @@ interface ChartData {
 interface EnhancedDrillThroughChartProps {
   title: string;
   data: ChartData[];
-  type: 'line' | 'bar';
+  type: 'line' | 'bar' | 'area';
   primaryKey: string;
   secondaryKey?: string;
   dateRange: { startDate: string; endDate: string };
@@ -194,6 +194,34 @@ export const EnhancedDrillThroughChart: React.FC<EnhancedDrillThroughChartProps>
                   />
                 )}
               </LineChart>
+            ) : type === 'area' ? (
+              <AreaChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis tickFormatter={formatValue} />
+                <Tooltip 
+                  formatter={(value, name) => [formatValue(Number(value)), name]}
+                  labelFormatter={(label) => `Time: ${label}`}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey={primaryKey} 
+                  stroke="#3b82f6" 
+                  fill="#3b82f6"
+                  fillOpacity={0.3}
+                  strokeWidth={2}
+                />
+                {secondaryKey && (
+                  <Area 
+                    type="monotone" 
+                    dataKey={secondaryKey} 
+                    stroke="#10b981" 
+                    fill="#10b981"
+                    fillOpacity={0.3}
+                    strokeWidth={2}
+                  />
+                )}
+              </AreaChart>
             ) : (
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" />

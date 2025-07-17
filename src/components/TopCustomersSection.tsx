@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { TopCustomer } from '@/lib/fetchers/getTopCustomersData';
 import { formatCurrency } from '@/lib/utils/currencyUtils';
 
@@ -8,13 +10,18 @@ interface TopCustomersSectionProps {
   customers: TopCustomer[];
   isLoading: boolean;
   currency: string;
+  showCount?: number;
+  loadCount?: number;
 }
 
 export const TopCustomersSection: React.FC<TopCustomersSectionProps> = ({
   customers,
   isLoading,
-  currency
+  currency,
+  showCount = 5,
+  loadCount = 10
 }) => {
+  const [showAll, setShowAll] = useState(false);
   if (isLoading) {
     return (
       <Card>
@@ -50,14 +57,17 @@ export const TopCustomersSection: React.FC<TopCustomersSectionProps> = ({
     );
   }
 
+  const displayCustomers = showAll ? customers.slice(0, loadCount) : customers.slice(0, showCount);
+  const hasMore = customers.length > showCount;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Top Customers</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <div className="space-y-4">
-          {customers.map((customer, index) => (
+          {displayCustomers.map((customer, index) => (
             <div
               key={customer.customer_id}
               className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
@@ -98,6 +108,28 @@ export const TopCustomersSection: React.FC<TopCustomersSectionProps> = ({
             </div>
           ))}
         </div>
+        
+        {hasMore && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <Button
+              variant="ghost"
+              onClick={() => setShowAll(!showAll)}
+              className="w-full text-sm font-light text-gray-600 hover:text-black hover:bg-gray-50"
+            >
+              {showAll ? (
+                <>
+                  <ChevronUp className="w-4 h-4 mr-2" />
+                  Show Less
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4 mr-2" />
+                  Show 5 More
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

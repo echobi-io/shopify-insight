@@ -116,7 +116,7 @@ export const TopItemsSection: React.FC<TopItemsSectionProps> = ({
           <p className="font-light text-gray-600">{description}</p>
         )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <div className="space-y-4">
           {displayItems.map((item, index) => (
             <div key={item.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
@@ -163,7 +163,7 @@ export const TopItemsSection: React.FC<TopItemsSectionProps> = ({
               ) : (
                 <>
                   <ChevronDown className="w-4 h-4 mr-2" />
-                  Show More ({items.length - showCount} more)
+                  Show 5 More
                 </>
               )}
             </Button>

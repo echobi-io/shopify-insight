@@ -415,14 +415,16 @@ const DashboardPage: React.FC = () => {
           {(data) => (
             <EnhancedDrillThroughChart
               title="Order Timing Analysis"
-              data={data.map(item => ({
-                date: getHourLabel(item.hour),
-                orders: item.order_count || 0,
-                hour: item.hour,
-                percentage: item.percentage || 0,
-                ...item
-              }))}
-              type="bar"
+              data={data
+                .sort((a, b) => a.hour - b.hour) // Sort by time (hour) instead of value
+                .map(item => ({
+                  date: getHourLabel(item.hour),
+                  orders: item.order_count || 0,
+                  hour: item.hour,
+                  percentage: item.percentage || 0,
+                  ...item
+                }))}
+              type="area"
               primaryKey="order_count"
               dateRange={filters}
             />
