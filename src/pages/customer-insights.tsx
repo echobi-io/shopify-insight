@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, ScatterChart, Scatter, AreaChart, Area } from 'recharts'
 import { getCustomerInsightsData, getCustomerDetails, CustomerInsightsData, ChurnPrediction, LtvPrediction, CohortData, CustomerCluster, ClusterAnalysis } from '@/lib/fetchers/getCustomerInsightsData'
+import { BusinessCustomerSegment, BusinessSegmentationData } from '@/lib/fetchers/getBusinessCustomerSegments'
 import { getKPIs, getPreviousYearKPIs, type KPIData } from '@/lib/fetchers/getKpis'
 import { exportToCSV } from '@/lib/utils/exportUtils'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
@@ -218,8 +219,9 @@ const CustomerInsightsPage: React.FC = () => {
 
       {/* Tabs for different insights */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="business-segments">Business Segments</TabsTrigger>
           <TabsTrigger value="churn">Churn Analysis</TabsTrigger>
           <TabsTrigger value="cohort">Cohort Analysis</TabsTrigger>
           <TabsTrigger value="ltv">LTV Modeling</TabsTrigger>
@@ -379,6 +381,204 @@ const CustomerInsightsPage: React.FC = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Business Segments Tab */}
+        <TabsContent value="business-segments" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Business Segment Distribution */}
+            <Card className="card-minimal">
+              <CardHeader>
+                <CardTitle className="text-lg font-medium text-black">Business Customer Segments</CardTitle>
+                <CardDescription className="font-light text-gray-600">
+                  Customer distribution based on business segmentation logic
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data.businessSegments.segments.length > 0 ? (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={data.businessSegments.segmentDistribution}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ segment_name, percentage }) => `${segment_name.replace(/_/g, ' ')} ${percentage.toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="customer_count"
+                          nameKey="segment_name"
+                        >
+                          {data.businessSegments.segmentDistribution.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: any, name: any) => [value, name.replace(/_/g, ' ')]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center">
+                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm font-light text-gray-500">No business segment data available</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Segment Revenue Performance */}
+            <Card className="card-minimal">
+              <CardHeader>
+                <CardTitle className="text-lg font-medium text-black">Revenue by Business Segment</CardTitle>
+                <CardDescription className="font-light text-gray-600">
+                  Total revenue contribution by each business segment
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data.businessSegments.segments.length > 0 ? (
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={data.businessSegments.segments}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="segment_name" 
+                          fontSize={12} 
+                          stroke="#666"
+                          tickFormatter={(value) => value.replace(/_/g, ' ').replace('customers', '')}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis fontSize={12} stroke="#666" tickFormatter={(value) => formatCurrency(value)} />
+                        <Tooltip 
+                          formatter={(value: any) => [formatCurrency(value), 'Total Revenue']}
+                          labelFormatter={(value) => value.replace(/_/g, ' ')}
+                        />
+                        <Bar dataKey="total_revenue" fill="#14b8a6" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center">
+                      <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm font-light text-gray-500">No revenue data available</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Business Segments Summary Table */}
+          <Card className="card-minimal">
+            <CardHeader>
+              <CardTitle className="text-lg font-medium text-black">Business Segment Performance</CardTitle>
+              <CardDescription className="font-light text-gray-600">
+                Detailed metrics for each business customer segment
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {data.businessSegments.segments.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Segment</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Customers</TableHead>
+                        <TableHead className="text-right">Total Revenue</TableHead>
+                        <TableHead className="text-right">Avg Order Value</TableHead>
+                        <TableHead className="text-right">Avg Orders</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.businessSegments.segments.map((segment) => (
+                        <TableRow key={segment.segment_name}>
+                          <TableCell>
+                            <Badge 
+                              variant="outline" 
+                              className={`capitalize font-light ${
+                                segment.segment_name === 'best_customers' ? 'bg-green-50 text-green-700 border-green-200' :
+                                segment.segment_name === 'loyal_customers' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                segment.segment_name === 'promising_customers' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                segment.segment_name === 'recent_customers' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                segment.segment_name === 'defecting_customers' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                segment.segment_name === 'at_risk_customers' ? 'bg-red-50 text-red-700 border-red-200' :
+                                'bg-gray-50 text-gray-700 border-gray-200'
+                              }`}
+                            >
+                              {segment.segment_name.replace(/_/g, ' ').replace('customers', '')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-light text-sm max-w-xs">
+                            {segment.segment_description}
+                          </TableCell>
+                          <TableCell className="text-right font-light">{segment.customer_count}</TableCell>
+                          <TableCell className="text-right font-light">{formatCurrency(segment.total_revenue)}</TableCell>
+                          <TableCell className="text-right font-light">{formatCurrency(segment.avg_order_value)}</TableCell>
+                          <TableCell className="text-right font-light">{segment.avg_orders_per_customer.toFixed(1)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 font-light">No business segment data available</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Customer Details by Segment */}
+          {data.businessSegments.segments.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {data.businessSegments.segments.slice(0, 6).map((segment) => (
+                <Card key={segment.segment_name} className="card-minimal">
+                  <CardHeader>
+                    <CardTitle className="text-base font-medium text-black capitalize">
+                      {segment.segment_name.replace(/_/g, ' ')}
+                    </CardTitle>
+                    <CardDescription className="font-light text-gray-600 text-sm">
+                      {segment.customer_count} customers
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {segment.customers.slice(0, 5).map((customer) => (
+                        <div key={customer.customer_id} className="flex justify-between items-center py-1">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-black truncate">
+                              {customer.customer_name}
+                            </p>
+                            <p className="text-xs font-light text-gray-500 truncate">
+                              {customer.customer_email}
+                            </p>
+                          </div>
+                          <div className="text-right ml-2">
+                            <p className="text-sm font-light">{formatCurrency(customer.total_spent)}</p>
+                            <p className="text-xs font-light text-gray-500">{customer.order_count} orders</p>
+                          </div>
+                        </div>
+                      ))}
+                      {segment.customers.length > 5 && (
+                        <p className="text-xs font-light text-gray-500 text-center pt-2">
+                          +{segment.customers.length - 5} more customers
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* Churn Analysis Tab */}

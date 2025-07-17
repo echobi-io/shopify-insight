@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient'
+import { getBusinessCustomerSegments, BusinessSegmentationData } from './getBusinessCustomerSegments'
 
 const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
 
@@ -103,6 +104,7 @@ export interface CustomerInsightsData {
   ltvPredictions: LtvPrediction[]
   cohortAnalysis: CohortData[]
   customerSegments: CustomerSegment[]
+  businessSegments: BusinessSegmentationData
   customerClusters: CustomerCluster[]
   clusterAnalysis: ClusterAnalysis
   churnTrendData: Array<{
@@ -161,6 +163,9 @@ export async function getCustomerInsightsData(merchantId: string, dateFilters?: 
     // Calculate customer segments from actual data
     const customerSegments = await calculateCustomerSegments(customers || [], orders || [])
     
+    // Get business customer segments
+    const businessSegments = await getBusinessCustomerSegments(merchantId, dateFilters)
+    
     // Generate cohort analysis from orders
     const cohortAnalysis = await generateCohortAnalysisFromOrders(orders || [])
     
@@ -209,6 +214,7 @@ export async function getCustomerInsightsData(merchantId: string, dateFilters?: 
       ltvPredictions,
       cohortAnalysis,
       customerSegments,
+      businessSegments,
       customerClusters,
       clusterAnalysis,
       churnTrendData,
