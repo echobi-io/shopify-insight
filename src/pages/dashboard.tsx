@@ -390,8 +390,9 @@ const DashboardPage: React.FC = () => {
         )}
       </DataStateWrapper>
 
-      {/* Main Revenue & Orders Chart */}
-      <div className="mb-8">
+      {/* Revenue & Orders Chart and Sales by Source - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Revenue & Orders Chart - Half Width */}
         <DataStateWrapper
           data={dashboardChartData}
           loading={chartsDataFetcher.loading}
@@ -425,43 +426,140 @@ const DashboardPage: React.FC = () => {
             />
           )}
         </DataStateWrapper>
-      </div>
 
-      {/* Order Timing Analysis */}
-      <div className="mb-8">
+        {/* Sales by Source Chart - Half Width */}
         <DataStateWrapper
-          data={orderTimingData}
-          loading={chartsDataFetcher.loading}
-          error={chartsDataFetcher.error}
-          onRetry={() => chartsDataFetcher.refetch()}
+          data={salesOriginData}
+          loading={salesOriginDataFetcher.loading}
+          error={salesOriginDataFetcher.error}
+          onRetry={() => salesOriginDataFetcher.refetch()}
           loadingComponent={<ChartSkeleton />}
           isEmpty={(data) => !data || data.length === 0}
           emptyComponent={
             <EmptyState 
-              title="No timing data available"
-              description="No order timing data found for the selected period"
+              title="No sales origin data available"
+              description="No sales channel data found for the selected period"
               icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
             />
           }
         >
           {(data) => (
-            <EnhancedDrillThroughChart
-              title="Order Timing Analysis"
-              data={data
-                .sort((a, b) => a.hour - b.hour)
-                .map(item => ({
-                  date: getHourLabel(item.hour),
-                  orders: item.order_count || 0,
-                  hour: item.hour,
-                  percentage: item.percentage || 0,
-                  ...item
-                }))}
-              type="area"
-              primaryKey="order_count"
-              dateRange={filters}
+            <SalesOriginChart
+              data={data}
+              currency={currency}
+              loading={salesOriginDataFetcher.loading}
             />
           )}
         </DataStateWrapper>
+      </div>
+
+      {/* Order Timing Analysis and Peak Hours - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        {/* Order Timing Analysis - Takes 2/3 width */}
+        <div className="lg:col-span-2">
+          <DataStateWrapper
+            data={orderTimingData}
+            loading={chartsDataFetcher.loading}
+            error={chartsDataFetcher.error}
+            onRetry={() => chartsDataFetcher.refetch()}
+            loadingComponent={<ChartSkeleton />}
+            isEmpty={(data) => !data || data.length === 0}
+            emptyComponent={
+              <EmptyState 
+                title="No timing data available"
+                description="No order timing data found for the selected period"
+                icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+              />
+            }
+          >
+            {(data) => (
+              <EnhancedDrillThroughChart
+                title="Order Timing Analysis"
+                data={data
+                  .sort((a, b) => a.hour - b.hour)
+                  .map(item => ({
+                    date: getHourLabel(item.hour),
+                    orders: item.order_count || 0,
+                    hour: item.hour,
+                    percentage: item.percentage || 0,
+                    ...item
+                  }))}
+                type="area"
+                primaryKey="order_count"
+                dateRange={filters}
+              />
+            )}
+          </DataStateWrapper>
+        </div>
+
+        {/* Peak Hours Table - Takes 1/3 width */}
+        <div className="lg:col-span-1">
+          {orderTimingData.length > 0 && (
+            <ChartCard
+              title="Peak Hours Insights"
+              description="Busiest and quietest periods"
+              className="card-minimal h-full"
+            >
+              <div className="space-y-6">
+                {/* Busiest Hours */}
+                <div>
+                  <h4 className="font-medium text-black mb-3 text-sm">🔥 Busiest Hours</h4>
+                  <div className="space-y-2">
+                    {getBusiestHours(orderTimingData, 3).map((data, index) => (
+                      <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-red-50 rounded-md">
+                        <div className="flex items-center space-x-2">
+                          <span className="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </span>
+                          <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
+                          <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quietest Hours */}
+                <div>
+                  <h4 className="font-medium text-black mb-3 text-sm">😴 Quietest Hours</h4>
+                  <div className="space-y-2">
+                    {orderTimingData
+                      .filter(data => data.order_count > 0)
+                      .sort((a, b) => a.order_count - b.order_count)
+                      .slice(0, 3)
+                      .map((data, index) => (
+                      <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-blue-50 rounded-md">
+                        <div className="flex items-center space-x-2">
+                          <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                            {index + 1}
+                          </span>
+                          <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
+                          <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Summary Stats */}
+                <div className="border-t pt-4">
+                  <div className="text-center">
+                    <div className="text-sm text-gray-600 mb-1">Total Orders</div>
+                    <div className="font-semibold text-lg text-black">
+                      {formatNumber(orderTimingData.reduce((sum, item) => sum + item.order_count, 0))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ChartCard>
+          )}
+        </div>
       </div>
 
       {/* Enhanced Top Products and Top Customers with Drill-Through */}
