@@ -393,70 +393,74 @@ const DashboardPage: React.FC = () => {
       {/* Revenue & Orders Chart and Sales by Source - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Revenue & Orders Chart - Half Width */}
-        <DataStateWrapper
-          data={dashboardChartData}
-          loading={chartsDataFetcher.loading}
-          error={chartsDataFetcher.error}
-          onRetry={() => chartsDataFetcher.refetch()}
-          loadingComponent={<ChartSkeleton />}
-          isEmpty={(data) => !data || data.length === 0}
-          emptyComponent={
-            <EmptyState 
-              title="No chart data available"
-              description="No revenue or order data found for the selected period"
-              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-            />
-          }
-        >
-          {(data) => (
-            <EnhancedDrillThroughChart
-              title="Revenue & Orders Performance"
-              data={data.map(item => ({
-                date: item.date,
-                revenue: item.total_revenue || 0,
-                orders: item.total_orders || 0,
-                total_revenue: item.total_revenue || 0,
-                total_orders: item.total_orders || 0,
-                ...item
-              }))}
-              type="line"
-              primaryKey="total_revenue"
-              secondaryKey="total_orders"
-              dateRange={filters}
-            />
-          )}
-        </DataStateWrapper>
+        <div className="h-[550px]">
+          <DataStateWrapper
+            data={dashboardChartData}
+            loading={chartsDataFetcher.loading}
+            error={chartsDataFetcher.error}
+            onRetry={() => chartsDataFetcher.refetch()}
+            loadingComponent={<ChartSkeleton />}
+            isEmpty={(data) => !data || data.length === 0}
+            emptyComponent={
+              <EmptyState 
+                title="No chart data available"
+                description="No revenue or order data found for the selected period"
+                icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+              />
+            }
+          >
+            {(data) => (
+              <EnhancedDrillThroughChart
+                title="Revenue & Orders Performance"
+                data={data.map(item => ({
+                  date: item.date,
+                  revenue: item.total_revenue || 0,
+                  orders: item.total_orders || 0,
+                  total_revenue: item.total_revenue || 0,
+                  total_orders: item.total_orders || 0,
+                  ...item
+                }))}
+                type="line"
+                primaryKey="total_revenue"
+                secondaryKey="total_orders"
+                dateRange={filters}
+              />
+            )}
+          </DataStateWrapper>
+        </div>
 
         {/* Sales by Source Chart - Half Width */}
-        <DataStateWrapper
-          data={salesOriginData}
-          loading={salesOriginDataFetcher.loading}
-          error={salesOriginDataFetcher.error}
-          onRetry={() => salesOriginDataFetcher.refetch()}
-          loadingComponent={<ChartSkeleton />}
-          isEmpty={(data) => !data || data.length === 0}
-          emptyComponent={
-            <EmptyState 
-              title="No sales origin data available"
-              description="No sales channel data found for the selected period"
-              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-            />
-          }
-        >
-          {(data) => (
-            <SalesOriginChart
-              data={data}
-              currency={currency}
-              loading={salesOriginDataFetcher.loading}
-            />
-          )}
-        </DataStateWrapper>
+        <div className="h-[550px]">
+          <DataStateWrapper
+            data={salesOriginData}
+            loading={salesOriginDataFetcher.loading}
+            error={salesOriginDataFetcher.error}
+            onRetry={() => salesOriginDataFetcher.refetch()}
+            loadingComponent={<ChartSkeleton />}
+            isEmpty={(data) => !data || data.length === 0}
+            emptyComponent={
+              <EmptyState 
+                title="No sales origin data available"
+                description="No sales channel data found for the selected period"
+                icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+              />
+            }
+          >
+            {(data) => (
+              <SalesOriginChart
+                data={data}
+                currency={currency}
+                loading={salesOriginDataFetcher.loading}
+              />
+            )}
+          </DataStateWrapper>
+        </div>
       </div>
 
       {/* Order Timing Analysis and Peak Hours - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* Order Timing Analysis - Takes 2/3 width */}
-        <div className="lg:col-span-2">
+        {/* Order Timing Analysis - Takes 2/3 width with increased height */}
+        <div className="lg:col-span-2 h-[750px]">
           <DataStateWrapper
             data={orderTimingData}
             loading={chartsDataFetcher.loading}
@@ -492,30 +496,30 @@ const DashboardPage: React.FC = () => {
           </DataStateWrapper>
         </div>
 
-        {/* Peak Hours Table - Takes 1/3 width */}
-        <div className="lg:col-span-1">
+        {/* Peak Hours Table - Takes 1/3 width with matching height */}
+        <div className="lg:col-span-1 h-[750px]">
           {orderTimingData.length > 0 && (
             <ChartCard
               title="Peak Hours Insights"
               description="Busiest and quietest periods"
               className="card-minimal h-full"
             >
-              <div className="space-y-6">
+              <div className="h-full flex flex-col space-y-8">
                 {/* Busiest Hours */}
-                <div>
-                  <h4 className="font-medium text-black mb-3 text-sm">🔥 Busiest Hours</h4>
-                  <div className="space-y-2">
+                <div className="flex-1">
+                  <h4 className="font-medium text-black mb-4 text-base">🔥 Busiest Hours</h4>
+                  <div className="space-y-3">
                     {getBusiestHours(orderTimingData, 3).map((data, index) => (
-                      <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-red-50 rounded-md">
-                        <div className="flex items-center space-x-2">
-                          <span className="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-medium">
+                      <div key={data.hour} className="flex items-center justify-between py-3 px-4 bg-red-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <span className="w-6 h-6 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-sm font-medium">
                             {index + 1}
                           </span>
-                          <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
+                          <span className="font-medium text-black text-base">{getHourLabel(data.hour)}</span>
                         </div>
                         <div className="text-right">
-                          <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
-                          <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
+                          <span className="font-medium text-black text-base">{formatNumber(data.order_count)}</span>
+                          <span className="text-sm text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
                         </div>
                       </div>
                     ))}
@@ -523,24 +527,24 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Quietest Hours */}
-                <div>
-                  <h4 className="font-medium text-black mb-3 text-sm">😴 Quietest Hours</h4>
-                  <div className="space-y-2">
+                <div className="flex-1">
+                  <h4 className="font-medium text-black mb-4 text-base">😴 Quietest Hours</h4>
+                  <div className="space-y-3">
                     {orderTimingData
                       .filter(data => data.order_count > 0)
                       .sort((a, b) => a.order_count - b.order_count)
                       .slice(0, 3)
                       .map((data, index) => (
-                      <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-blue-50 rounded-md">
-                        <div className="flex items-center space-x-2">
-                          <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                      <div key={data.hour} className="flex items-center justify-between py-3 px-4 bg-blue-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
                             {index + 1}
                           </span>
-                          <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
+                          <span className="font-medium text-black text-base">{getHourLabel(data.hour)}</span>
                         </div>
                         <div className="text-right">
-                          <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
-                          <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
+                          <span className="font-medium text-black text-base">{formatNumber(data.order_count)}</span>
+                          <span className="text-sm text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
                         </div>
                       </div>
                     ))}
@@ -548,10 +552,10 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Summary Stats */}
-                <div className="border-t pt-4">
+                <div className="border-t pt-6 mt-auto">
                   <div className="text-center">
-                    <div className="text-sm text-gray-600 mb-1">Total Orders</div>
-                    <div className="font-semibold text-lg text-black">
+                    <div className="text-base text-gray-600 mb-2">Total Orders</div>
+                    <div className="font-semibold text-2xl text-black">
                       {formatNumber(orderTimingData.reduce((sum, item) => sum + item.order_count, 0))}
                     </div>
                   </div>
