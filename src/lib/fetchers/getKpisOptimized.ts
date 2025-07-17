@@ -1,4 +1,6 @@
 import { executeQuery, fetchBatch, aggregateData, DataFetcherOptions, fetchWithRetry, DataFetcherResult } from '@/lib/utils/dataFetcher'
+import { supabase } from '../supabaseClient'
+import { getAllRows, isLikelyHittingLimit, getTruncationWarning } from '../utils/supabaseUtils'
 
 export interface FilterState {
   startDate: string
@@ -58,62 +60,66 @@ export async function getKPIsOptimized(
 
     console.log('⚠️ Materialized view failed or empty, falling back to direct queries')
 
-    // Fallback to direct table queries with batch processing
-    const batchQueries = {
-      orders: () => executeQuery<any[]>({
-        table: 'orders',
-        select: 'id, customer_id, total_price, created_at',
-        filters: {
-          'gte_created_at': filters.startDate,
-          'lte_created_at': filters.endDate
-        },
-        limit: 5000 // Reasonable limit to prevent timeout
-      }, merchantId, {
-        timeout: 15000,
-        retries: 2,
-        fallbackData: []
-      }),
+    // Fallback to direct table queries using getAllRows to handle large datasets
+    console.log('🔄 Falling back to direct orders table query')
+    
+    let ordersQuery = supabase
+      .from('orders')
+      .select('*')
+      .gte('created_at', filters.startDate)
+      .lte('created_at', filters.endDate)
 
-      customers: () => executeQuery<any[]>({
-        table: 'customers',
-        select: 'id, created_at',
-        filters: {
-          'gte_created_at': filters.startDate,
-          'lte_created_at': filters.endDate
-        },
-        limit: 2000
-      }, merchantId, {
-        timeout: 10000,
-        retries: 2,
-        fallbackData: []
-      }),
-
-      totalCustomers: () => executeQuery<any[]>({
-        table: 'customers',
-        select: 'id',
-        limit: 1
-      }, merchantId, {
-        timeout: 5000,
-        retries: 1,
-        fallbackData: []
-      })
+    if (merchantId) {
+      ordersQuery = ordersQuery.eq('merchant_id', merchantId)
     }
 
-    const batchResults = await fetchBatch(batchQueries)
+    // Use getAllRows to handle datasets larger than 1000 rows
+    const orders = await getAllRows(ordersQuery, 100000) // Allow up to 100k orders for KPIs
+    
+    console.log('📦 Direct orders query result:', { 
+      count: orders?.length || 0,
+      truncationWarning: getTruncationWarning(orders?.length || 0)
+    })
 
-    const ordersResult = batchResults.orders
-    const customersResult = batchResults.customers
-    const totalCustomersResult = batchResults.totalCustomers
+    // Log warning if we might be hitting limits
+    const warning = getTruncationWarning(orders?.length || 0)
+    if (warning) {
+      console.warn('⚠️', warning)
+    }
 
-    if (!ordersResult.success) {
-      console.error('❌ Orders query failed:', ordersResult.error?.message)
+    if (!orders || orders.length === 0) {
+      console.log('📭 No orders found, returning zero values')
       return EMPTY_KPI_DATA
     }
 
-    const orders = ordersResult.data || []
-    const newCustomers = customersResult.data || []
+    console.log(`📊 Processing ${orders.length} orders`)
 
-    console.log(`📊 Processing ${orders.length} orders and ${newCustomers.length} new customers`)
+    // Try to get new customers count
+    let newCustomersCount = 0
+    try {
+      let newCustomersQuery = supabase
+        .from('customers')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', filters.startDate)
+        .lte('created_at', filters.endDate)
+      if (merchantId) {
+        newCustomersQuery = newCustomersQuery.eq('merchant_id', merchantId)
+      }
+      const { count } = await newCustomersQuery
+      newCustomersCount = count || 0
+    } catch (newCustomerError) {
+      console.log('⚠️ Could not fetch new customers count:', newCustomerError)
+      // Estimate from orders with first-time customers
+      const customerFirstOrders = new Map()
+      orders.forEach(order => {
+        if (order.customer_id) {
+          if (!customerFirstOrders.has(order.customer_id)) {
+            customerFirstOrders.set(order.customer_id, order.created_at)
+          }
+        }
+      })
+      newCustomersCount = customerFirstOrders.size
+    }
 
     // Calculate basic metrics from orders
     const totalRevenue = orders.reduce((sum, order) => sum + (parseFloat(order.total_price) || 0), 0)
@@ -123,24 +129,30 @@ export async function getKPIsOptimized(
 
     // Get total customers count for percentage calculation
     let totalCustomersCount = 0
-    if (totalCustomersResult.success) {
-      // Use count query for better performance
-      const countResult = await executeQuery<any>({
-        table: 'customers',
-        select: '*'
-      }, merchantId, {
-        timeout: 5000,
-        retries: 1,
-        fallbackData: null
-      })
-
-      if (countResult.success && countResult.data) {
-        totalCustomersCount = Array.isArray(countResult.data) ? countResult.data.length : 1
+    try {
+      let customersQuery = supabase
+        .from('customers')
+        .select('*', { count: 'exact', head: true })
+      if (merchantId) {
+        customersQuery = customersQuery.eq('merchant_id', merchantId)
+      }
+      const { count } = await customersQuery
+      totalCustomersCount = count || 0
+    } catch (customerError) {
+      console.log('⚠️ Could not fetch customers count:', customerError)
+      // Try profiles table as fallback
+      try {
+        let profilesQuery = supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+        const { count } = await profilesQuery
+        totalCustomersCount = count || 0
+      } catch (profileError) {
+        console.log('⚠️ Could not fetch profiles count either:', profileError)
       }
     }
 
     const percentOrdering = totalCustomersCount > 0 ? (uniqueCustomers / totalCustomersCount) * 100 : 0
-    const newCustomersCount = newCustomers.length
 
     // Calculate basic churn risk (simplified approach)
     let churnRisk = 0
