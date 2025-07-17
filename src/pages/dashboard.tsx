@@ -310,167 +310,89 @@ const DashboardPage: React.FC = () => {
         }
       />
 
-      {/* Enhanced KPI Cards with Drill-Through */}
-      <DataStateWrapper
-        data={kpiData}
-        loading={kpiDataFetcher.loading}
-        error={kpiDataFetcher.error}
-        onRetry={kpiDataFetcher.refetch}
-        loadingComponent={
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <KPICardSkeleton key={i} />
-            ))}
-          </div>
-        }
-        errorComponent={
-          <ErrorState 
-            error={kpiDataFetcher.error!} 
-            onRetry={kpiDataFetcher.refetch}
-            title="Failed to load KPI data"
-            description="Unable to fetch key performance indicators"
-            showDetails={true}
-          />
-        }
-        className="mb-8"
-      >
-        {(data) => (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-            <EnhancedDrillThroughKPI
-              data={{
-                title: "Total Revenue",
-                value: data.totalRevenue || 0,
-                change: previousYearKpiData ? ((data.totalRevenue - previousYearKpiData.totalRevenue) / previousYearKpiData.totalRevenue) * 100 : undefined,
-                changeType: previousYearKpiData && data.totalRevenue >= previousYearKpiData.totalRevenue ? 'increase' : 'decrease',
-                icon: <DollarSign className="w-4 h-4" />,
-                description: "Total revenue from completed orders"
-              }}
-              dateRange={filters}
-              onRefresh={handleRefresh}
-            />
-            <EnhancedDrillThroughKPI
-              data={{
-                title: "Total Orders",
-                value: data.totalOrders || 0,
-                change: previousYearKpiData ? ((data.totalOrders - previousYearKpiData.totalOrders) / previousYearKpiData.totalOrders) * 100 : undefined,
-                changeType: previousYearKpiData && data.totalOrders >= previousYearKpiData.totalOrders ? 'increase' : 'decrease',
-                icon: <ShoppingCart className="w-4 h-4" />,
-                description: "Number of completed orders"
-              }}
-              dateRange={filters}
-              onRefresh={handleRefresh}
-            />
-            <EnhancedDrillThroughKPI
-              data={{
-                title: "Average Order Value",
-                value: data.avgOrderValue || 0,
-                change: previousYearKpiData ? ((data.avgOrderValue - previousYearKpiData.avgOrderValue) / previousYearKpiData.avgOrderValue) * 100 : undefined,
-                changeType: previousYearKpiData && data.avgOrderValue >= previousYearKpiData.avgOrderValue ? 'increase' : 'decrease',
-                icon: <Target className="w-4 h-4" />,
-                description: "Average value per order"
-              }}
-              dateRange={filters}
-              onRefresh={handleRefresh}
-            />
-            <EnhancedDrillThroughKPI
-              data={{
-                title: "New Customers",
-                value: data.newCustomers || 0,
-                change: previousYearKpiData ? ((data.newCustomers - previousYearKpiData.newCustomers) / previousYearKpiData.newCustomers) * 100 : undefined,
-                changeType: previousYearKpiData && data.newCustomers >= previousYearKpiData.newCustomers ? 'increase' : 'decrease',
-                icon: <Users className="w-4 h-4" />,
-                description: "First-time customers acquired"
-              }}
-              dateRange={filters}
-              onRefresh={handleRefresh}
-            />
-          </div>
-        )}
-      </DataStateWrapper>
-
-      {/* Main Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Revenue & Orders Chart */}
+      <div className="space-y-8">
+        {/* Enhanced KPI Cards with Drill-Through */}
         <DataStateWrapper
-          data={dashboardChartData}
-          loading={chartsDataFetcher.loading}
-          error={chartsDataFetcher.error}
-          onRetry={() => chartsDataFetcher.refetch()}
-          loadingComponent={<ChartSkeleton />}
-          isEmpty={(data) => !data || data.length === 0}
-          emptyComponent={
-            <EmptyState 
-              title="No chart data available"
-              description="No revenue or order data found for the selected period"
-              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+          data={kpiData}
+          loading={kpiDataFetcher.loading}
+          error={kpiDataFetcher.error}
+          onRetry={kpiDataFetcher.refetch}
+          loadingComponent={
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <KPICardSkeleton key={i} />
+              ))}
+            </div>
+          }
+          errorComponent={
+            <ErrorState 
+              error={kpiDataFetcher.error!} 
+              onRetry={kpiDataFetcher.refetch}
+              title="Failed to load KPI data"
+              description="Unable to fetch key performance indicators"
+              showDetails={true}
             />
           }
         >
           {(data) => (
-            <ChartCard
-              title="Revenue & Orders Performance"
-              description="Track revenue and order volume trends"
-            >
-              <div className="h-80">
-                <EnhancedDrillThroughChart
-                  title="Revenue & Orders Performance"
-                  data={data.map(item => ({
-                    date: item.date,
-                    revenue: item.total_revenue || 0,
-                    orders: item.total_orders || 0,
-                    total_revenue: item.total_revenue || 0,
-                    total_orders: item.total_orders || 0,
-                    ...item
-                  }))}
-                  type="line"
-                  primaryKey="total_revenue"
-                  secondaryKey="total_orders"
-                  dateRange={filters}
-                />
-              </div>
-            </ChartCard>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <EnhancedDrillThroughKPI
+                data={{
+                  title: "Total Revenue",
+                  value: data.totalRevenue || 0,
+                  change: previousYearKpiData ? ((data.totalRevenue - previousYearKpiData.totalRevenue) / previousYearKpiData.totalRevenue) * 100 : undefined,
+                  changeType: previousYearKpiData && data.totalRevenue >= previousYearKpiData.totalRevenue ? 'increase' : 'decrease',
+                  icon: <DollarSign className="w-4 h-4" />,
+                  description: "Total revenue from completed orders"
+                }}
+                dateRange={filters}
+                onRefresh={handleRefresh}
+              />
+              <EnhancedDrillThroughKPI
+                data={{
+                  title: "Total Orders",
+                  value: data.totalOrders || 0,
+                  change: previousYearKpiData ? ((data.totalOrders - previousYearKpiData.totalOrders) / previousYearKpiData.totalOrders) * 100 : undefined,
+                  changeType: previousYearKpiData && data.totalOrders >= previousYearKpiData.totalOrders ? 'increase' : 'decrease',
+                  icon: <ShoppingCart className="w-4 h-4" />,
+                  description: "Number of completed orders"
+                }}
+                dateRange={filters}
+                onRefresh={handleRefresh}
+              />
+              <EnhancedDrillThroughKPI
+                data={{
+                  title: "Average Order Value",
+                  value: data.avgOrderValue || 0,
+                  change: previousYearKpiData ? ((data.avgOrderValue - previousYearKpiData.avgOrderValue) / previousYearKpiData.avgOrderValue) * 100 : undefined,
+                  changeType: previousYearKpiData && data.avgOrderValue >= previousYearKpiData.avgOrderValue ? 'increase' : 'decrease',
+                  icon: <Target className="w-4 h-4" />,
+                  description: "Average value per order"
+                }}
+                dateRange={filters}
+                onRefresh={handleRefresh}
+              />
+              <EnhancedDrillThroughKPI
+                data={{
+                  title: "New Customers",
+                  value: data.newCustomers || 0,
+                  change: previousYearKpiData ? ((data.newCustomers - previousYearKpiData.newCustomers) / previousYearKpiData.newCustomers) * 100 : undefined,
+                  changeType: previousYearKpiData && data.newCustomers >= previousYearKpiData.newCustomers ? 'increase' : 'decrease',
+                  icon: <Users className="w-4 h-4" />,
+                  description: "First-time customers acquired"
+                }}
+                dateRange={filters}
+                onRefresh={handleRefresh}
+              />
+            </div>
           )}
         </DataStateWrapper>
 
-        {/* Sales by Source Chart */}
-        <DataStateWrapper
-          data={salesOriginData}
-          loading={salesOriginDataFetcher.loading}
-          error={salesOriginDataFetcher.error}
-          onRetry={() => salesOriginDataFetcher.refetch()}
-          loadingComponent={<ChartSkeleton />}
-          isEmpty={(data) => !data || data.length === 0}
-          emptyComponent={
-            <EmptyState 
-              title="No sales origin data available"
-              description="No sales channel data found for the selected period"
-              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-            />
-          }
-        >
-          {(data) => (
-            <ChartCard
-              title="Sales by Source"
-              description="Revenue breakdown by sales channel"
-            >
-              <div className="h-80">
-                <SalesOriginChart
-                  data={data}
-                  currency={currency}
-                  loading={salesOriginDataFetcher.loading}
-                />
-              </div>
-            </ChartCard>
-          )}
-        </DataStateWrapper>
-      </div>
-
-      {/* Order Timing Analysis and Peak Hours */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* Order Timing Analysis - Takes 2/3 width */}
-        <div className="lg:col-span-2">
+        {/* Main Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Revenue & Orders Chart */}
           <DataStateWrapper
-            data={orderTimingData}
+            data={dashboardChartData}
             loading={chartsDataFetcher.loading}
             error={chartsDataFetcher.error}
             onRetry={() => chartsDataFetcher.refetch()}
@@ -478,31 +400,274 @@ const DashboardPage: React.FC = () => {
             isEmpty={(data) => !data || data.length === 0}
             emptyComponent={
               <EmptyState 
-                title="No timing data available"
-                description="No order timing data found for the selected period"
+                title="No chart data available"
+                description="No revenue or order data found for the selected period"
                 icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
               />
             }
           >
             {(data) => (
               <ChartCard
-                title="Order Timing Analysis"
-                description="Hourly order distribution patterns"
+                title="Revenue & Orders Performance"
+                description="Track revenue and order volume trends"
               >
                 <div className="h-80">
                   <EnhancedDrillThroughChart
-                    title="Order Timing Analysis"
-                    data={data
-                      .sort((a, b) => a.hour - b.hour)
-                      .map(item => ({
-                        date: getHourLabel(item.hour),
-                        orders: item.order_count || 0,
-                        hour: item.hour,
-                        percentage: item.percentage || 0,
-                        ...item
-                      }))}
-                    type="area"
-                    primaryKey="order_count"
+                    title="Revenue & Orders Performance"
+                    data={data.map(item => ({
+                      date: item.date,
+                      revenue: item.total_revenue || 0,
+                      orders: item.total_orders || 0,
+                      total_revenue: item.total_revenue || 0,
+                      total_orders: item.total_orders || 0,
+                      ...item
+                    }))}
+                    type="line"
+                    primaryKey="total_revenue"
+                    secondaryKey="total_orders"
+                    dateRange={filters}
+                  />
+                </div>
+              </ChartCard>
+            )}
+          </DataStateWrapper>
+
+          {/* Sales by Source Chart */}
+          <DataStateWrapper
+            data={salesOriginData}
+            loading={salesOriginDataFetcher.loading}
+            error={salesOriginDataFetcher.error}
+            onRetry={() => salesOriginDataFetcher.refetch()}
+            loadingComponent={<ChartSkeleton />}
+            isEmpty={(data) => !data || data.length === 0}
+            emptyComponent={
+              <EmptyState 
+                title="No sales origin data available"
+                description="No sales channel data found for the selected period"
+                icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+              />
+            }
+          >
+            {(data) => (
+              <ChartCard
+                title="Sales by Source"
+                description="Revenue breakdown by sales channel"
+              >
+                <div className="h-80">
+                  <SalesOriginChart
+                    data={data}
+                    currency={currency}
+                    loading={salesOriginDataFetcher.loading}
+                  />
+                </div>
+              </ChartCard>
+            )}
+          </DataStateWrapper>
+        </div>
+
+        {/* Order Timing Analysis and Peak Hours */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Order Timing Analysis - Takes 2/3 width */}
+          <div className="lg:col-span-2">
+            <DataStateWrapper
+              data={orderTimingData}
+              loading={chartsDataFetcher.loading}
+              error={chartsDataFetcher.error}
+              onRetry={() => chartsDataFetcher.refetch()}
+              loadingComponent={<ChartSkeleton />}
+              isEmpty={(data) => !data || data.length === 0}
+              emptyComponent={
+                <EmptyState 
+                  title="No timing data available"
+                  description="No order timing data found for the selected period"
+                  icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+                />
+              }
+            >
+              {(data) => (
+                <ChartCard
+                  title="Order Timing Analysis"
+                  description="Hourly order distribution patterns"
+                >
+                  <div className="h-80">
+                    <EnhancedDrillThroughChart
+                      title="Order Timing Analysis"
+                      data={data
+                        .sort((a, b) => a.hour - b.hour)
+                        .map(item => ({
+                          date: getHourLabel(item.hour),
+                          orders: item.order_count || 0,
+                          hour: item.hour,
+                          percentage: item.percentage || 0,
+                          ...item
+                        }))}
+                      type="area"
+                      primaryKey="order_count"
+                      dateRange={filters}
+                    />
+                  </div>
+                </ChartCard>
+              )}
+            </DataStateWrapper>
+          </div>
+
+          {/* Peak Hours Insights - Takes 1/3 width */}
+          <div className="lg:col-span-1">
+            {orderTimingData.length > 0 && (
+              <ChartCard
+                title="Peak Hours Insights"
+                description="Busiest and quietest periods"
+              >
+                <div className="h-80 flex flex-col space-y-4">
+                  {/* Busiest Hours */}
+                  <div className="flex-1">
+                    <h4 className="font-medium text-black mb-3 text-sm">🔥 Busiest Hours</h4>
+                    <div className="space-y-2">
+                      {getBusiestHours(orderTimingData, 3).map((data, index) => (
+                        <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-red-50">
+                          <div className="flex items-center space-x-2">
+                            <span className="w-5 h-5 bg-red-100 text-red-600 flex items-center justify-center text-xs font-medium">
+                              {index + 1}
+                            </span>
+                            <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
+                            <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Quietest Hours */}
+                  <div className="flex-1">
+                    <h4 className="font-medium text-black mb-3 text-sm">😴 Quietest Hours</h4>
+                    <div className="space-y-2">
+                      {orderTimingData
+                        .filter(data => data.order_count > 0)
+                        .sort((a, b) => a.order_count - b.order_count)
+                        .slice(0, 3)
+                        .map((data, index) => (
+                        <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-blue-50">
+                          <div className="flex items-center space-x-2">
+                            <span className="w-5 h-5 bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-medium">
+                              {index + 1}
+                            </span>
+                            <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
+                            <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Summary Stats */}
+                  <div className="border-t pt-3 mt-auto">
+                    <div className="text-center">
+                      <div className="text-sm text-gray-600 mb-1">Total Orders</div>
+                      <div className="font-semibold text-lg text-black">
+                        {formatNumber(orderTimingData.reduce((sum, item) => sum + item.order_count, 0))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </ChartCard>
+            )}
+          </div>
+        </div>
+
+        {/* Top Products and Top Customers */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Top Products */}
+          <DataStateWrapper
+            data={productData}
+            loading={productsDataFetcher.loading}
+            error={productsDataFetcher.error}
+            onRetry={() => productsDataFetcher.refetch()}
+            loadingComponent={<ChartSkeleton />}
+            isEmpty={(data) => !data || data.length === 0}
+            emptyComponent={
+              <EmptyState 
+                title="No product data available"
+                description="No product performance data found for the selected period"
+                icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+              />
+            }
+          >
+            {(data) => (
+              <ChartCard
+                title="Top 10 Products"
+                description="Best performing products by revenue"
+              >
+                <div className="h-80">
+                  <EnhancedDrillThroughList
+                    title="Top 10 Products"
+                    items={data.slice(0, 10).map((product, index) => ({
+                      id: `product-${index}`,
+                      name: product.product,
+                      value: product.revenue,
+                      secondaryValue: product.unitsSold,
+                      change: Math.random() * 20 - 10, // Mock change data - would need historical comparison
+                      trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
+                      metadata: {
+                        unitsSold: product.unitsSold,
+                        aov: product.aov || product.avgOrderValue,
+                        refunds: product.refunds,
+                        orderCount: product.orderCount,
+                        customerCount: product.customerCount,
+                        repeatOrderRate: product.repeatOrderRate
+                      }
+                    }))}
+                    type="products"
+                    dateRange={filters}
+                  />
+                </div>
+              </ChartCard>
+            )}
+          </DataStateWrapper>
+
+          {/* Top Customers */}
+          <DataStateWrapper
+            data={topCustomersData}
+            loading={topCustomersDataFetcher.loading}
+            error={topCustomersDataFetcher.error}
+            onRetry={() => topCustomersDataFetcher.refetch()}
+            loadingComponent={<ChartSkeleton />}
+            isEmpty={(data) => !data || data.length === 0}
+            emptyComponent={
+              <EmptyState 
+                title="No customer data available"
+                description="No customer data found for the selected period"
+                icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
+              />
+            }
+          >
+            {(data) => (
+              <ChartCard
+                title="Top Customers"
+                description="Highest value customers by revenue"
+              >
+                <div className="h-80">
+                  <EnhancedDrillThroughList
+                    title="Top Customers"
+                    items={data.slice(0, 10).map((customer) => ({
+                      id: customer.customer_id,
+                      name: customer.customer_name,
+                      value: customer.total_spent,
+                      secondaryValue: customer.order_count,
+                      change: Math.random() * 30 - 15, // Mock change data
+                      trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
+                      metadata: {
+                        orderCount: customer.order_count,
+                        avgOrderValue: customer.avg_order_value,
+                        lastOrderDate: customer.last_order_date
+                      }
+                    }))}
+                    type="customers"
                     dateRange={filters}
                   />
                 </div>
@@ -511,173 +676,7 @@ const DashboardPage: React.FC = () => {
           </DataStateWrapper>
         </div>
 
-        {/* Peak Hours Insights - Takes 1/3 width */}
-        <div className="lg:col-span-1">
-          {orderTimingData.length > 0 && (
-            <ChartCard
-              title="Peak Hours Insights"
-              description="Busiest and quietest periods"
-            >
-              <div className="h-80 flex flex-col space-y-6">
-                {/* Busiest Hours */}
-                <div className="flex-1">
-                  <h4 className="font-medium text-black mb-4 text-base">🔥 Busiest Hours</h4>
-                  <div className="space-y-3">
-                    {getBusiestHours(orderTimingData, 3).map((data, index) => (
-                      <div key={data.hour} className="flex items-center justify-between py-3 px-4 bg-red-50">
-                        <div className="flex items-center space-x-3">
-                          <span className="w-6 h-6 bg-red-100 text-red-600 flex items-center justify-center text-sm font-medium">
-                            {index + 1}
-                          </span>
-                          <span className="font-medium text-black text-base">{getHourLabel(data.hour)}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-medium text-black text-base">{formatNumber(data.order_count)}</span>
-                          <span className="text-sm text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quietest Hours */}
-                <div className="flex-1">
-                  <h4 className="font-medium text-black mb-4 text-base">😴 Quietest Hours</h4>
-                  <div className="space-y-3">
-                    {orderTimingData
-                      .filter(data => data.order_count > 0)
-                      .sort((a, b) => a.order_count - b.order_count)
-                      .slice(0, 3)
-                      .map((data, index) => (
-                      <div key={data.hour} className="flex items-center justify-between py-3 px-4 bg-blue-50">
-                        <div className="flex items-center space-x-3">
-                          <span className="w-6 h-6 bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-medium">
-                            {index + 1}
-                          </span>
-                          <span className="font-medium text-black text-base">{getHourLabel(data.hour)}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-medium text-black text-base">{formatNumber(data.order_count)}</span>
-                          <span className="text-sm text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Summary Stats */}
-                <div className="border-t pt-6 mt-auto">
-                  <div className="text-center">
-                    <div className="text-base text-gray-600 mb-2">Total Orders</div>
-                    <div className="font-semibold text-2xl text-black">
-                      {formatNumber(orderTimingData.reduce((sum, item) => sum + item.order_count, 0))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </ChartCard>
-          )}
-        </div>
-      </div>
-
-      {/* Top Products and Top Customers */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Top Products */}
-        <DataStateWrapper
-          data={productData}
-          loading={productsDataFetcher.loading}
-          error={productsDataFetcher.error}
-          onRetry={() => productsDataFetcher.refetch()}
-          loadingComponent={<ChartSkeleton />}
-          isEmpty={(data) => !data || data.length === 0}
-          emptyComponent={
-            <EmptyState 
-              title="No product data available"
-              description="No product performance data found for the selected period"
-              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-            />
-          }
-        >
-          {(data) => (
-            <ChartCard
-              title="Top 10 Products"
-              description="Best performing products by revenue"
-            >
-              <div className="h-80">
-                <EnhancedDrillThroughList
-                  title="Top 10 Products"
-                  items={data.slice(0, 10).map((product, index) => ({
-                    id: `product-${index}`,
-                    name: product.product,
-                    value: product.revenue,
-                    secondaryValue: product.unitsSold,
-                    change: Math.random() * 20 - 10, // Mock change data - would need historical comparison
-                    trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
-                    metadata: {
-                      unitsSold: product.unitsSold,
-                      aov: product.aov || product.avgOrderValue,
-                      refunds: product.refunds,
-                      orderCount: product.orderCount,
-                      customerCount: product.customerCount,
-                      repeatOrderRate: product.repeatOrderRate
-                    }
-                  }))}
-                  type="products"
-                  dateRange={filters}
-                />
-              </div>
-            </ChartCard>
-          )}
-        </DataStateWrapper>
-
-        {/* Top Customers */}
-        <DataStateWrapper
-          data={topCustomersData}
-          loading={topCustomersDataFetcher.loading}
-          error={topCustomersDataFetcher.error}
-          onRetry={() => topCustomersDataFetcher.refetch()}
-          loadingComponent={<ChartSkeleton />}
-          isEmpty={(data) => !data || data.length === 0}
-          emptyComponent={
-            <EmptyState 
-              title="No customer data available"
-              description="No customer data found for the selected period"
-              icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-            />
-          }
-        >
-          {(data) => (
-            <ChartCard
-              title="Top Customers"
-              description="Highest value customers by revenue"
-            >
-              <div className="h-80">
-                <EnhancedDrillThroughList
-                  title="Top Customers"
-                  items={data.slice(0, 10).map((customer) => ({
-                    id: customer.customer_id,
-                    name: customer.customer_name,
-                    value: customer.total_spent,
-                    secondaryValue: customer.order_count,
-                    change: Math.random() * 30 - 15, // Mock change data
-                    trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
-                    metadata: {
-                      orderCount: customer.order_count,
-                      avgOrderValue: customer.avg_order_value,
-                      lastOrderDate: customer.last_order_date
-                    }
-                  }))}
-                  type="customers"
-                  dateRange={filters}
-                />
-              </div>
-            </ChartCard>
-          )}
-        </DataStateWrapper>
-      </div>
-
-      {/* Enhanced Business Insights with Drill-Through */}
-      <div className="mb-8">
+        {/* Enhanced Business Insights with Drill-Through */}
         <Card className="card-minimal hover:shadow-sm transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -700,14 +699,14 @@ const DashboardPage: React.FC = () => {
             />
           </CardContent>
         </Card>
-      </div>
 
-      {/* Help Section */}
-      <HelpSection 
-        title="Dashboard Help & Information"
-        items={getDashboardHelpItems()}
-        defaultOpen={false}
-      />
+        {/* Help Section */}
+        <HelpSection 
+          title="Dashboard Help & Information"
+          items={getDashboardHelpItems()}
+          defaultOpen={false}
+        />
+      </div>
     </AppLayout>
   )
 }
