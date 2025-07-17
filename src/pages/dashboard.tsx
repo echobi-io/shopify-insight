@@ -388,7 +388,7 @@ const DashboardPage: React.FC = () => {
           )}
         </DataStateWrapper>
 
-        {/* Main Charts */}
+        {/* Main Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Revenue & Orders Chart */}
           <DataStateWrapper
@@ -465,7 +465,7 @@ const DashboardPage: React.FC = () => {
           </DataStateWrapper>
         </div>
 
-        {/* Order Timing Analysis and Peak Hours */}
+        {/* Order Timing Analysis Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Order Timing Analysis - Takes 2/3 width */}
           <div className="lg:col-span-2">
