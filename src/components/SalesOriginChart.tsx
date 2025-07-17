@@ -77,6 +77,7 @@ const SalesOriginChart: React.FC<SalesOriginChartProps> = ({
   // Custom tooltip for bar chart
   const BarTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      const data = payload[0].payload
       return (
         <div className="bg-white p-3 border rounded-lg shadow-lg">
           <p className="font-medium">{label}</p>
@@ -84,7 +85,7 @@ const SalesOriginChart: React.FC<SalesOriginChartProps> = ({
             Orders: {formatNumber(payload[0].value)}
           </p>
           <p className="text-sm text-muted-foreground">
-            Revenue: {formatCurrency(payload[1].value, currency)}
+            Revenue: {formatCurrency(data.total_revenue, currency)}
           </p>
         </div>
       )

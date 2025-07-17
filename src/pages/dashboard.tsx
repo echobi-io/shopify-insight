@@ -473,21 +473,23 @@ const DashboardPage: React.FC = () => {
             }
           >
             {(data) => (
-              <EnhancedDrillThroughChart
-                title="Order Timing Analysis"
-                data={data
-                  .sort((a, b) => a.hour - b.hour) // Sort by time (hour) instead of value
-                  .map(item => ({
-                    date: getHourLabel(item.hour),
-                    orders: item.order_count || 0,
-                    hour: item.hour,
-                    percentage: item.percentage || 0,
-                    ...item
-                  }))}
-                type="area"
-                primaryKey="order_count"
-                dateRange={filters}
-              />
+              <div className="h-[500px]">
+                <EnhancedDrillThroughChart
+                  title="Order Timing Analysis"
+                  data={data
+                    .sort((a, b) => a.hour - b.hour) // Sort by time (hour) instead of value
+                    .map(item => ({
+                      date: getHourLabel(item.hour),
+                      orders: item.order_count || 0,
+                      hour: item.hour,
+                      percentage: item.percentage || 0,
+                      ...item
+                    }))}
+                  type="area"
+                  primaryKey="order_count"
+                  dateRange={filters}
+                />
+              </div>
             )}
           </DataStateWrapper>
         </div>
@@ -498,23 +500,23 @@ const DashboardPage: React.FC = () => {
             <ChartCard
               title="Peak Hours Insights"
               description="Busiest and quietest periods"
-              className="card-minimal h-full"
+              className="card-minimal h-[500px] flex flex-col"
             >
-              <div className="space-y-6">
+              <div className="flex-1 flex flex-col justify-between space-y-4">
                 {/* Busiest Hours */}
-                <div>
-                  <h4 className="font-medium text-black mb-3">🔥 Busiest Hours</h4>
-                  <div className="space-y-2">
+                <div className="flex-1">
+                  <h4 className="font-medium text-black mb-2 text-sm">🔥 Busiest Hours</h4>
+                  <div className="space-y-1.5">
                     {getBusiestHours(orderTimingData, 3).map((data, index) => (
-                      <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-red-50 rounded-lg">
+                      <div key={data.hour} className="flex items-center justify-between py-1.5 px-2.5 bg-red-50 rounded-md">
                         <div className="flex items-center space-x-2">
-                          <span className="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-medium">
+                          <span className="w-4 h-4 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-medium">
                             {index + 1}
                           </span>
-                          <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
+                          <span className="font-medium text-black text-xs">{getHourLabel(data.hour)}</span>
                         </div>
                         <div className="text-right">
-                          <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
+                          <span className="font-medium text-black text-xs">{formatNumber(data.order_count)}</span>
                           <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
                         </div>
                       </div>
@@ -523,27 +525,37 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Quietest Hours */}
-                <div>
-                  <h4 className="font-medium text-black mb-3">😴 Quietest Hours</h4>
-                  <div className="space-y-2">
+                <div className="flex-1">
+                  <h4 className="font-medium text-black mb-2 text-sm">😴 Quietest Hours</h4>
+                  <div className="space-y-1.5">
                     {orderTimingData
                       .filter(data => data.order_count > 0)
                       .sort((a, b) => a.order_count - b.order_count)
                       .slice(0, 3)
                       .map((data, index) => (
-                      <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-blue-50 rounded-lg">
+                      <div key={data.hour} className="flex items-center justify-between py-1.5 px-2.5 bg-blue-50 rounded-md">
                         <div className="flex items-center space-x-2">
-                          <span className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                          <span className="w-4 h-4 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
                             {index + 1}
                           </span>
-                          <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
+                          <span className="font-medium text-black text-xs">{getHourLabel(data.hour)}</span>
                         </div>
                         <div className="text-right">
-                          <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
+                          <span className="font-medium text-black text-xs">{formatNumber(data.order_count)}</span>
                           <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                {/* Summary Stats */}
+                <div className="border-t pt-3 mt-3">
+                  <div className="text-center">
+                    <div className="text-xs text-gray-600 mb-1">Total Orders</div>
+                    <div className="font-semibold text-sm text-black">
+                      {formatNumber(orderTimingData.reduce((sum, item) => sum + item.order_count, 0))}
+                    </div>
                   </div>
                 </div>
               </div>
