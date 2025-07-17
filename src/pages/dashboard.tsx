@@ -582,91 +582,10 @@ const DashboardPage: React.FC = () => {
         {/* Bottom Row: Top Products and Top Customers */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Top Products */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <DataStateWrapper
-              data={productData}
-              loading={productsDataFetcher.loading}
-              error={productsDataFetcher.error}
-              onRetry={() => productsDataFetcher.refetch()}
-              loadingComponent={<ChartSkeleton />}
-              isEmpty={(data) => !data || data.length === 0}
-              emptyComponent={
-                <EmptyState 
-                  title="No product data available"
-                  description="No product performance data found for the selected period"
-                  icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-                />
-              }
-            >
-              {(data) => (
-                <div className="h-[400px]">
-                  <EnhancedDrillThroughList
-                    title="Top 10 Products"
-                    items={data.slice(0, 10).map((product, index) => ({
-                      id: `product-${index}`,
-                      name: product.product,
-                      value: product.revenue,
-                      secondaryValue: product.unitsSold,
-                      change: Math.random() * 20 - 10, // Mock change data - would need historical comparison
-                      trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
-                      metadata: {
-                        unitsSold: product.unitsSold,
-                        aov: product.aov || product.avgOrderValue,
-                        refunds: product.refunds,
-                        orderCount: product.orderCount,
-                        customerCount: product.customerCount,
-                        repeatOrderRate: product.repeatOrderRate
-                      }
-                    }))}
-                    type="products"
-                    dateRange={filters}
-                  />
-                </div>
-              )}
-            </DataStateWrapper>
-          </div>
+          
 
           {/* Top Customers */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <DataStateWrapper
-              data={topCustomersData}
-              loading={topCustomersDataFetcher.loading}
-              error={topCustomersDataFetcher.error}
-              onRetry={() => topCustomersDataFetcher.refetch()}
-              loadingComponent={<ChartSkeleton />}
-              isEmpty={(data) => !data || data.length === 0}
-              emptyComponent={
-                <EmptyState 
-                  title="No customer data available"
-                  description="No customer data found for the selected period"
-                  icon={<AlertCircle className="h-12 w-12 text-muted-foreground" />}
-                />
-              }
-            >
-              {(data) => (
-                <div className="h-[400px]">
-                  <EnhancedDrillThroughList
-                    title="Top Customers"
-                    items={data.slice(0, 10).map((customer) => ({
-                      id: customer.customer_id,
-                      name: customer.customer_name,
-                      value: customer.total_spent,
-                      secondaryValue: customer.order_count,
-                      change: Math.random() * 30 - 15, // Mock change data
-                      trend: Math.random() > 0.5 ? 'up' : Math.random() > 0.5 ? 'down' : 'stable',
-                      metadata: {
-                        orderCount: customer.order_count,
-                        avgOrderValue: customer.avg_order_value,
-                        lastOrderDate: customer.last_order_date
-                      }
-                    }))}
-                    type="customers"
-                    dateRange={filters}
-                  />
-                </div>
-              )}
-            </DataStateWrapper>
-          </div>
+          
         </div>
       </div>
 
