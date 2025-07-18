@@ -3,9 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { AlertCircle } from 'lucide-react'
 import { EnhancedDrillThroughKPI } from '@/components/EnhancedDrillThroughKPI'
 import { EnhancedDrillThroughChart } from '@/components/EnhancedDrillThroughChart'
-import { EnhancedDrillThroughList } from '@/components/EnhancedDrillThroughList'
 import { getKPIsOptimized, getPreviousYearKPIsOptimized, type KPIData } from '@/lib/fetchers/getKpisOptimized'
-import { getProductData } from '@/lib/fetchers/getProductData'
 import { 
   getDashboardChartsData, 
   getHourLabel, 
@@ -16,7 +14,7 @@ import {
 import { getSalesOriginData, type SalesOriginData } from '@/lib/fetchers/getSalesOriginData'
 import { formatCurrency, getSettings, getInitialTimeframe } from '@/lib/utils/settingsUtils'
 import { getDateRangeFromTimeframe, formatDateForSQL } from '@/lib/utils/dateUtils'
-import { getTopCustomersData, TopCustomer } from '@/lib/fetchers/getTopCustomersData'
+
 import { useDataFetcher } from '@/hooks/useDataFetcher'
 import { 
   LoadingOverlay, 
@@ -124,59 +122,7 @@ const DashboardPage: React.FC = () => {
     }
   )
 
-  // Products data fetcher
-  const productsDataFetcher = useDataFetcher(
-    useCallback(async () => {
-      try {
-        const data = await getProductData(filters, MERCHANT_ID)
-        return {
-          data,
-          error: null,
-          loading: false,
-          success: true
-        }
-      } catch (error) {
-        return {
-          data: null,
-          error: error instanceof Error ? error : new Error(String(error)),
-          loading: false,
-          success: false
-        }
-      }
-    }, [filters]),
-    {
-      enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
-      refetchOnWindowFocus: false,
-      onError: (error) => console.error('❌ Error loading products data:', error)
-    }
-  )
 
-  // Top customers data fetcher
-  const topCustomersDataFetcher = useDataFetcher(
-    useCallback(async () => {
-      try {
-        const data = await getTopCustomersData(filters.startDate, filters.endDate)
-        return {
-          data,
-          error: null,
-          loading: false,
-          success: true
-        }
-      } catch (error) {
-        return {
-          data: null,
-          error: error instanceof Error ? error : new Error(String(error)),
-          loading: false,
-          success: false
-        }
-      }
-    }, [filters]),
-    {
-      enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
-      refetchOnWindowFocus: false,
-      onError: (error) => console.error('❌ Error loading top customers data:', error)
-    }
-  )
 
   // Sales origin data fetcher
   const salesOriginDataFetcher = useDataFetcher(
@@ -242,11 +188,9 @@ const DashboardPage: React.FC = () => {
   // Extract data with fallbacks
   const kpiData = kpiDataFetcher.data
   const previousYearKpiData = previousYearKpiDataFetcher.data
-  const productData = productsDataFetcher.data || []
   const chartsData = chartsDataFetcher.data || { dailyData: [], orderTimingData: [] }
   const dashboardChartData = chartsData.dailyData || []
   const orderTimingData = chartsData.orderTimingData || []
-  const topCustomersData = topCustomersDataFetcher.data || []
   const salesOriginData = salesOriginDataFetcher.data || []
 
   // Debug KPI data
@@ -277,11 +221,9 @@ const DashboardPage: React.FC = () => {
     kpiDataFetcher.refetch()
     previousYearKpiDataFetcher.refetch()
     chartsDataFetcher.refetch()
-    productsDataFetcher.refetch()
-    topCustomersDataFetcher.refetch()
     salesOriginDataFetcher.refetch()
     settingsDataFetcher.refetch()
-  }, [kpiDataFetcher, previousYearKpiDataFetcher, chartsDataFetcher, productsDataFetcher, topCustomersDataFetcher, salesOriginDataFetcher, settingsDataFetcher])
+  }, [kpiDataFetcher, previousYearKpiDataFetcher, chartsDataFetcher, salesOriginDataFetcher, settingsDataFetcher])
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-US').format(value)
@@ -532,80 +474,7 @@ const DashboardPage: React.FC = () => {
             </ChartCard>
         </div>
 
-        {/* Top Products and Top Customers */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Products */}
-          <ChartCard
-            title="Top 10 Products"
-            description="Best performing products by revenue"
-            hasData={productData.length > 0}
-            noDataMessage="No product performance data found for the selected period"
-            noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
-          >
-            <div className="h-[400px] overflow-y-auto">
-              <div className="space-y-2">
-                {productData.slice(0, 10).map((product, index) => (
-                  <div 
-                    key={`product-${index}`} 
-                    className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 text-sm font-medium">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-medium text-black text-sm truncate">{product.product}</p>
-                        <p className="text-xs text-gray-500">
-                          {product.unitsSold} units • {product.orderCount || 0} orders
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-black text-sm tabular-nums">${product.revenue.toLocaleString()}</p>
-                      <p className="text-xs text-gray-500 tabular-nums">${(product.aov || product.avgOrderValue || 0).toFixed(0)} AOV</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </ChartCard>
 
-          {/* Top Customers */}
-          <ChartCard
-            title="Top Customers"
-            description="Highest value customers by revenue"
-            hasData={topCustomersData.length > 0}
-            noDataMessage="No customer data found for the selected period"
-            noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
-          >
-            <div className="h-[400px] overflow-y-auto">
-              <div className="space-y-2">
-                {topCustomersData.slice(0, 10).map((customer, index) => (
-                  <div 
-                    key={customer.customer_id} 
-                    className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-600 text-sm font-medium">
-                        {index + 1}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-black text-sm truncate">{customer.customer_name}</p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {customer.order_count} orders
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="font-medium text-black text-sm tabular-nums">${customer.total_spent.toLocaleString()}</p>
-                      <p className="text-xs text-gray-500 tabular-nums">${customer.avg_order_value.toFixed(0)} AOV</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </ChartCard>
-        </div>
 
         {/* Enhanced Business Insights */}
         <ChartCard
@@ -615,8 +484,8 @@ const DashboardPage: React.FC = () => {
           <BusinessInsights
             kpiData={kpiData}
             previousYearKpiData={previousYearKpiData}
-            productData={productData}
-            topCustomersData={topCustomersData}
+            productData={[]}
+            topCustomersData={[]}
             orderTimingData={orderTimingData}
             currency={currency}
             dateRange={filters}
