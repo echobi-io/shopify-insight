@@ -310,7 +310,7 @@ const DashboardPage: React.FC = () => {
         }
       />
 
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Enhanced KPI Cards with Drill-Through */}
         <DataStateWrapper
           data={kpiData}
@@ -318,7 +318,7 @@ const DashboardPage: React.FC = () => {
           error={kpiDataFetcher.error}
           onRetry={kpiDataFetcher.refetch}
           loadingComponent={
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {Array.from({ length: 4 }).map((_, i) => (
                 <KPICardSkeleton key={i} />
               ))}
@@ -335,7 +335,7 @@ const DashboardPage: React.FC = () => {
           }
         >
           {(data) => (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <EnhancedDrillThroughKPI
                 data={{
                   title: "Total Revenue",
@@ -389,7 +389,7 @@ const DashboardPage: React.FC = () => {
         </DataStateWrapper>
 
         {/* Main Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Revenue & Orders Chart */}
           <ChartCard
             title="Revenue & Orders Performance"
@@ -398,7 +398,7 @@ const DashboardPage: React.FC = () => {
             noDataMessage="No revenue or order data found for the selected period"
             noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
           >
-            <div className="h-64">
+            <div className="h-[400px]">
               <EnhancedDrillThroughChart
                 title="Revenue & Orders Performance"
                 data={dashboardChartData.map(item => ({
@@ -425,7 +425,7 @@ const DashboardPage: React.FC = () => {
             noDataMessage="No sales channel data found for the selected period"
             noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
           >
-            <div className="h-64">
+            <div className="h-[400px]">
               <SalesOriginChart
                 data={salesOriginData}
                 currency={currency}
@@ -436,17 +436,16 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Order Timing Analysis Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Order Timing Analysis - Takes 2/3 width */}
-          <div className="lg:col-span-2">
-            <ChartCard
-              title="Order Timing Analysis"
-              description="Hourly order distribution patterns"
-              hasData={orderTimingData.length > 0}
-              noDataMessage="No order timing data found for the selected period"
-              noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
-            >
-              <div className="h-64">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Order Timing Analysis */}
+          <ChartCard
+            title="Order Timing Analysis"
+            description="Hourly order distribution patterns"
+            hasData={orderTimingData.length > 0}
+            noDataMessage="No order timing data found for the selected period"
+            noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
+          >
+            <div className="h-[350px]">
                 <EnhancedDrillThroughChart
                   title="Order Timing Analysis"
                   data={orderTimingData
@@ -464,18 +463,16 @@ const DashboardPage: React.FC = () => {
                 />
               </div>
             </ChartCard>
-          </div>
 
-          {/* Peak Hours Insights - Takes 1/3 width */}
-          <div className="lg:col-span-1">
-            <ChartCard
-              title="Peak Hours Insights"
-              description="Busiest and quietest periods"
-              hasData={orderTimingData.length > 0}
-              noDataMessage="No timing data available"
-              noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
-            >
-              <div className="h-64 flex flex-col space-y-4">
+          {/* Peak Hours Insights */}
+          <ChartCard
+            title="Peak Hours Insights"
+            description="Busiest and quietest periods"
+            hasData={orderTimingData.length > 0}
+            noDataMessage="No timing data available"
+            noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
+          >
+            <div className="h-[350px] flex flex-col space-y-4">
                 {/* Busiest Hours */}
                 <div className="flex-1">
                   <h4 className="font-medium text-black mb-3 text-sm">🔥 Busiest Hours</h4>
@@ -533,11 +530,10 @@ const DashboardPage: React.FC = () => {
                 </div>
               </div>
             </ChartCard>
-          </div>
         </div>
 
         {/* Top Products and Top Customers */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Top Products */}
           <ChartCard
             title="Top 10 Products"
@@ -546,29 +542,31 @@ const DashboardPage: React.FC = () => {
             noDataMessage="No product performance data found for the selected period"
             noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
           >
-            <div className="space-y-3">
-              {productData.slice(0, 10).map((product, index) => (
-                <div 
-                  key={`product-${index}`} 
-                  className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 text-sm font-medium">
-                      {index + 1}
+            <div className="h-[400px] overflow-y-auto">
+              <div className="space-y-2">
+                {productData.slice(0, 10).map((product, index) => (
+                  <div 
+                    key={`product-${index}`} 
+                    className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 text-sm font-medium">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-black text-sm truncate">{product.product}</p>
+                        <p className="text-xs text-gray-500">
+                          {product.unitsSold} units • {product.orderCount || 0} orders
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-black text-sm truncate">{product.product}</p>
-                      <p className="text-xs text-gray-500">
-                        {product.unitsSold} units • {product.orderCount || 0} orders
-                      </p>
+                    <div className="text-right">
+                      <p className="font-medium text-black text-sm tabular-nums">${product.revenue.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 tabular-nums">${(product.aov || product.avgOrderValue || 0).toFixed(0)} AOV</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium text-black text-sm tabular-nums">${product.revenue.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500 tabular-nums">${(product.aov || product.avgOrderValue || 0).toFixed(0)} AOV</p>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </ChartCard>
 
@@ -580,50 +578,50 @@ const DashboardPage: React.FC = () => {
             noDataMessage="No customer data found for the selected period"
             noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
           >
-            <div className="space-y-3">
-              {topCustomersData.slice(0, 10).map((customer, index) => (
-                <div 
-                  key={customer.customer_id} 
-                  className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-600 text-sm font-medium">
-                      {index + 1}
+            <div className="h-[400px] overflow-y-auto">
+              <div className="space-y-2">
+                {topCustomersData.slice(0, 10).map((customer, index) => (
+                  <div 
+                    key={customer.customer_id} 
+                    className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center justify-center w-8 h-8 bg-green-100 text-green-600 text-sm font-medium">
+                        {index + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-black text-sm truncate">{customer.customer_name}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {customer.order_count} orders
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-black text-sm truncate">{customer.customer_name}</p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {customer.order_count} orders
-                      </p>
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-medium text-black text-sm tabular-nums">${customer.total_spent.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500 tabular-nums">${customer.avg_order_value.toFixed(0)} AOV</p>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-medium text-black text-sm tabular-nums">${customer.total_spent.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500 tabular-nums">${customer.avg_order_value.toFixed(0)} AOV</p>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </ChartCard>
         </div>
 
-        {/* Enhanced Business Insights with Proper Spacing */}
-        <div className="mt-12">
-          <ChartCard
-            title="AI-Powered Business Insights"
-            description="Click on any insight for detailed analysis and actionable recommendations"
-          >
-            <BusinessInsights
-              kpiData={kpiData}
-              previousYearKpiData={previousYearKpiData}
-              productData={productData}
-              topCustomersData={topCustomersData}
-              orderTimingData={orderTimingData}
-              currency={currency}
-              dateRange={filters}
-            />
-          </ChartCard>
-        </div>
+        {/* Enhanced Business Insights */}
+        <ChartCard
+          title="AI-Powered Business Insights"
+          description="Click on any insight for detailed analysis and actionable recommendations"
+        >
+          <BusinessInsights
+            kpiData={kpiData}
+            previousYearKpiData={previousYearKpiData}
+            productData={productData}
+            topCustomersData={topCustomersData}
+            orderTimingData={orderTimingData}
+            currency={currency}
+            dateRange={filters}
+          />
+        </ChartCard>
 
         {/* Help Section */}
         <HelpSection 
