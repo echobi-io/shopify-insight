@@ -36,11 +36,38 @@ const SalesReportsPage: React.FC = () => {
         const data = await getSalesAnalysisData(dateFilters, MERCHANT_ID)
         
         console.log('📊 Sales data received:', data)
+        console.log('📈 Time series data:', data.timeSeriesData)
         console.log('📈 Time series data length:', data.timeSeriesData?.length || 0)
         console.log('🏪 Channel data:', data.channelData)
+        console.log('🏆 Top products:', data.topProducts)
+        console.log('👥 Top customers:', data.topCustomers)
+        
+        // Check if we have any data at all
+        if (!data.timeSeriesData || data.timeSeriesData.length === 0) {
+          console.warn('⚠️ No time series data available')
+          
+          // Try to create report data from other sources if available
+          if (data.kpis && (data.kpis.totalRevenue || data.kpis.totalOrders)) {
+            console.log('🔄 Creating single row from KPIs data')
+            const reportData = [{
+              date: dateFilters.endDate.split('T')[0], // Use end date
+              revenue: data.kpis.totalRevenue || 0,
+              orders: data.kpis.totalOrders || 0,
+              avgOrderValue: data.kpis.avgOrderValue || 0,
+              channel: data.kpis.topChannel || 'Online',
+              category: 'All Products'
+            }]
+            
+            console.log('✅ Created report data from KPIs:', reportData)
+            return reportData
+          }
+          
+          console.warn('⚠️ No data available from any source')
+          return []
+        }
         
         // Transform time series data for reporting
-        const reportData = data.timeSeriesData?.map((item, index) => ({
+        const reportData = data.timeSeriesData.map((item, index) => ({
           date: item.date,
           revenue: item.revenue || 0,
           orders: item.orders || 0,
@@ -48,16 +75,10 @@ const SalesReportsPage: React.FC = () => {
           // Distribute channel data across time series entries
           channel: data.channelData?.[index % (data.channelData?.length || 1)]?.channel || 'Online',
           category: 'All Products'
-        })) || []
+        }))
 
         console.log('✅ Transformed report data:', reportData)
         console.log('📊 Report data length:', reportData.length)
-        
-        if (reportData.length === 0) {
-          console.warn('⚠️ No report data generated - checking raw data:')
-          console.log('- Time series data:', data.timeSeriesData)
-          console.log('- Date filters used:', dateFilters)
-        }
         
         return reportData
       } catch (error) {
