@@ -127,9 +127,19 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
     
     let filteredData = [...data]
     
-    // Apply filters
+    // Get the data field names from the first row to know which filters to apply
+    const dataFields = data.length > 0 ? Object.keys(data[0]) : []
+    console.log('🔍 Available data fields:', dataFields)
+    
+    // Apply filters only for fields that exist in the data
     filters.forEach(filter => {
       console.log(`🔍 Processing filter: ${filter.id} = ${filter.value}`)
+      
+      // Skip filters that don't correspond to data fields (like dateRange, which is handled by parent)
+      if (!dataFields.includes(filter.id)) {
+        console.log(`🔍 Skipping filter ${filter.id} - not a data field`)
+        return
+      }
       
       if (filter.value && filter.value !== 'all' && filter.value !== '') {
         const beforeCount = filteredData.length
