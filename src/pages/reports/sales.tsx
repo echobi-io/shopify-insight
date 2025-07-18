@@ -16,6 +16,7 @@ const SalesReportsPage: React.FC = () => {
     endDate: '',
     channel: 'all',
     productCategory: 'all',
+    product_name: '',
     minOrderValue: ''
   })
 
@@ -55,7 +56,12 @@ const SalesReportsPage: React.FC = () => {
               orders: data.kpis.totalOrders || 0,
               avgOrderValue: data.kpis.avgOrderValue || 0,
               channel: data.kpis.topChannel || 'Online',
-              category: 'All Products'
+              category: 'All Products',
+              product_name: 'All Products',
+              product_sku: 'N/A',
+              product_revenue: data.kpis.totalRevenue || 0,
+              product_quantity: data.kpis.totalOrders || 0,
+              product_units_sold: data.kpis.totalOrders || 0
             }]
             
             console.log('✅ Created report data from KPIs:', reportData)
@@ -76,16 +82,40 @@ const SalesReportsPage: React.FC = () => {
           }
         }
         
-        // Transform time series data for reporting
-        const reportData = data.timeSeriesData.map((item, index) => ({
-          date: item.date,
-          revenue: item.revenue || 0,
-          orders: item.orders || 0,
-          avgOrderValue: item.avgOrderValue || 0,
-          // Distribute channel data across time series entries
-          channel: data.channelData?.[index % (data.channelData?.length || 1)]?.channel || 'Online',
-          category: 'All Products'
-        }))
+        // Transform time series data for reporting - now including product information
+        let reportData = []
+        
+        if (data.topProducts && data.topProducts.length > 0) {
+          // Create detailed rows with product information
+          reportData = data.topProducts.slice(0, 20).map((product, index) => ({
+            date: data.timeSeriesData[0]?.date || dateFilters.endDate.split('T')[0],
+            revenue: product.revenue || 0,
+            orders: product.orders || 0,
+            avgOrderValue: product.revenue && product.orders ? (product.revenue / product.orders) : 0,
+            channel: data.channelData?.[index % (data.channelData?.length || 1)]?.channel || 'Online',
+            category: 'All Products',
+            product_name: product.name || product.title || 'Unknown Product',
+            product_sku: product.sku || product.id || 'N/A',
+            product_revenue: product.revenue || 0,
+            product_quantity: product.quantity || product.orders || 0,
+            product_units_sold: product.unitsSold || product.quantity || 0
+          }))
+        } else {
+          // Fallback to time series data without detailed product info
+          reportData = data.timeSeriesData.map((item, index) => ({
+            date: item.date,
+            revenue: item.revenue || 0,
+            orders: item.orders || 0,
+            avgOrderValue: item.avgOrderValue || 0,
+            channel: data.channelData?.[index % (data.channelData?.length || 1)]?.channel || 'Online',
+            category: 'All Products',
+            product_name: 'Multiple Products',
+            product_sku: 'N/A',
+            product_revenue: item.revenue || 0,
+            product_quantity: item.orders || 0,
+            product_units_sold: item.orders || 0
+          }))
+        }
 
         console.log('✅ Transformed report data:', reportData)
         console.log('📊 Report data length:', reportData.length)
@@ -155,6 +185,13 @@ const SalesReportsPage: React.FC = () => {
       ]
     },
     {
+      id: 'product_name',
+      label: 'Product Name',
+      type: 'text' as const,
+      value: filters.product_name || '',
+      placeholder: 'Search by product name'
+    },
+    {
       id: 'minOrderValue',
       label: 'Min Order Value',
       type: 'number' as const,
@@ -172,8 +209,36 @@ const SalesReportsPage: React.FC = () => {
       width: '120px'
     },
     {
+      key: 'product_name',
+      label: 'Product Name',
+      type: 'text' as const,
+      sortable: true,
+      width: '200px'
+    },
+    {
+      key: 'product_sku',
+      label: 'SKU',
+      type: 'text' as const,
+      sortable: true,
+      width: '120px'
+    },
+    {
+      key: 'product_revenue',
+      label: 'Product Revenue',
+      type: 'currency' as const,
+      sortable: true,
+      width: '140px'
+    },
+    {
+      key: 'product_units_sold',
+      label: 'Units Sold',
+      type: 'number' as const,
+      sortable: true,
+      width: '100px'
+    },
+    {
       key: 'revenue',
-      label: 'Revenue',
+      label: 'Total Revenue',
       type: 'currency' as const,
       sortable: true,
       width: '120px'
@@ -211,7 +276,19 @@ const SalesReportsPage: React.FC = () => {
   const visualizations = [
     {
       type: 'bar' as const,
-      title: 'Daily Revenue',
+      title: 'Product Revenue',
+      dataKey: 'product_revenue',
+      xAxisKey: 'product_name'
+    },
+    {
+      type: 'bar' as const,
+      title: 'Units Sold by Product',
+      dataKey: 'product_units_sold',
+      xAxisKey: 'product_name'
+    },
+    {
+      type: 'line' as const,
+      title: 'Daily Revenue Trend',
       dataKey: 'revenue',
       xAxisKey: 'date'
     },
