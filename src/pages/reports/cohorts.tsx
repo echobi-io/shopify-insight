@@ -34,6 +34,8 @@ const CohortReportsPage: React.FC = () => {
       try {
         const data = await getCohortAnalysisData(MERCHANT_ID, dateFilters)
         
+        console.log('Cohort data received:', data)
+        
         // Transform cohort data for reporting - use actual data structure
         const reportData = []
         
@@ -84,6 +86,7 @@ const CohortReportsPage: React.FC = () => {
           })
         }
 
+        console.log('Transformed cohort report data:', reportData)
         return reportData
       } catch (error) {
         console.error('Error fetching cohort data:', error)

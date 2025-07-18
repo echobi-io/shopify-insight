@@ -284,41 +284,7 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
         </Card>
       )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="card-minimal">
-          <CardContent className="p-4">
-            <div className="text-center">
-              <p className="text-sm text-gray-600">Total Records</p>
-              <p className="text-2xl font-semibold text-black">{data.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="card-minimal">
-          <CardContent className="p-4">
-            <div className="text-center">
-              <p className="text-sm text-gray-600">Columns</p>
-              <p className="text-2xl font-semibold text-black">{visibleColumns.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="card-minimal">
-          <CardContent className="p-4">
-            <div className="text-center">
-              <p className="text-sm text-gray-600">Visualizations</p>
-              <p className="text-2xl font-semibold text-black">{visualizations.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="card-minimal">
-          <CardContent className="p-4">
-            <div className="text-center">
-              <p className="text-sm text-gray-600">Export Formats</p>
-              <p className="text-2xl font-semibold text-black">3</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+
 
       {/* Main Content */}
       <Card className="card-minimal">

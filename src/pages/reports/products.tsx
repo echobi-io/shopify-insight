@@ -34,6 +34,8 @@ const ProductReportsPage: React.FC = () => {
       try {
         const data = await getProductPerformanceDataOptimized(MERCHANT_ID, dateFilters)
         
+        console.log('Product data received:', data)
+        
         // Transform data for reporting - remove all mock data
         const reportData = data.map((product) => ({
           productId: product.product_id || product.id || 'unknown',
@@ -53,6 +55,7 @@ const ProductReportsPage: React.FC = () => {
           lastSaleDate: product.last_sale_date || product.last_order_date || null
         })) || []
 
+        console.log('Transformed product report data:', reportData)
         return reportData
       } catch (error) {
         console.error('Error fetching product data:', error)

@@ -89,65 +89,6 @@ const ReportsPage: React.FC = () => {
       />
 
       <div className="space-y-6">
-        {/* Overview Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="card-minimal">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <BarChart3 className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Available Reports</p>
-                  <p className="text-2xl font-semibold text-black">20</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-minimal">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-green-50 rounded-lg">
-                  <PieChart className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Report Categories</p>
-                  <p className="text-2xl font-semibold text-black">4</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-minimal">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-purple-50 rounded-lg">
-                  <LineChart className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Saved Reports</p>
-                  <p className="text-2xl font-semibold text-black">0</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card-minimal">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-orange-50 rounded-lg">
-                  <TrendingUp className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Export Formats</p>
-                  <p className="text-2xl font-semibold text-black">3</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Report Categories */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {reportCategories.map((category) => (

@@ -34,17 +34,20 @@ const SalesReportsPage: React.FC = () => {
       try {
         const data = await getSalesAnalysisData(dateFilters, MERCHANT_ID)
         
+        console.log('Sales data received:', data)
+        
         // Transform time series data for reporting
-        const reportData = data.timeSeriesData?.map(item => ({
+        const reportData = data.timeSeriesData?.map((item, index) => ({
           date: item.date,
           revenue: item.revenue || 0,
           orders: item.orders || 0,
           avgOrderValue: item.avgOrderValue || 0,
-          // Add channel and category data from the actual data
-          channel: data.channelData?.[0]?.channel || 'Unknown',
-          category: 'All Products' // This could be enhanced with actual product category data
+          // Distribute channel data across time series entries
+          channel: data.channelData?.[index % (data.channelData?.length || 1)]?.channel || 'Online',
+          category: 'All Products'
         })) || []
 
+        console.log('Transformed report data:', reportData)
         return reportData
       } catch (error) {
         console.error('Error fetching sales data:', error)

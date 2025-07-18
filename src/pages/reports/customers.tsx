@@ -34,6 +34,8 @@ const CustomerReportsPage: React.FC = () => {
       try {
         const data = await getCustomerInsightsData(MERCHANT_ID, dateFilters)
         
+        console.log('Customer data received:', data)
+        
         // Transform data for reporting - use actual customer data structure
         const reportData = data.customerData?.map((customer) => ({
           customerId: customer.customer_id || customer.id || 'unknown',
@@ -52,6 +54,7 @@ const CustomerReportsPage: React.FC = () => {
           lifetimeValue: customer.lifetime_value || customer.total_revenue || 0
         })) || []
 
+        console.log('Transformed customer report data:', reportData)
         return reportData
       } catch (error) {
         console.error('Error fetching customer data:', error)
