@@ -8,7 +8,9 @@ import {
   UserX, 
   Target, 
   Settings,
-  Home
+  Home,
+  FileText,
+  BookmarkCheck
 } from 'lucide-react'
 
 // Import GitBranch2 separately to handle potential naming issues
@@ -81,6 +83,23 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
       ]
     },
     {
+      title: 'Reports',
+      items: [
+        {
+          id: 'reports',
+          label: 'Reports',
+          href: '/reports',
+          icon: <FileText className="w-4 h-4" />
+        },
+        {
+          id: 'saved-reports',
+          label: 'Saved Reports',
+          href: '/saved-reports',
+          icon: <BookmarkCheck className="w-4 h-4" />
+        }
+      ]
+    },
+    {
       title: 'Configuration',
       items: [
         {
@@ -106,6 +125,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection = 'dashboard', onSectio
     if (path === '/churn-analytics') return 'churn-analytics'
     if (path === '/churn-predictions') return 'churn-predictions'
     if (path === '/cohort-analysis') return 'cohort-analysis'
+    if (path === '/reports') return 'reports'
+    if (path === '/saved-reports') return 'saved-reports'
+    if (path.startsWith('/reports/')) return 'reports'
     if (path === '/settings') return 'settings'
     return 'dashboard'
   }
