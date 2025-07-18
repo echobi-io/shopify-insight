@@ -14,8 +14,8 @@ const SalesReportsPage: React.FC = () => {
     dateRange: 'last30days',
     startDate: '',
     endDate: '',
-    channel: '',
-    productCategory: '',
+    channel: 'all',
+    productCategory: 'all',
     minOrderValue: ''
   })
 
@@ -80,7 +80,7 @@ const SalesReportsPage: React.FC = () => {
       type: 'select' as const,
       value: filters.channel,
       options: [
-        { value: '', label: 'All Channels' },
+        { value: 'all', label: 'All Channels' },
         { value: 'online', label: 'Online' },
         { value: 'pos', label: 'Point of Sale' },
         { value: 'mobile', label: 'Mobile App' }
@@ -92,7 +92,7 @@ const SalesReportsPage: React.FC = () => {
       type: 'select' as const,
       value: filters.productCategory,
       options: [
-        { value: '', label: 'All Categories' },
+        { value: 'all', label: 'All Categories' },
         { value: 'electronics', label: 'Electronics' },
         { value: 'clothing', label: 'Clothing' },
         { value: 'home', label: 'Home & Garden' }

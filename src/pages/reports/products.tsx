@@ -14,7 +14,7 @@ const ProductReportsPage: React.FC = () => {
     dateRange: 'last30days',
     startDate: '',
     endDate: '',
-    productCategory: '',
+    productCategory: 'all',
     minSales: '',
     maxReturns: ''
   })
@@ -86,7 +86,7 @@ const ProductReportsPage: React.FC = () => {
       type: 'select' as const,
       value: filters.productCategory,
       options: [
-        { value: '', label: 'All Categories' },
+        { value: 'all', label: 'All Categories' },
         { value: 'electronics', label: 'Electronics' },
         { value: 'clothing', label: 'Clothing' },
         { value: 'home', label: 'Home & Garden' },

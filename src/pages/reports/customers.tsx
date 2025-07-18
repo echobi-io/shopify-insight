@@ -14,7 +14,7 @@ const CustomerReportsPage: React.FC = () => {
     dateRange: 'last30days',
     startDate: '',
     endDate: '',
-    customerSegment: '',
+    customerSegment: 'all',
     minOrderCount: '',
     minLifetimeValue: ''
   })
@@ -84,7 +84,7 @@ const CustomerReportsPage: React.FC = () => {
       type: 'select' as const,
       value: filters.customerSegment,
       options: [
-        { value: '', label: 'All Segments' },
+        { value: 'all', label: 'All Segments' },
         { value: 'new', label: 'New Customers' },
         { value: 'regular', label: 'Regular Customers' },
         { value: 'vip', label: 'VIP Customers' },
