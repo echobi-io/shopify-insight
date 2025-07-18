@@ -253,7 +253,7 @@ const DashboardPage: React.FC = () => {
       />
 
       <div className="space-y-6">
-        {/* Enhanced KPI Cards with Drill-Through */}
+        {/* KPI Cards */}
         <DataStateWrapper
           data={kpiData}
           loading={kpiDataFetcher.loading}
@@ -332,34 +332,24 @@ const DashboardPage: React.FC = () => {
 
         {/* Main Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Revenue & Orders Chart */}
-          <ChartCard
-            title="Revenue & Orders Performance"
-            description="Track revenue and order volume trends"
-            hasData={dashboardChartData.length > 0}
-            noDataMessage="No revenue or order data found for the selected period"
-            noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
-          >
-            <div className="h-[400px]">
-              <EnhancedDrillThroughChart
-                title="Revenue & Orders Performance"
-                data={dashboardChartData.map(item => ({
-                  date: item.date,
-                  revenue: item.total_revenue || 0,
-                  orders: item.total_orders || 0,
-                  total_revenue: item.total_revenue || 0,
-                  total_orders: item.total_orders || 0,
-                  ...item
-                }))}
-                type="line"
-                primaryKey="total_revenue"
-                secondaryKey="total_orders"
-                dateRange={filters}
-              />
-            </div>
-          </ChartCard>
+          <div className="h-[400px]">
+            <EnhancedDrillThroughChart
+              title="Revenue & Orders Performance"
+              data={dashboardChartData.map(item => ({
+                date: item.date,
+                revenue: item.total_revenue || 0,
+                orders: item.total_orders || 0,
+                total_revenue: item.total_revenue || 0,
+                total_orders: item.total_orders || 0,
+                ...item
+              }))}
+              type="line"
+              primaryKey="total_revenue"
+              secondaryKey="total_orders"
+              dateRange={filters}
+            />
+          </div>
 
-          {/* Sales by Source Chart */}
           <ChartCard
             title="Sales by Source"
             description="Revenue breakdown by sales channel"
@@ -379,34 +369,24 @@ const DashboardPage: React.FC = () => {
 
         {/* Order Timing Analysis Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Order Timing Analysis */}
-          <ChartCard
-            title="Order Timing Analysis"
-            description="Hourly order distribution patterns"
-            hasData={orderTimingData.length > 0}
-            noDataMessage="No order timing data found for the selected period"
-            noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
-          >
-            <div className="h-[350px]">
-                <EnhancedDrillThroughChart
-                  title="Order Timing Analysis"
-                  data={orderTimingData
-                    .sort((a, b) => a.hour - b.hour)
-                    .map(item => ({
-                      date: getHourLabel(item.hour),
-                      orders: item.order_count || 0,
-                      hour: item.hour,
-                      percentage: item.percentage || 0,
-                      ...item
-                    }))}
-                  type="area"
-                  primaryKey="order_count"
-                  dateRange={filters}
-                />
-              </div>
-            </ChartCard>
+          <div className="h-[350px]">
+            <EnhancedDrillThroughChart
+              title="Order Timing Analysis"
+              data={orderTimingData
+                .sort((a, b) => a.hour - b.hour)
+                .map(item => ({
+                  date: getHourLabel(item.hour),
+                  orders: item.order_count || 0,
+                  hour: item.hour,
+                  percentage: item.percentage || 0,
+                  ...item
+                }))}
+              type="area"
+              primaryKey="order_count"
+              dateRange={filters}
+            />
+          </div>
 
-          {/* Peak Hours Insights */}
           <ChartCard
             title="Peak Hours Insights"
             description="Busiest and quietest periods"
@@ -415,68 +395,63 @@ const DashboardPage: React.FC = () => {
             noDataIcon={<AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-300" />}
           >
             <div className="h-[350px] flex flex-col space-y-4">
-                {/* Busiest Hours */}
-                <div className="flex-1">
-                  <h4 className="font-medium text-black mb-3 text-sm">🔥 Busiest Hours</h4>
-                  <div className="space-y-2">
-                    {getBusiestHours(orderTimingData, 3).map((data, index) => (
-                      <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-red-50">
-                        <div className="flex items-center space-x-2">
-                          <span className="w-5 h-5 bg-red-100 text-red-600 flex items-center justify-center text-xs font-medium">
-                            {index + 1}
-                          </span>
-                          <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
-                          <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
-                        </div>
+              <div className="flex-1">
+                <h4 className="font-medium text-black mb-3 text-sm">🔥 Busiest Hours</h4>
+                <div className="space-y-2">
+                  {getBusiestHours(orderTimingData, 3).map((data, index) => (
+                    <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-red-50">
+                      <div className="flex items-center space-x-2">
+                        <span className="w-5 h-5 bg-red-100 text-red-600 flex items-center justify-center text-xs font-medium">
+                          {index + 1}
+                        </span>
+                        <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quietest Hours */}
-                <div className="flex-1">
-                  <h4 className="font-medium text-black mb-3 text-sm">😴 Quietest Hours</h4>
-                  <div className="space-y-2">
-                    {orderTimingData
-                      .filter(data => data.order_count > 0)
-                      .sort((a, b) => a.order_count - b.order_count)
-                      .slice(0, 3)
-                      .map((data, index) => (
-                      <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-blue-50">
-                        <div className="flex items-center space-x-2">
-                          <span className="w-5 h-5 bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-medium">
-                            {index + 1}
-                          </span>
-                          <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
-                          <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
-                        </div>
+                      <div className="text-right">
+                        <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
+                        <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Summary Stats */}
-                <div className="border-t pt-3 mt-auto">
-                  <div className="text-center">
-                    <div className="text-sm text-gray-600 mb-1">Total Orders</div>
-                    <div className="font-semibold text-lg text-black">
-                      {formatNumber(orderTimingData.reduce((sum, item) => sum + item.order_count, 0))}
                     </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex-1">
+                <h4 className="font-medium text-black mb-3 text-sm">😴 Quietest Hours</h4>
+                <div className="space-y-2">
+                  {orderTimingData
+                    .filter(data => data.order_count > 0)
+                    .sort((a, b) => a.order_count - b.order_count)
+                    .slice(0, 3)
+                    .map((data, index) => (
+                    <div key={data.hour} className="flex items-center justify-between py-2 px-3 bg-blue-50">
+                      <div className="flex items-center space-x-2">
+                        <span className="w-5 h-5 bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-medium">
+                          {index + 1}
+                        </span>
+                        <span className="font-medium text-black text-sm">{getHourLabel(data.hour)}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-medium text-black text-sm">{formatNumber(data.order_count)}</span>
+                        <span className="text-xs text-gray-600 block">({data.percentage.toFixed(1)}%)</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t pt-3 mt-auto">
+                <div className="text-center">
+                  <div className="text-sm text-gray-600 mb-1">Total Orders</div>
+                  <div className="font-semibold text-lg text-black">
+                    {formatNumber(orderTimingData.reduce((sum, item) => sum + item.order_count, 0))}
                   </div>
                 </div>
               </div>
-            </ChartCard>
+            </div>
+          </ChartCard>
         </div>
 
-
-
-        {/* Enhanced Business Insights */}
+        {/* AI-Powered Business Insights */}
         <ChartCard
           title="AI-Powered Business Insights"
           description="Click on any insight for detailed analysis and actionable recommendations"
