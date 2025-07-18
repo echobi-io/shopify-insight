@@ -32,9 +32,12 @@ const SalesReportsPage: React.FC = () => {
   const salesDataFetcher = useDataFetcher(
     useCallback(async () => {
       try {
+        console.log('🔍 Fetching sales data with date filters:', dateFilters)
         const data = await getSalesAnalysisData(dateFilters, MERCHANT_ID)
         
-        console.log('Sales data received:', data)
+        console.log('📊 Sales data received:', data)
+        console.log('📈 Time series data length:', data.timeSeriesData?.length || 0)
+        console.log('🏪 Channel data:', data.channelData)
         
         // Transform time series data for reporting
         const reportData = data.timeSeriesData?.map((item, index) => ({
@@ -47,10 +50,18 @@ const SalesReportsPage: React.FC = () => {
           category: 'All Products'
         })) || []
 
-        console.log('Transformed report data:', reportData)
+        console.log('✅ Transformed report data:', reportData)
+        console.log('📊 Report data length:', reportData.length)
+        
+        if (reportData.length === 0) {
+          console.warn('⚠️ No report data generated - checking raw data:')
+          console.log('- Time series data:', data.timeSeriesData)
+          console.log('- Date filters used:', dateFilters)
+        }
+        
         return reportData
       } catch (error) {
-        console.error('Error fetching sales data:', error)
+        console.error('❌ Error fetching sales data:', error)
         return []
       }
     }, [dateFilters]),
