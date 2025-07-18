@@ -121,10 +121,45 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
     }
   }
 
-  const sortedData = React.useMemo(() => {
-    if (!sortColumn) return data
+  const filteredAndSortedData = React.useMemo(() => {
+    let filteredData = [...data]
     
-    return [...data].sort((a, b) => {
+    // Apply filters
+    filters.forEach(filter => {
+      if (filter.value && filter.value !== 'all' && filter.value !== '') {
+        filteredData = filteredData.filter(row => {
+          const rowValue = row[filter.id]
+          
+          switch (filter.type) {
+            case 'select':
+              return rowValue === filter.value
+            case 'text':
+              return rowValue && rowValue.toString().toLowerCase().includes(filter.value.toLowerCase())
+            case 'number':
+              const numValue = parseFloat(filter.value)
+              const rowNumValue = parseFloat(rowValue)
+              if (filter.id.includes('min')) {
+                return rowNumValue >= numValue
+              } else if (filter.id.includes('max')) {
+                return rowNumValue <= numValue
+              }
+              return rowNumValue === numValue
+            case 'date':
+              return rowValue === filter.value
+            case 'daterange':
+              // Handle date range filtering if needed
+              return true
+            default:
+              return true
+          }
+        })
+      }
+    })
+    
+    // Apply sorting
+    if (!sortColumn) return filteredData
+    
+    return filteredData.sort((a, b) => {
       const aVal = a[sortColumn]
       const bVal = b[sortColumn]
       
@@ -133,7 +168,7 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
       const comparison = aVal < bVal ? -1 : 1
       return sortDirection === 'asc' ? comparison : -comparison
     })
-  }, [data, sortColumn, sortDirection])
+  }, [data, filters, sortColumn, sortDirection])
 
   const handleSaveReport = () => {
     if (onSave && reportName.trim()) {
@@ -394,14 +429,14 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                           <p className="text-gray-500">Loading data...</p>
                         </td>
                       </tr>
-                    ) : sortedData.length === 0 ? (
+                    ) : filteredAndSortedData.length === 0 ? (
                       <tr>
                         <td colSpan={visibleColumns.length} className="text-center p-8">
                           <p className="text-gray-500">No data available</p>
                         </td>
                       </tr>
                     ) : (
-                      sortedData.map((row, index) => (
+                      filteredAndSortedData.map((row, index) => (
                         <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
                           {columns
                             .filter(col => visibleColumns.includes(col.key))
@@ -426,7 +461,7 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                       <h3 className="text-lg font-medium text-black mb-4">{viz.title}</h3>
                       <ResponsiveContainer width="100%" height="100%">
                         {viz.type === 'bar' ? (
-                          <BarChart data={data}>
+                          <BarChart data={filteredAndSortedData}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey={viz.xAxisKey} />
                             <YAxis />
@@ -434,7 +469,7 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                             <Bar dataKey={viz.dataKey} fill="#3b82f6" />
                           </BarChart>
                         ) : viz.type === 'line' ? (
-                          <LineChart data={data}>
+                          <LineChart data={filteredAndSortedData}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey={viz.xAxisKey} />
                             <YAxis />

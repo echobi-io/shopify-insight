@@ -34,32 +34,57 @@ const CohortReportsPage: React.FC = () => {
       try {
         const data = await getCohortAnalysisData(MERCHANT_ID, dateFilters)
         
-        // Transform cohort data for reporting
+        // Transform cohort data for reporting - use actual data structure
         const reportData = []
         
         if (data.cohortData && Array.isArray(data.cohortData)) {
           data.cohortData.forEach((cohort: any) => {
-            // Create a row for each cohort period
+            // Create a row for each cohort period that has actual data
             for (let period = 0; period <= 12; period++) {
               const retentionKey = `month_${period}`
               const revenueKey = `revenue_month_${period}`
               
-              reportData.push({
-                cohortMonth: cohort.cohort_month || 'Unknown',
-                cohortSize: cohort.cohort_size || 0,
-                period: period,
-                periodLabel: period === 0 ? 'Month 1' : `Month ${period + 1}`,
-                retentionRate: cohort[retentionKey] || 0,
-                retentionCount: Math.round((cohort[retentionKey] || 0) * (cohort.cohort_size || 0) / 100),
-                avgRevenue: cohort[revenueKey] || 0,
-                totalRevenue: ((cohort[revenueKey] || 0) * Math.round((cohort[retentionKey] || 0) * (cohort.cohort_size || 0) / 100)),
-                analysisType: filters.analysisType
-              })
+              // Only include periods that have actual retention data
+              const retentionRate = cohort[retentionKey]
+              if (retentionRate !== undefined && retentionRate !== null) {
+                const cohortSize = cohort.cohort_size || 0
+                const avgRevenue = cohort[revenueKey] || 0
+                const retentionCount = Math.round((retentionRate * cohortSize) / 100)
+                
+                reportData.push({
+                  cohortMonth: cohort.cohort_month || cohort.cohort_year || 'Unknown',
+                  cohortSize: cohortSize,
+                  period: period,
+                  periodLabel: period === 0 ? 'Month 1' : `Month ${period + 1}`,
+                  retentionRate: parseFloat(retentionRate.toFixed(2)),
+                  retentionCount: retentionCount,
+                  avgRevenue: parseFloat(avgRevenue.toFixed(2)),
+                  totalRevenue: parseFloat((avgRevenue * retentionCount).toFixed(2)),
+                  analysisType: filters.analysisType
+                })
+              }
             }
           })
         }
 
-        return reportData.filter(row => row.retentionRate > 0) // Only show periods with data
+        // If no cohort data, try to use retention data directly
+        if (reportData.length === 0 && data.retentionData && Array.isArray(data.retentionData)) {
+          data.retentionData.forEach((retention: any, index: number) => {
+            reportData.push({
+              cohortMonth: retention.cohort_month || retention.period || `Cohort ${index + 1}`,
+              cohortSize: retention.cohort_size || retention.initial_customers || 0,
+              period: retention.period_number || index,
+              periodLabel: `Month ${(retention.period_number || index) + 1}`,
+              retentionRate: parseFloat((retention.retention_rate || 0).toFixed(2)),
+              retentionCount: retention.retained_customers || 0,
+              avgRevenue: parseFloat((retention.avg_revenue || 0).toFixed(2)),
+              totalRevenue: parseFloat((retention.total_revenue || 0).toFixed(2)),
+              analysisType: filters.analysisType
+            })
+          })
+        }
+
+        return reportData
       } catch (error) {
         console.error('Error fetching cohort data:', error)
         return []

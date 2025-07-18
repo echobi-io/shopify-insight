@@ -34,20 +34,23 @@ const ProductReportsPage: React.FC = () => {
       try {
         const data = await getProductPerformanceDataOptimized(MERCHANT_ID, dateFilters)
         
-        // Transform data for reporting
-        const reportData = data.map((product, index) => ({
-          productId: product.product_id || `product_${index}`,
-          productName: product.product_name || product.title || `Product ${index + 1}`,
-          sku: product.sku || `SKU-${index + 1}`,
-          category: product.category || 'Uncategorized',
-          unitsSold: product.units_sold || product.quantity_sold || 0,
-          revenue: product.revenue || product.total_revenue || 0,
-          avgPrice: product.avg_price || (product.revenue && product.units_sold ? product.revenue / product.units_sold : 0),
-          returns: product.returns || product.return_count || 0,
-          returnRate: product.return_rate || (product.returns && product.units_sold ? (product.returns / product.units_sold) * 100 : 0),
-          profitMargin: product.profit_margin || 0,
-          inventoryLevel: product.inventory_level || Math.floor(Math.random() * 100), // Mock data
-          lastSaleDate: product.last_sale_date || new Date().toISOString().split('T')[0]
+        // Transform data for reporting - remove all mock data
+        const reportData = data.map((product) => ({
+          productId: product.product_id || product.id || 'unknown',
+          productName: product.product_name || product.title || product.name || 'Unknown Product',
+          sku: product.sku || product.variant_sku || 'No SKU',
+          category: product.category || product.product_type || 'Uncategorized',
+          unitsSold: product.units_sold || product.quantity_sold || product.total_quantity || 0,
+          revenue: product.revenue || product.total_revenue || product.total_sales || 0,
+          avgPrice: product.avg_price || 
+                   (product.revenue && product.units_sold ? product.revenue / product.units_sold : 
+                   (product.total_revenue && product.quantity_sold ? product.total_revenue / product.quantity_sold : 0)),
+          returns: product.returns || product.return_count || product.returned_quantity || 0,
+          returnRate: product.return_rate || 
+                     (product.returns && product.units_sold ? (product.returns / product.units_sold) * 100 : 0),
+          profitMargin: product.profit_margin || product.margin_percentage || 0,
+          inventoryLevel: product.inventory_level || product.inventory_quantity || product.stock_quantity || null,
+          lastSaleDate: product.last_sale_date || product.last_order_date || null
         })) || []
 
         return reportData

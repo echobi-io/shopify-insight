@@ -32,16 +32,17 @@ const SalesReportsPage: React.FC = () => {
   const salesDataFetcher = useDataFetcher(
     useCallback(async () => {
       try {
-        const data = await getSalesAnalysisData(MERCHANT_ID, dateFilters)
+        const data = await getSalesAnalysisData(dateFilters, MERCHANT_ID)
         
-        // Transform data for reporting
-        const reportData = data.dailyData?.map(item => ({
+        // Transform time series data for reporting
+        const reportData = data.timeSeriesData?.map(item => ({
           date: item.date,
-          revenue: item.total_revenue || 0,
-          orders: item.total_orders || 0,
-          avgOrderValue: item.total_orders > 0 ? (item.total_revenue / item.total_orders) : 0,
-          channel: 'Online', // This would come from actual data
-          category: 'All Products' // This would come from actual data
+          revenue: item.revenue || 0,
+          orders: item.orders || 0,
+          avgOrderValue: item.avgOrderValue || 0,
+          // Add channel and category data from the actual data
+          channel: data.channelData?.[0]?.channel || 'Unknown',
+          category: 'All Products' // This could be enhanced with actual product category data
         })) || []
 
         return reportData

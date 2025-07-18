@@ -34,17 +34,21 @@ const CustomerReportsPage: React.FC = () => {
       try {
         const data = await getCustomerInsightsData(MERCHANT_ID, dateFilters)
         
-        // Transform data for reporting
-        const reportData = data.customerData?.map((customer, index) => ({
-          customerId: customer.customer_id || `customer_${index}`,
-          customerName: customer.customer_name || `Customer ${index + 1}`,
-          email: customer.email || `customer${index + 1}@example.com`,
-          totalOrders: customer.total_orders || 0,
-          totalRevenue: customer.total_revenue || 0,
-          avgOrderValue: customer.total_orders > 0 ? (customer.total_revenue / customer.total_orders) : 0,
-          firstOrderDate: customer.first_order_date || new Date().toISOString().split('T')[0],
-          lastOrderDate: customer.last_order_date || new Date().toISOString().split('T')[0],
-          segment: customer.segment || 'Regular',
+        // Transform data for reporting - use actual customer data structure
+        const reportData = data.customerData?.map((customer) => ({
+          customerId: customer.customer_id || customer.id || 'unknown',
+          customerName: customer.customer_name || 
+                       (customer.first_name && customer.last_name ? 
+                        `${customer.first_name} ${customer.last_name}` : 
+                        customer.first_name || customer.last_name || 'Unknown Customer'),
+          email: customer.email || 'No email',
+          totalOrders: customer.total_orders || customer.order_count || 0,
+          totalRevenue: customer.total_revenue || customer.lifetime_value || 0,
+          avgOrderValue: (customer.total_orders || customer.order_count) > 0 ? 
+                        ((customer.total_revenue || customer.lifetime_value || 0) / (customer.total_orders || customer.order_count)) : 0,
+          firstOrderDate: customer.first_order_date || customer.created_at || new Date().toISOString().split('T')[0],
+          lastOrderDate: customer.last_order_date || customer.updated_at || new Date().toISOString().split('T')[0],
+          segment: customer.segment || customer.customer_segment || 'Regular',
           lifetimeValue: customer.lifetime_value || customer.total_revenue || 0
         })) || []
 
