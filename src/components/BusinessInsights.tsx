@@ -166,17 +166,19 @@ const BusinessInsights: React.FC<BusinessInsightsProps> = ({
                 key={insight.id}
                 className={`p-4 rounded-lg border ${getInsightStyle(insight.type)}`}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {insight.icon}
-                    <h3 className="font-medium text-sm">{insight.title}</h3>
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="flex-shrink-0">
+                      {insight.icon}
+                    </div>
+                    <h3 className="font-medium text-sm truncate">{insight.title}</h3>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {insight.value && (
-                      <span className="text-sm font-medium">{insight.value}</span>
+                      <span className="text-sm font-medium whitespace-nowrap">{insight.value}</span>
                     )}
                     {insight.trend && (
-                      <div className="flex items-center">
+                      <div className="flex items-center flex-shrink-0">
                         {insight.trend === 'up' ? (
                           <TrendingUp className="h-3 w-3 text-green-600" />
                         ) : insight.trend === 'down' ? (
@@ -184,10 +186,12 @@ const BusinessInsights: React.FC<BusinessInsightsProps> = ({
                         ) : null}
                       </div>
                     )}
-                    {getInsightBadge(insight.type)}
+                    <div className="flex-shrink-0">
+                      {getInsightBadge(insight.type)}
+                    </div>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground">{insight.description}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{insight.description}</p>
               </div>
             ))}
           </div>

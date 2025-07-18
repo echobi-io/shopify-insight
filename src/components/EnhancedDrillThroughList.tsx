@@ -281,28 +281,32 @@ export const EnhancedDrillThroughList: React.FC<EnhancedDrillThroughListProps> =
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
                 onClick={() => handleItemClick(item)}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-medium">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0">
                     {index + 1}
                   </div>
-                  <div>
-                    <div className="font-medium">{item.name}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm truncate">{item.name}</div>
                     {item.secondaryValue && (
-                      <div className="text-sm text-gray-500">
-                        {item.secondaryValue} {type === 'customers' ? 'orders' : 'units'}
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {item.secondaryValue.toLocaleString()} {type === 'customers' ? 'orders' : 'units'}
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">{formatValue(item.value)}</span>
-                  {item.trend && getTrendIcon(item.trend)}
-                  {item.change !== undefined && (
-                    <Badge variant="outline" className={
-                      item.change >= 0 ? 'text-green-600 border-green-200' : 'text-red-600 border-red-200'
-                    }>
-                      {item.change > 0 ? '+' : ''}{item.change.toFixed(1)}%
-                    </Badge>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="text-right">
+                    <div className="font-semibold text-sm tabular-nums">{formatValue(item.value)}</div>
+                    {item.change !== undefined && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {item.change > 0 ? '+' : ''}{item.change.toFixed(1)}%
+                      </div>
+                    )}
+                  </div>
+                  {item.trend && (
+                    <div className="flex-shrink-0">
+                      {getTrendIcon(item.trend)}
+                    </div>
                   )}
                 </div>
               </div>
