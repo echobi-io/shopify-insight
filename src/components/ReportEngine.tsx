@@ -122,11 +122,18 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
   }
 
   const filteredAndSortedData = React.useMemo(() => {
+    console.log('🔍 ReportEngine filtering - Input data:', data)
+    console.log('🔍 ReportEngine filtering - Filters:', filters)
+    
     let filteredData = [...data]
     
     // Apply filters
     filters.forEach(filter => {
+      console.log(`🔍 Processing filter: ${filter.id} = ${filter.value}`)
+      
       if (filter.value && filter.value !== 'all' && filter.value !== '') {
+        const beforeCount = filteredData.length
+        
         filteredData = filteredData.filter(row => {
           const rowValue = row[filter.id]
           
@@ -153,13 +160,20 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
               return true
           }
         })
+        
+        console.log(`🔍 Filter ${filter.id}: ${beforeCount} → ${filteredData.length} rows`)
       }
     })
     
-    // Apply sorting
-    if (!sortColumn) return filteredData
+    console.log('🔍 After filtering:', filteredData.length, 'rows')
     
-    return filteredData.sort((a, b) => {
+    // Apply sorting
+    if (!sortColumn) {
+      console.log('✅ Final filtered data:', filteredData)
+      return filteredData
+    }
+    
+    const sortedData = filteredData.sort((a, b) => {
       const aVal = a[sortColumn]
       const bVal = b[sortColumn]
       
@@ -168,6 +182,9 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
       const comparison = aVal < bVal ? -1 : 1
       return sortDirection === 'asc' ? comparison : -comparison
     })
+    
+    console.log('✅ Final sorted data:', sortedData)
+    return sortedData
   }, [data, filters, sortColumn, sortDirection])
 
   const handleSaveReport = () => {
