@@ -45,32 +45,61 @@ export function getDateRangeFromTimeframe(timeframe: string, customStartDate?: s
   }
 
   switch (timeframe) {
+    case 'today':
+      // Today only
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      return { startDate, endDate };
+    case 'yesterday':
+      // Yesterday only
+      startDate.setDate(endDate.getDate() - 1);
+      endDate.setDate(endDate.getDate() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      return { startDate, endDate };
+    case 'last7days':
     case 'last_7_days':
     case 'Last 7 days':
       startDate.setDate(endDate.getDate() - 7);
       break;
+    case 'last30days':
     case 'last_30_days':
     case 'Last 30 days':
       startDate.setDate(endDate.getDate() - 30);
       break;
+    case 'last90days':
     case 'last_90_days':
     case 'Last 90 days':
       startDate.setDate(endDate.getDate() - 90);
       break;
+    case 'last6months':
     case 'last_6_months':
     case 'Last 6 months':
       startDate.setMonth(endDate.getMonth() - 6);
       break;
+    case 'lastYear':
     case 'last_year':
     case 'Last year':
       // Set to exactly 365 days ago to ensure we get a full year of data
       startDate.setDate(endDate.getDate() - 365);
       break;
+    case 'thisMonth':
     case 'this_month':
     case 'This month':
       startDate.setDate(1);
       startDate.setHours(0, 0, 0, 0);
       break;
+    case 'lastMonth':
+    case 'last_month':
+    case 'Last month':
+      // Set to first day of last month
+      startDate.setMonth(endDate.getMonth() - 1, 1);
+      startDate.setHours(0, 0, 0, 0);
+      // Set end date to last day of last month
+      endDate.setDate(0); // This sets to last day of previous month
+      endDate.setHours(23, 59, 59, 999);
+      return { startDate, endDate };
+    case 'thisYear':
     case 'this_year':
     case 'This year':
       startDate.setMonth(0, 1);
