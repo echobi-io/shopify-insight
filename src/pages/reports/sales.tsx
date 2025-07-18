@@ -59,11 +59,21 @@ const SalesReportsPage: React.FC = () => {
             }]
             
             console.log('✅ Created report data from KPIs:', reportData)
-            return reportData
+            return {
+              data: reportData,
+              error: null,
+              loading: false,
+              success: true
+            }
           }
           
           console.warn('⚠️ No data available from any source')
-          return []
+          return {
+            data: [],
+            error: null,
+            loading: false,
+            success: true
+          }
         }
         
         // Transform time series data for reporting
@@ -80,10 +90,20 @@ const SalesReportsPage: React.FC = () => {
         console.log('✅ Transformed report data:', reportData)
         console.log('📊 Report data length:', reportData.length)
         
-        return reportData
+        return {
+          data: reportData,
+          error: null,
+          loading: false,
+          success: true
+        }
       } catch (error) {
         console.error('❌ Error fetching sales data:', error)
-        return []
+        return {
+          data: [],
+          error: error instanceof Error ? error : new Error(String(error)),
+          loading: false,
+          success: false
+        }
       }
     }, [dateFilters]),
     {
