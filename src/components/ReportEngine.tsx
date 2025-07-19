@@ -9,7 +9,8 @@ import {
   Save,
   Share,
   Eye,
-  EyeOff
+  EyeOff,
+  Grid3X3
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts'
+import PivotTable from '@/components/PivotTable'
 
 interface ReportFilter {
   id: string
@@ -323,6 +325,10 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                   <Table className="w-4 h-4 mr-2" />
                   Table View
                 </TabsTrigger>
+                <TabsTrigger value="pivot">
+                  <Grid3X3 className="w-4 h-4 mr-2" />
+                  Pivot Table
+                </TabsTrigger>
                 {visualizations.length > 0 && (
                   <TabsTrigger value="charts">
                     <BarChart3 className="w-4 h-4 mr-2" />
@@ -444,6 +450,20 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                   </tbody>
                 </table>
               </div>
+            </TabsContent>
+            
+            <TabsContent value="pivot" className="mt-0">
+              {loading ? (
+                <div className="text-center p-8">
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
+                  <p className="text-gray-500">Loading data...</p>
+                </div>
+              ) : (
+                <PivotTable 
+                  data={filteredAndSortedData} 
+                  columns={columns} 
+                />
+              )}
             </TabsContent>
             
             {visualizations.length > 0 && (
