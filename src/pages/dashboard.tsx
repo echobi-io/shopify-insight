@@ -35,8 +35,7 @@ import SalesOriginChart from '@/components/SalesOriginChart'
 import { DollarSign, ShoppingCart, Target, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-
-const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
+import { useShop, withShopAuth } from '@/contexts/ShopContext'
 
 interface ProductData {
   product: string
@@ -49,6 +48,9 @@ interface ProductData {
 }
 
 const DashboardPage: React.FC = () => {
+  // Get shop context
+  const { shop, session, isAuthenticated, syncProgress, isSyncing, startSync } = useShop()
+  
   // Filter states
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())
   const [granularity, setGranularity] = useState('monthly')
@@ -65,32 +67,37 @@ const DashboardPage: React.FC = () => {
     }
   }, [timeframe, customStartDate, customEndDate])
 
+  // Get shop ID for data fetching
+  const shopId = session?.shopId || shop
+
   // Memoize fetch functions to prevent recreation on every render
   const kpiFetchFunction = useCallback(() => {
-    return getKPIsOptimized(filters, MERCHANT_ID, {
-      cacheKey: `kpis_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
+    if (!shopId) return Promise.resolve({ data: null, error: new Error('No shop ID available'), loading: false, success: false })
+    return getKPIsOptimized(filters, shopId, {
+      cacheKey: `kpis_${shopId}_${filters.startDate}_${filters.endDate}`,
       timeout: 20000,
       retries: 3
     })
-  }, [filters])
+  }, [filters, shopId])
 
   const previousYearKpiFetchFunction = useCallback(() => {
-    return getPreviousYearKPIsOptimized(filters, MERCHANT_ID, {
-      cacheKey: `kpis_py_${MERCHANT_ID}_${filters.startDate}_${filters.endDate}`,
+    if (!shopId) return Promise.resolve({ data: null, error: new Error('No shop ID available'), loading: false, success: false })
+    return getPreviousYearKPIsOptimized(filters, shopId, {
+      cacheKey: `kpis_py_${shopId}_${filters.startDate}_${filters.endDate}`,
       timeout: 20000,
       retries: 3
     })
-  }, [filters])
+  }, [filters, shopId])
 
   // Essential data fetchers only - reduce concurrent requests
   const kpiDataFetcher = useDataFetcher(kpiFetchFunction, {
-    enabled: true,
+    enabled: !!shopId && isAuthenticated,
     refetchOnWindowFocus: false,
     onError: (error) => console.error('❌ Error loading current KPIs:', error)
   })
 
   const previousYearKpiDataFetcher = useDataFetcher(previousYearKpiFetchFunction, {
-    enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
+    enabled: !!shopId && isAuthenticated && !!kpiDataFetcher.data, // Only fetch after KPIs load
     refetchOnWindowFocus: false,
     onError: (error) => console.error('❌ Error loading previous year KPIs:', error)
   })
@@ -98,8 +105,9 @@ const DashboardPage: React.FC = () => {
   // Charts data fetcher
   const chartsDataFetcher = useDataFetcher(
     useCallback(async () => {
+      if (!shopId) return { data: null, error: new Error('No shop ID available'), loading: false, success: false }
       try {
-        const data = await getDashboardChartsData(MERCHANT_ID, filters, granularity as any)
+        const data = await getDashboardChartsData(shopId, filters, granularity as any)
         return {
           data,
           error: null,
@@ -114,21 +122,20 @@ const DashboardPage: React.FC = () => {
           success: false
         }
       }
-    }, [filters, granularity]),
+    }, [filters, granularity, shopId]),
     {
-      enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
+      enabled: !!shopId && isAuthenticated && !!kpiDataFetcher.data, // Only fetch after KPIs load
       refetchOnWindowFocus: false,
       onError: (error) => console.error('❌ Error loading charts data:', error)
     }
   )
 
-
-
   // Sales origin data fetcher
   const salesOriginDataFetcher = useDataFetcher(
     useCallback(async () => {
+      if (!shopId) return { data: null, error: new Error('No shop ID available'), loading: false, success: false }
       try {
-        const data = await getSalesOriginData(MERCHANT_ID, filters)
+        const data = await getSalesOriginData(shopId, filters)
         return {
           data,
           error: null,
@@ -143,19 +150,20 @@ const DashboardPage: React.FC = () => {
           success: false
         }
       }
-    }, [filters]),
+    }, [filters, shopId]),
     {
-      enabled: !!kpiDataFetcher.data, // Only fetch after KPIs load
+      enabled: !!shopId && isAuthenticated && !!kpiDataFetcher.data, // Only fetch after KPIs load
       refetchOnWindowFocus: false,
       onError: (error) => console.error('❌ Error loading sales origin data:', error)
     }
   )
 
-  // Settings data fetcher
+  // Settings data fetcher - shop-specific settings
   const settingsDataFetcher = useDataFetcher(
     useCallback(async () => {
+      if (!shopId) return { data: null, error: new Error('No shop ID available'), loading: false, success: false }
       try {
-        const data = await getSettings()
+        const data = await getSettings(shopId)
         return {
           data,
           error: null,
@@ -170,9 +178,9 @@ const DashboardPage: React.FC = () => {
           success: false
         }
       }
-    }, []),
+    }, [shopId]),
     {
-      enabled: true,
+      enabled: !!shopId && isAuthenticated,
       refetchOnWindowFocus: false,
       onError: (error) => console.error('❌ Error loading settings:', error)
     }
@@ -229,26 +237,62 @@ const DashboardPage: React.FC = () => {
     return new Intl.NumberFormat('en-US').format(value)
   }
 
+  // Show sync progress if syncing
+  if (isSyncing && syncProgress) {
+    return (
+      <AppLayout loading={true} loadingMessage={`Syncing ${syncProgress.stage}... ${syncProgress.processed}/${syncProgress.total}`}>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 mb-2">Syncing your store data...</p>
+            <p className="text-sm text-gray-500">
+              {syncProgress.stage}: {syncProgress.processed}/{syncProgress.total}
+            </p>
+            {syncProgress.errors.length > 0 && (
+              <p className="text-sm text-red-500 mt-2">
+                Some errors occurred during sync
+              </p>
+            )}
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  // Show sync button if no data and not syncing
+  const hasNoData = !kpiDataFetcher.data && !kpiDataFetcher.loading && !isSyncing
+  
   return (
     <AppLayout loading={loading} loadingMessage="Loading dashboard data...">
       <ConnectionStatus />
       
       <PageHeader
         title="Dashboard"
-        description="Business performance overview"
+        description={`Business performance overview for ${shop || 'your store'}`}
         onRefresh={handleRefresh}
         loading={loading}
         actions={
-          <PageFilters
-            timeframe={timeframe}
-            onTimeframeChange={setTimeframe}
-            customStartDate={customStartDate}
-            customEndDate={customEndDate}
-            onCustomStartDateChange={setCustomStartDate}
-            onCustomEndDateChange={setCustomEndDate}
-            granularity={granularity}
-            onGranularityChange={setGranularity}
-          />
+          <div className="flex items-center gap-4">
+            {hasNoData && (
+              <Button 
+                onClick={startSync}
+                disabled={isSyncing}
+                className="bg-teal-600 hover:bg-teal-700"
+              >
+                {isSyncing ? 'Syncing...' : 'Sync Store Data'}
+              </Button>
+            )}
+            <PageFilters
+              timeframe={timeframe}
+              onTimeframeChange={setTimeframe}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onCustomStartDateChange={setCustomStartDate}
+              onCustomEndDateChange={setCustomEndDate}
+              granularity={granularity}
+              onGranularityChange={setGranularity}
+            />
+          </div>
         }
       />
 
@@ -478,4 +522,4 @@ const DashboardPage: React.FC = () => {
   )
 }
 
-export default DashboardPage
+export default withShopAuth(DashboardPage)

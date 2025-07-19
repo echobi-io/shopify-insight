@@ -31,11 +31,11 @@ const EMPTY_KPI_DATA: KPIData = {
 
 export async function getKPIsOptimized(
   filters: FilterState, 
-  merchantId?: string,
+  shopId?: string,
   options: DataFetcherOptions = {}
 ): Promise<DataFetcherResult<KPIData>> {
   return fetchWithRetry(async () => {
-    console.log('🔍 Fetching optimized KPIs with filters:', filters, 'merchant_id:', merchantId)
+    console.log('🔍 Fetching optimized KPIs with filters:', filters, 'shop_id:', shopId)
 
     // First try materialized view with timeout and retry
     const materializedViewResult = await executeQuery<any[]>({
@@ -45,17 +45,17 @@ export async function getKPIsOptimized(
         'gte_date': filters.startDate.split('T')[0],
         'lte_date': filters.endDate.split('T')[0]
       }
-    }, merchantId, {
+    }, shopId, {
       timeout: 10000,
       retries: 2,
-      cacheKey: `kpis_mv_${merchantId}_${filters.startDate}_${filters.endDate}`,
+      cacheKey: `kpis_mv_${shopId}_${filters.startDate}_${filters.endDate}`,
       cacheTTL: 180000, // 3 minutes
       fallbackData: null
     })
 
     if (materializedViewResult.success && materializedViewResult.data && materializedViewResult.data.length > 0) {
       console.log('✅ Using materialized view data')
-      return calculateKPIsFromMaterializedView(materializedViewResult.data, merchantId, filters)
+      return calculateKPIsFromMaterializedView(materializedViewResult.data, shopId, filters)
     }
 
     console.log('⚠️ Materialized view failed or empty, falling back to direct queries')
@@ -69,8 +69,8 @@ export async function getKPIsOptimized(
       .gte('created_at', filters.startDate)
       .lte('created_at', filters.endDate)
 
-    if (merchantId) {
-      ordersQuery = ordersQuery.eq('merchant_id', merchantId)
+    if (shopId) {
+      ordersQuery = ordersQuery.eq('shop_id', shopId)
     }
 
     // Use getAllRows to handle datasets larger than 1000 rows
@@ -102,8 +102,8 @@ export async function getKPIsOptimized(
         .select('*', { count: 'exact', head: true })
         .gte('created_at', filters.startDate)
         .lte('created_at', filters.endDate)
-      if (merchantId) {
-        newCustomersQuery = newCustomersQuery.eq('merchant_id', merchantId)
+      if (shopId) {
+        newCustomersQuery = newCustomersQuery.eq('shop_id', shopId)
       }
       const { count } = await newCustomersQuery
       newCustomersCount = count || 0
@@ -133,14 +133,14 @@ export async function getKPIsOptimized(
       let customersQuery = supabase
         .from('customers')
         .select('*', { count: 'exact', head: true })
-      if (merchantId) {
-        customersQuery = customersQuery.eq('merchant_id', merchantId)
+      if (shopId) {
+        customersQuery = customersQuery.eq('shop_id', shopId)
       }
       const { count } = await customersQuery
       totalCustomersCount = count || 0
     } catch (customerError) {
       console.log('⚠️ Could not fetch customers count:', customerError)
-      // Try profiles table as fallback
+      // Try profiles table as fallback - this might not be shop-specific
       try {
         let profilesQuery = supabase
           .from('profiles')
@@ -160,7 +160,7 @@ export async function getKPIsOptimized(
       const retentionResult = await executeQuery<any[]>({
         table: 'customer_retention_summary',
         select: 'calculated_segment, customers_count'
-      }, merchantId, {
+      }, shopId, {
         timeout: 5000,
         retries: 1,
         fallbackData: []
@@ -195,7 +195,7 @@ export async function getKPIsOptimized(
 }
 
 // Helper function to calculate KPIs from materialized view
-function calculateKPIsFromMaterializedView(summaryData: any[], merchantId?: string, filters?: FilterState): KPIData {
+function calculateKPIsFromMaterializedView(summaryData: any[], shopId?: string, filters?: FilterState): KPIData {
   const totalRevenue = summaryData.reduce((sum, row) => sum + (row.total_revenue || 0), 0)
   const totalOrders = summaryData.reduce((sum, row) => sum + (row.total_orders || 0), 0)
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
@@ -214,7 +214,7 @@ function calculateKPIsFromMaterializedView(summaryData: any[], merchantId?: stri
 // Get previous period KPIs for comparison
 export async function getPreviousKPIsOptimized(
   filters: FilterState, 
-  merchantId?: string,
+  shopId?: string,
   options: DataFetcherOptions = {}
 ): Promise<DataFetcherResult<KPIData>> {
   try {
@@ -232,7 +232,7 @@ export async function getPreviousKPIsOptimized(
       endDate: previousEndDate.toISOString()
     }
 
-    return await getKPIsOptimized(previousFilters, merchantId, {
+    return await getKPIsOptimized(previousFilters, shopId, {
       ...options,
       cacheKey: options.cacheKey ? `${options.cacheKey}_previous` : undefined
     })
@@ -250,7 +250,7 @@ export async function getPreviousKPIsOptimized(
 // Get previous year KPIs for year-over-year comparison
 export async function getPreviousYearKPIsOptimized(
   filters: FilterState, 
-  merchantId?: string,
+  shopId?: string,
   options: DataFetcherOptions = {}
 ): Promise<DataFetcherResult<KPIData>> {
   try {
@@ -276,7 +276,7 @@ export async function getPreviousYearKPIsOptimized(
       previousYear: { start: previousYearFilters.startDate, end: previousYearFilters.endDate }
     })
 
-    return await getKPIsOptimized(previousYearFilters, merchantId, {
+    return await getKPIsOptimized(previousYearFilters, shopId, {
       ...options,
       cacheKey: options.cacheKey ? `${options.cacheKey}_previous_year` : undefined
     })

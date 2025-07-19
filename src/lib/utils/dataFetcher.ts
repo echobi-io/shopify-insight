@@ -166,7 +166,7 @@ export async function fetchWithRetry<T>(
 // Enhanced Supabase query builder with error handling
 export async function executeQuery<T>(
   config: QueryConfig,
-  merchantId?: string,
+  shopId?: string,
   options: DataFetcherOptions = {}
 ): Promise<DataFetcherResult<T>> {
   const supabase = createClient()
@@ -181,9 +181,10 @@ export async function executeQuery<T>(
       query = query.select('*')
     }
 
-    // Apply merchant filter if provided
-    if (merchantId) {
-      query = query.eq('merchant_id', merchantId)
+    // Apply shop filter if provided - support both shop_id and merchant_id for backward compatibility
+    if (shopId) {
+      // Try shop_id first (new multi-tenant structure)
+      query = query.eq('shop_id', shopId)
     }
 
     // Apply additional filters

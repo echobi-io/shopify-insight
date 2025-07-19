@@ -4,42 +4,50 @@ import { getSettings as getSettingsFromDB, AppSettings, DEFAULT_SETTINGS, getCur
 export type { AppSettings }
 export { DEFAULT_SETTINGS }
 
-const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
-
-// Cache for settings to avoid repeated database calls
-let settingsCache: AppSettings | null = null
-let cacheTimestamp: number = 0
+// Cache for settings to avoid repeated database calls - now shop-specific
+const settingsCache = new Map<string, { settings: AppSettings; timestamp: number }>()
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
-export async function getSettings(): Promise<AppSettings> {
+export async function getSettings(shopId?: string): Promise<AppSettings> {
   try {
-    // Check if we have valid cached settings
+    if (!shopId) {
+      console.warn('No shop ID provided for settings, using defaults')
+      return DEFAULT_SETTINGS
+    }
+
+    // Check if we have valid cached settings for this shop
     const now = Date.now()
-    if (settingsCache && (now - cacheTimestamp) < CACHE_DURATION) {
-      return settingsCache
+    const cached = settingsCache.get(shopId)
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      return cached.settings
     }
 
     // Fetch from database
-    const settings = await getSettingsFromDB(MERCHANT_ID)
+    const settings = await getSettingsFromDB(shopId)
     
     // Update cache
-    settingsCache = settings
-    cacheTimestamp = now
+    settingsCache.set(shopId, {
+      settings,
+      timestamp: now
+    })
     
     return settings
   } catch (error) {
     console.error('Error loading settings:', error)
     return {
       ...DEFAULT_SETTINGS,
-      merchant_id: MERCHANT_ID
+      shop_id: shopId
     }
   }
 }
 
 // Synchronous version that returns cached settings or defaults
-export function getSettingsSync(): AppSettings {
-  if (settingsCache) {
-    return settingsCache
+export function getSettingsSync(shopId?: string): AppSettings {
+  if (shopId) {
+    const cached = settingsCache.get(shopId)
+    if (cached) {
+      return cached.settings
+    }
   }
   
   // Try to get from localStorage as fallback
@@ -48,7 +56,7 @@ export function getSettingsSync(): AppSettings {
       const savedSettings = localStorage.getItem('echobi-settings')
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings)
-        return { ...DEFAULT_SETTINGS, merchant_id: MERCHANT_ID, ...parsed }
+        return { ...DEFAULT_SETTINGS, shop_id: shopId, ...parsed }
       }
     }
   } catch (error) {
@@ -57,7 +65,7 @@ export function getSettingsSync(): AppSettings {
   
   return {
     ...DEFAULT_SETTINGS,
-    merchant_id: MERCHANT_ID
+    shop_id: shopId
   }
 }
 
@@ -149,7 +157,10 @@ export function getInitialTimeframe(): string {
 }
 
 // Clear cache when settings are updated
-export function clearSettingsCache(): void {
-  settingsCache = null
-  cacheTimestamp = 0
+export function clearSettingsCache(shopId?: string): void {
+  if (shopId) {
+    settingsCache.delete(shopId)
+  } else {
+    settingsCache.clear()
+  }
 }
