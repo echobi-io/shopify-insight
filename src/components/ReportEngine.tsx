@@ -19,7 +19,7 @@ import {
   Edit,
   TrendingUp,
   Activity,
-  Scatter
+  Scatter as ScatterIcon
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -742,7 +742,7 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                                             </SelectItem>
                                             <SelectItem value="scatter">
                                               <div className="flex items-center space-x-2">
-                                                <Scatter className="w-4 h-4" />
+                                                <ScatterIcon className="w-4 h-4" />
                                                 <span>Scatter Plot</span>
                                               </div>
                                             </SelectItem>
@@ -827,7 +827,7 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                                   onClick={() => updateChartConfig(index, { type: 'scatter' })}
                                   className="h-8 w-8 p-0"
                                 >
-                                  <Scatter className="w-4 h-4" />
+                                  <ScatterIcon className="w-4 h-4" />
                                 </Button>
                               </div>
                               
