@@ -311,30 +311,7 @@ const SalesReportsPage: React.FC = () => {
     salesDataFetcher.refetch()
   }
 
-  const handleExport = (format: 'csv' | 'excel' | 'pdf') => {
-    const data = salesDataFetcher.data || []
-    
-    if (format === 'csv') {
-      // Simple CSV export
-      const headers = reportColumns.map(col => col.label).join(',')
-      const rows = data.map(row => 
-        reportColumns.map(col => row[col.key] || '').join(',')
-      ).join('\n')
-      
-      const csvContent = `${headers}\n${rows}`
-      const blob = new Blob([csvContent], { type: 'text/csv' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `sales-report-${new Date().toISOString().split('T')[0]}.csv`
-      a.click()
-      window.URL.revokeObjectURL(url)
-    } else {
-      // For Excel and PDF, you would implement more sophisticated export logic
-      console.log(`Exporting as ${format}...`)
-      alert(`${format.toUpperCase()} export functionality would be implemented here`)
-    }
-  }
+  // Export functionality is now handled internally by ReportEngine
 
   const handleSave = (reportName: string) => {
     // Save report logic would go here
@@ -354,7 +331,7 @@ const SalesReportsPage: React.FC = () => {
         visualizations={visualizations}
         onFilterChange={handleFilterChange}
         onRefresh={handleRefresh}
-        onExport={handleExport}
+
         onSave={handleSave}
       />
     </AppLayout>

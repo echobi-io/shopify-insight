@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { 
   Download, 
   Filter, 
@@ -10,7 +10,11 @@ import {
   Share,
   Eye,
   EyeOff,
-  Grid3X3
+  Grid3X3,
+  FileText,
+  Image,
+  FileSpreadsheet,
+  ChevronDown
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,8 +24,18 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts'
 import PivotTable from '@/components/PivotTable'
+import { 
+  exportToCSV, 
+  exportToExcel, 
+  exportToPDF, 
+  exportToJSON, 
+  exportPivotTableToCSV,
+  exportChartAsImage,
+  createExportSummary
+} from '@/lib/utils/exportUtils'
 
 interface ReportFilter {
   id: string
@@ -62,7 +76,7 @@ interface ReportEngineProps {
   visualizations?: ReportVisualization[]
   onFilterChange: (filterId: string, value: any) => void
   onRefresh: () => void
-  onExport: (format: 'csv' | 'excel' | 'pdf') => void
+  onExport?: (format: 'csv' | 'excel' | 'pdf') => void // Made optional since we'll handle internally
   onSave?: (reportName: string) => void
 }
 
@@ -85,6 +99,7 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
   const [visibleColumns, setVisibleColumns] = useState<string[]>(columns.map(col => col.key))
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [reportName, setReportName] = useState('')
+  const chartRefs = useRef<(HTMLDivElement | null)[]>([])
 
   const handleSort = (columnKey: string) => {
     if (sortColumn === columnKey) {
@@ -205,6 +220,61 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
       setSaveDialogOpen(false)
       setReportName('')
     }
+  }
+
+  // Enhanced export handlers
+  const handleEnhancedExport = (format: 'csv' | 'excel' | 'pdf' | 'json') => {
+    const timestamp = new Date().toISOString().split('T')[0]
+    const filename = `${title.toLowerCase().replace(/\s+/g, '-')}-${timestamp}`
+    
+    // Get visible columns for export
+    const visibleColumnsData = columns.filter(col => visibleColumns.includes(col.key))
+    
+    switch (format) {
+      case 'csv':
+        exportToCSV(filteredAndSortedData, visibleColumnsData, filename, { includeMetadata: true })
+        break
+      case 'excel':
+        exportToExcel(filteredAndSortedData, visibleColumnsData, filename)
+        break
+      case 'pdf':
+        exportToPDF(filteredAndSortedData, visibleColumnsData, filename, title)
+        break
+      case 'json':
+        exportToJSON(filteredAndSortedData, filename, { includeMetadata: true })
+        break
+    }
+  }
+
+  const handlePivotExport = () => {
+    const timestamp = new Date().toISOString().split('T')[0]
+    const filename = `${title.toLowerCase().replace(/\s+/g, '-')}-pivot-${timestamp}`
+    exportPivotTableToCSV(filteredAndSortedData, filename)
+  }
+
+  const handleChartExport = (chartIndex: number, format: 'png' | 'svg') => {
+    const chartElement = chartRefs.current[chartIndex]
+    if (chartElement && visualizations[chartIndex]) {
+      const timestamp = new Date().toISOString().split('T')[0]
+      const filename = `${visualizations[chartIndex].title.toLowerCase().replace(/\s+/g, '-')}-${timestamp}`
+      exportChartAsImage(chartElement, filename, format)
+    }
+  }
+
+  const handleSummaryExport = () => {
+    const timestamp = new Date().toISOString().split('T')[0]
+    const filename = `${title.toLowerCase().replace(/\s+/g, '-')}-summary-${timestamp}`
+    const summary = createExportSummary(filteredAndSortedData, columns, filters)
+    
+    const blob = new Blob([summary], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${filename}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
   const renderFilter = (filter: ReportFilter) => {
@@ -361,31 +431,81 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
               
               <Separator orientation="vertical" className="h-6" />
               
-              {/* Export Options */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onExport('csv')}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                CSV
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onExport('excel')}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Excel
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onExport('pdf')}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                PDF
-              </Button>
+              {/* Enhanced Export Options */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {/* Table Export Options */}
+                  {activeTab === 'table' && (
+                    <>
+                      <DropdownMenuItem onClick={() => handleEnhancedExport('csv')}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Export as CSV
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEnhancedExport('excel')}>
+                        <FileSpreadsheet className="w-4 h-4 mr-2" />
+                        Export as Excel
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEnhancedExport('pdf')}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Export as PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEnhancedExport('json')}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Export as JSON
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleSummaryExport}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Export Summary
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  
+                  {/* Pivot Table Export Options */}
+                  {activeTab === 'pivot' && (
+                    <>
+                      <DropdownMenuItem onClick={handlePivotExport}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Export Pivot as CSV
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEnhancedExport('json')}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Export as JSON
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  
+                  {/* Chart Export Options */}
+                  {activeTab === 'charts' && visualizations.length > 0 && (
+                    <>
+                      {visualizations.map((viz, index) => (
+                        <div key={index}>
+                          <DropdownMenuItem onClick={() => handleChartExport(index, 'svg')}>
+                            <Image className="w-4 h-4 mr-2" />
+                            Export "{viz.title}" as SVG
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleChartExport(index, 'png')}>
+                            <Image className="w-4 h-4 mr-2" />
+                            Export "{viz.title}" as PNG
+                          </DropdownMenuItem>
+                        </div>
+                      ))}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleEnhancedExport('json')}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Export Chart Data as JSON
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardHeader>
@@ -470,8 +590,31 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
               <TabsContent value="charts" className="mt-0">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {visualizations.map((viz, index) => (
-                    <div key={index} className="h-80">
-                      <h3 className="text-lg font-medium text-black mb-4">{viz.title}</h3>
+                    <div 
+                      key={index} 
+                      className="h-80"
+                      ref={(el) => (chartRefs.current[index] = el)}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-medium text-black">{viz.title}</h3>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleChartExport(index, 'svg')}>
+                              <Image className="w-4 h-4 mr-2" />
+                              Export as SVG
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleChartExport(index, 'png')}>
+                              <Image className="w-4 h-4 mr-2" />
+                              Export as PNG
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                       <ResponsiveContainer width="100%" height="100%">
                         {viz.type === 'bar' ? (
                           <BarChart data={filteredAndSortedData}>
@@ -479,7 +622,7 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                             <XAxis dataKey={viz.xAxisKey} />
                             <YAxis />
                             <Tooltip />
-                            <Bar dataKey={viz.dataKey} fill="#3b82f6" />
+                            <Bar dataKey={viz.dataKey} fill="#0ea5e9" />
                           </BarChart>
                         ) : viz.type === 'line' ? (
                           <LineChart data={filteredAndSortedData}>
@@ -487,7 +630,7 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                             <XAxis dataKey={viz.xAxisKey} />
                             <YAxis />
                             <Tooltip />
-                            <Line type="monotone" dataKey={viz.dataKey} stroke="#3b82f6" strokeWidth={2} />
+                            <Line type="monotone" dataKey={viz.dataKey} stroke="#0ea5e9" strokeWidth={2} />
                           </LineChart>
                         ) : null}
                       </ResponsiveContainer>
