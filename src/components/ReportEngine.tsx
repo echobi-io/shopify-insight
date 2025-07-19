@@ -14,7 +14,12 @@ import {
   FileText,
   Image,
   FileSpreadsheet,
-  ChevronDown
+  ChevronDown,
+  Settings,
+  Edit,
+  LineChart,
+  AreaChart,
+  Scatter
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -25,7 +30,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, AreaChart, Area, ScatterChart, Scatter } from 'recharts'
 import PivotTable from '@/components/PivotTable'
 import { 
   exportToCSV, 
@@ -59,11 +65,14 @@ interface ReportData {
 }
 
 interface ReportVisualization {
-  type: 'bar' | 'line' | 'pie'
+  type: 'bar' | 'line' | 'area' | 'scatter'
   title: string
+  subtitle?: string
   dataKey: string
   xAxisKey: string
   yAxisKey?: string
+  xAxisTitle?: string
+  yAxisTitle?: string
 }
 
 interface ReportEngineProps {
@@ -100,6 +109,10 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [reportName, setReportName] = useState('')
   const chartRefs = useRef<(HTMLDivElement | null)[]>([])
+  
+  // Chart customization state
+  const [chartCustomizations, setChartCustomizations] = useState<{[key: number]: ReportVisualization}>({})
+  const [editingChart, setEditingChart] = useState<number | null>(null)
 
   const handleSort = (columnKey: string) => {
     if (sortColumn === columnKey) {
@@ -275,6 +288,91 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
+  }
+
+  // Chart customization functions
+  const getChartConfig = (index: number): ReportVisualization => {
+    return chartCustomizations[index] || visualizations[index]
+  }
+
+  const updateChartConfig = (index: number, updates: Partial<ReportVisualization>) => {
+    setChartCustomizations(prev => ({
+      ...prev,
+      [index]: { ...getChartConfig(index), ...updates }
+    }))
+  }
+
+  const renderChart = (chartConfig: ReportVisualization, data: any[]) => {
+    const commonProps = {
+      data,
+      margin: { top: 20, right: 30, left: 20, bottom: 60 }
+    }
+
+    switch (chartConfig.type) {
+      case 'bar':
+        return (
+          <BarChart {...commonProps}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey={chartConfig.xAxisKey} 
+              label={{ value: chartConfig.xAxisTitle || chartConfig.xAxisKey, position: 'insideBottom', offset: -10 }}
+            />
+            <YAxis 
+              label={{ value: chartConfig.yAxisTitle || chartConfig.dataKey, angle: -90, position: 'insideLeft' }}
+            />
+            <Tooltip />
+            <Bar dataKey={chartConfig.dataKey} fill="#0ea5e9" />
+          </BarChart>
+        )
+      case 'line':
+        return (
+          <LineChart {...commonProps}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey={chartConfig.xAxisKey}
+              label={{ value: chartConfig.xAxisTitle || chartConfig.xAxisKey, position: 'insideBottom', offset: -10 }}
+            />
+            <YAxis 
+              label={{ value: chartConfig.yAxisTitle || chartConfig.dataKey, angle: -90, position: 'insideLeft' }}
+            />
+            <Tooltip />
+            <Line type="monotone" dataKey={chartConfig.dataKey} stroke="#0ea5e9" strokeWidth={2} />
+          </LineChart>
+        )
+      case 'area':
+        return (
+          <AreaChart {...commonProps}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey={chartConfig.xAxisKey}
+              label={{ value: chartConfig.xAxisTitle || chartConfig.xAxisKey, position: 'insideBottom', offset: -10 }}
+            />
+            <YAxis 
+              label={{ value: chartConfig.yAxisTitle || chartConfig.dataKey, angle: -90, position: 'insideLeft' }}
+            />
+            <Tooltip />
+            <Area type="monotone" dataKey={chartConfig.dataKey} stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.3} />
+          </AreaChart>
+        )
+      case 'scatter':
+        return (
+          <ScatterChart {...commonProps}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis 
+              dataKey={chartConfig.xAxisKey}
+              label={{ value: chartConfig.xAxisTitle || chartConfig.xAxisKey, position: 'insideBottom', offset: -10 }}
+            />
+            <YAxis 
+              dataKey={chartConfig.yAxisKey || chartConfig.dataKey}
+              label={{ value: chartConfig.yAxisTitle || chartConfig.dataKey, angle: -90, position: 'insideLeft' }}
+            />
+            <Tooltip />
+            <Scatter dataKey={chartConfig.dataKey} fill="#0ea5e9" />
+          </ScatterChart>
+        )
+      default:
+        return null
+    }
   }
 
   const renderFilter = (filter: ReportFilter) => {
@@ -588,54 +686,184 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
             
             {visualizations.length > 0 && (
               <TabsContent value="charts" className="mt-0">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {visualizations.map((viz, index) => (
-                    <div 
-                      key={index} 
-                      className="h-80"
-                      ref={(el) => (chartRefs.current[index] = el)}
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-medium text-black">{viz.title}</h3>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <Download className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleChartExport(index, 'svg')}>
-                              <Image className="w-4 h-4 mr-2" />
-                              Export as SVG
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleChartExport(index, 'png')}>
-                              <Image className="w-4 h-4 mr-2" />
-                              Export as PNG
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      <ResponsiveContainer width="100%" height="100%">
-                        {viz.type === 'bar' ? (
-                          <BarChart data={filteredAndSortedData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey={viz.xAxisKey} />
-                            <YAxis />
-                            <Tooltip />
-                            <Bar dataKey={viz.dataKey} fill="#0ea5e9" />
-                          </BarChart>
-                        ) : viz.type === 'line' ? (
-                          <LineChart data={filteredAndSortedData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey={viz.xAxisKey} />
-                            <YAxis />
-                            <Tooltip />
-                            <Line type="monotone" dataKey={viz.dataKey} stroke="#0ea5e9" strokeWidth={2} />
-                          </LineChart>
-                        ) : null}
-                      </ResponsiveContainer>
-                    </div>
-                  ))}
+                <div className="space-y-8">
+                  {visualizations.map((viz, index) => {
+                    const chartConfig = getChartConfig(index)
+                    return (
+                      <Card key={index} className="p-6">
+                        <div className="space-y-6">
+                          {/* Chart Header with Controls */}
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center space-x-3">
+                                <h3 className="text-xl font-semibold text-black">
+                                  {chartConfig.title}
+                                </h3>
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-md">
+                                    <DialogHeader>
+                                      <DialogTitle>Customize Chart</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                      <div>
+                                        <Label>Chart Type</Label>
+                                        <Select
+                                          value={chartConfig.type}
+                                          onValueChange={(value: 'bar' | 'line' | 'area' | 'scatter') => 
+                                            updateChartConfig(index, { type: value })
+                                          }
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="bar">
+                                              <div className="flex items-center space-x-2">
+                                                <BarChart3 className="w-4 h-4" />
+                                                <span>Bar Chart</span>
+                                              </div>
+                                            </SelectItem>
+                                            <SelectItem value="line">
+                                              <div className="flex items-center space-x-2">
+                                                <LineChart className="w-4 h-4" />
+                                                <span>Line Chart</span>
+                                              </div>
+                                            </SelectItem>
+                                            <SelectItem value="area">
+                                              <div className="flex items-center space-x-2">
+                                                <AreaChart className="w-4 h-4" />
+                                                <span>Area Chart</span>
+                                              </div>
+                                            </SelectItem>
+                                            <SelectItem value="scatter">
+                                              <div className="flex items-center space-x-2">
+                                                <Scatter className="w-4 h-4" />
+                                                <span>Scatter Plot</span>
+                                              </div>
+                                            </SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      
+                                      <div>
+                                        <Label>Chart Title</Label>
+                                        <Input
+                                          value={chartConfig.title}
+                                          onChange={(e) => updateChartConfig(index, { title: e.target.value })}
+                                          placeholder="Enter chart title"
+                                        />
+                                      </div>
+                                      
+                                      <div>
+                                        <Label>Subtitle (optional)</Label>
+                                        <Input
+                                          value={chartConfig.subtitle || ''}
+                                          onChange={(e) => updateChartConfig(index, { subtitle: e.target.value })}
+                                          placeholder="Enter chart subtitle"
+                                        />
+                                      </div>
+                                      
+                                      <div>
+                                        <Label>X-Axis Title</Label>
+                                        <Input
+                                          value={chartConfig.xAxisTitle || ''}
+                                          onChange={(e) => updateChartConfig(index, { xAxisTitle: e.target.value })}
+                                          placeholder="Enter X-axis title"
+                                        />
+                                      </div>
+                                      
+                                      <div>
+                                        <Label>Y-Axis Title</Label>
+                                        <Input
+                                          value={chartConfig.yAxisTitle || ''}
+                                          onChange={(e) => updateChartConfig(index, { yAxisTitle: e.target.value })}
+                                          placeholder="Enter Y-axis title"
+                                        />
+                                      </div>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
+                              {chartConfig.subtitle && (
+                                <p className="text-sm text-gray-600">{chartConfig.subtitle}</p>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center space-x-2">
+                              {/* Chart Type Quick Switch */}
+                              <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                                <Button
+                                  variant={chartConfig.type === 'bar' ? 'default' : 'ghost'}
+                                  size="sm"
+                                  onClick={() => updateChartConfig(index, { type: 'bar' })}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <BarChart3 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant={chartConfig.type === 'line' ? 'default' : 'ghost'}
+                                  size="sm"
+                                  onClick={() => updateChartConfig(index, { type: 'line' })}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <LineChart className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant={chartConfig.type === 'area' ? 'default' : 'ghost'}
+                                  size="sm"
+                                  onClick={() => updateChartConfig(index, { type: 'area' })}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <AreaChart className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant={chartConfig.type === 'scatter' ? 'default' : 'ghost'}
+                                  size="sm"
+                                  onClick={() => updateChartConfig(index, { type: 'scatter' })}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Scatter className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleChartExport(index, 'svg')}>
+                                    <Image className="w-4 h-4 mr-2" />
+                                    Export as SVG
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleChartExport(index, 'png')}>
+                                    <Image className="w-4 h-4 mr-2" />
+                                    Export as PNG
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                          
+                          {/* Chart Container */}
+                          <div 
+                            className="h-96 w-full"
+                            ref={(el) => (chartRefs.current[index] = el)}
+                          >
+                            <ResponsiveContainer width="100%" height="100%">
+                              {renderChart(chartConfig, filteredAndSortedData)}
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      </Card>
+                    )
+                  })}
                 </div>
               </TabsContent>
             )}
