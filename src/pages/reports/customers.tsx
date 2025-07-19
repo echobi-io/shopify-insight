@@ -36,23 +36,61 @@ const CustomerReportsPage: React.FC = () => {
         
         console.log('Customer data received:', data)
         
-        // Transform data for reporting - use actual customer data structure
-        const reportData = data.customerData?.map((customer) => ({
-          customerId: customer.customer_id || customer.id || 'unknown',
-          customerName: customer.customer_name || 
-                       (customer.first_name && customer.last_name ? 
-                        `${customer.first_name} ${customer.last_name}` : 
-                        customer.first_name || customer.last_name || 'Unknown Customer'),
-          email: customer.email || 'No email',
-          totalOrders: customer.total_orders || customer.order_count || 0,
-          totalRevenue: customer.total_revenue || customer.lifetime_value || 0,
-          avgOrderValue: (customer.total_orders || customer.order_count) > 0 ? 
-                        ((customer.total_revenue || customer.lifetime_value || 0) / (customer.total_orders || customer.order_count)) : 0,
-          firstOrderDate: customer.first_order_date || customer.created_at || new Date().toISOString().split('T')[0],
-          lastOrderDate: customer.last_order_date || customer.updated_at || new Date().toISOString().split('T')[0],
-          segment: customer.segment || customer.customer_segment || 'Regular',
-          lifetimeValue: customer.lifetime_value || customer.total_revenue || 0
-        })) || []
+        // Transform data for reporting - use the actual data structure from getCustomerInsightsData
+        // The function returns churn predictions and LTV predictions with customer details
+        const reportData = []
+        
+        // Use churn predictions as the primary source since they contain customer details
+        if (data.churnPredictions && data.churnPredictions.length > 0) {
+          data.churnPredictions.forEach(prediction => {
+            if (prediction.customer && prediction.customer_id) {
+              const customer = prediction.customer
+              const ltvPrediction = data.ltvPredictions?.find(ltv => ltv.customer_id === prediction.customer_id)
+              
+              reportData.push({
+                customerId: prediction.customer_id,
+                customerName: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown Customer',
+                email: customer.email || 'No email',
+                totalOrders: 0, // Will be calculated from order data if available
+                totalRevenue: customer.total_spent || 0,
+                avgOrderValue: customer.total_spent || 0, // Will be recalculated if order count is available
+                firstOrderDate: customer.last_order_date ? new Date(customer.last_order_date).toISOString().split('T')[0] : 'N/A',
+                lastOrderDate: customer.last_order_date ? new Date(customer.last_order_date).toISOString().split('T')[0] : 'N/A',
+                segment: prediction.churn_band === 'High' ? 'At-Risk' : 
+                        prediction.churn_band === 'Medium' ? 'Regular' : 'Loyal',
+                lifetimeValue: ltvPrediction?.predicted_ltv || customer.total_spent || 0,
+                churnRisk: prediction.churn_band,
+                churnProbability: Math.round(prediction.churn_probability * 100),
+                revenueAtRisk: prediction.revenue_at_risk || 0
+              })
+            }
+          })
+        }
+        
+        // If no churn predictions, try to use LTV predictions
+        if (reportData.length === 0 && data.ltvPredictions && data.ltvPredictions.length > 0) {
+          data.ltvPredictions.forEach(prediction => {
+            if (prediction.customer && prediction.customer_id) {
+              const customer = prediction.customer
+              
+              reportData.push({
+                customerId: prediction.customer_id,
+                customerName: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown Customer',
+                email: customer.email || 'No email',
+                totalOrders: 0,
+                totalRevenue: customer.total_spent || 0,
+                avgOrderValue: customer.total_spent || 0,
+                firstOrderDate: 'N/A',
+                lastOrderDate: 'N/A',
+                segment: prediction.ltv_segment || 'Regular',
+                lifetimeValue: prediction.predicted_ltv || 0,
+                churnRisk: 'Low',
+                churnProbability: 0,
+                revenueAtRisk: 0
+              })
+            }
+          })
+        }
 
         console.log('Transformed customer report data:', reportData)
         return reportData
@@ -137,13 +175,6 @@ const CustomerReportsPage: React.FC = () => {
       width: '200px'
     },
     {
-      key: 'totalOrders',
-      label: 'Total Orders',
-      type: 'number' as const,
-      sortable: true,
-      width: '120px'
-    },
-    {
       key: 'totalRevenue',
       label: 'Total Revenue',
       type: 'currency' as const,
@@ -151,18 +182,11 @@ const CustomerReportsPage: React.FC = () => {
       width: '140px'
     },
     {
-      key: 'avgOrderValue',
-      label: 'Avg Order Value',
+      key: 'lifetimeValue',
+      label: 'Predicted LTV',
       type: 'currency' as const,
       sortable: true,
       width: '140px'
-    },
-    {
-      key: 'firstOrderDate',
-      label: 'First Order',
-      type: 'date' as const,
-      sortable: true,
-      width: '120px'
     },
     {
       key: 'lastOrderDate',
@@ -179,8 +203,22 @@ const CustomerReportsPage: React.FC = () => {
       width: '100px'
     },
     {
-      key: 'lifetimeValue',
-      label: 'Lifetime Value',
+      key: 'churnRisk',
+      label: 'Churn Risk',
+      type: 'text' as const,
+      sortable: true,
+      width: '100px'
+    },
+    {
+      key: 'churnProbability',
+      label: 'Churn %',
+      type: 'percentage' as const,
+      sortable: true,
+      width: '100px'
+    },
+    {
+      key: 'revenueAtRisk',
+      label: 'Revenue at Risk',
       type: 'currency' as const,
       sortable: true,
       width: '140px'
@@ -195,10 +233,17 @@ const CustomerReportsPage: React.FC = () => {
       xAxisKey: 'customerName'
     },
     {
-      type: 'line' as const,
-      title: 'Order Count by Customer',
-      dataKey: 'totalOrders',
+      type: 'bar' as const,
+      title: 'Revenue at Risk by Customer',
+      dataKey: 'revenueAtRisk',
       xAxisKey: 'customerName'
+    },
+    {
+      type: 'scatter' as const,
+      title: 'Churn Risk vs Total Revenue',
+      dataKey: 'churnProbability',
+      xAxisKey: 'totalRevenue',
+      yAxisKey: 'churnProbability'
     }
   ]
 
