@@ -95,14 +95,16 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, columns }) => {
   };
 
   const pivotData = useMemo(() => {
-    if (!data.length || !pivotConfig.values.length) return null;
+    if (!data.length || !pivotConfig.values.length || !pivotConfig.rows.length) return null;
 
     // Group data by row and column fields
     const grouped: { [key: string]: any[] } = {};
     
     data.forEach(row => {
       const rowKey = pivotConfig.rows.map(field => row[field] || 'N/A').join('|');
-      const colKey = pivotConfig.columns.map(field => row[field] || 'N/A').join('|');
+      const colKey = pivotConfig.columns.length > 0 ? 
+        pivotConfig.columns.map(field => row[field] || 'N/A').join('|') : 
+        'Total';
       const key = `${rowKey}::${colKey}`;
       
       if (!grouped[key]) {
@@ -149,7 +151,32 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, columns }) => {
     });
 
     return result;
-  }, [data, pivotConfig]);
+
+  // Get unique column values for headers
+  const uniqueColumnValues = useMemo(() => {
+    if (!pivotConfig.columns.length) return ['Total'];
+    
+    const values = new Set<string>();
+    data.forEach(row => {
+      const colKey = pivotConfig.columns.map(field => row[field] || 'N/A').join('|');
+      values.add(colKey);
+    });
+    
+    return Array.from(values).sort();
+  }, [data, pivotConfig.columns]);
+=======
+  // Get unique column values for headers
+  const uniqueColumnValues = useMemo(() => {
+    if (pivotConfig.columns.length === 0) return ['Total'];
+    
+    const values = new Set<string>();
+    data.forEach(row => {
+      const colKey = pivotConfig.columns.map(field => row[field] || 'N/A').join('|');
+      values.add(colKey);
+    });
+    
+    return Array.from(values).sort();
+  }, [data, pivotConfig.columns]);
 
   const formatValue = (value: number, field: string, aggregation: string) => {
     const column = columns.find(col => col.key === field);
@@ -167,6 +194,39 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, columns }) => {
         return aggregation === 'avg' ? value.toFixed(2) : value.toLocaleString();
     }
   };
+=======
+  }, [data, pivotConfig]);
+
+  // Get unique column values for headers
+  const uniqueColumnValues = useMemo(() => {
+    if (pivotConfig.columns.length === 0) return ['Total'];
+    
+    const values = new Set<string>();
+    data.forEach(row => {
+      const colKey = pivotConfig.columns.map(field => row[field] || 'N/A').join('|');
+      values.add(colKey);
+    });
+    
+    return Array.from(values).sort();
+  }, [data, pivotConfig.columns]);
+
+  const formatValue = (value: number, field: string, aggregation: string) => {
+    const column = columns.find(col => col.key === field);
+    if (!column) return value.toLocaleString();
+
+    switch (column.type) {
+      case 'currency':
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD'
+        }).format(value);
+      case 'percentage':
+        return `${value.toFixed(2)}%`;
+      default:
+        return aggregation === 'avg' ? value.toFixed(2) : value.toLocaleString();
+    }
+  };
+=======
 
   // Get unique column values for headers
   const uniqueColumnValues = useMemo(() => {
@@ -180,6 +240,36 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, columns }) => {
     
     return Array.from(values).sort();
   }, [data, pivotConfig.columns]);
+=======
+  // Get unique column values for headers
+  const uniqueColumnValues = useMemo(() => {
+    if (pivotConfig.columns.length === 0) return ['Total'];
+    
+    const values = new Set<string>();
+    data.forEach(row => {
+      const colKey = pivotConfig.columns.map(field => row[field] || 'N/A').join('|');
+      values.add(colKey);
+    });
+    
+    return Array.from(values).sort();
+  }, [data, pivotConfig.columns]);
+
+  const formatValue = (value: number, field: string, aggregation: string) => {
+    const column = columns.find(col => col.key === field);
+    if (!column) return value.toLocaleString();
+
+    switch (column.type) {
+      case 'currency':
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD'
+        }).format(value);
+      case 'percentage':
+        return `${value.toFixed(2)}%`;
+      default:
+        return aggregation === 'avg' ? value.toFixed(2) : value.toLocaleString();
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -225,7 +315,7 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, columns }) => {
 
           {/* Column Fields */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Column Fields</label>
+            <label className="text-sm font-medium mb-2 block">Column Fields <span className="text-xs text-muted-foreground">(optional)</span></label>
             <div className="flex flex-wrap gap-2 mb-2">
               {pivotConfig.columns.map(field => (
                 <Badge key={field} variant="secondary" className="flex items-center gap-1">
@@ -368,6 +458,9 @@ const PivotTable: React.FC<PivotTableProps> = ({ data, columns }) => {
           <CardContent className="text-center py-8">
             <p className="text-muted-foreground">
               Configure row fields and value fields to generate pivot table
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Column fields are optional - without them, you'll get a simple grouped summary
             </p>
           </CardContent>
         </Card>
