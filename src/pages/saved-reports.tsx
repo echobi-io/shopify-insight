@@ -129,8 +129,8 @@ const SavedReportsPage: React.FC = () => {
   const filteredReports = savedReports.filter(report => {
     const matchesSearch = report.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          report.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = !categoryFilter || report.category === categoryFilter
-    const matchesSchedule = !scheduleFilter || 
+    const matchesCategory = !categoryFilter || categoryFilter === 'all' || report.category === categoryFilter
+    const matchesSchedule = !scheduleFilter || scheduleFilter === 'all' || 
                            (scheduleFilter === 'scheduled' && report.isScheduled) ||
                            (scheduleFilter === 'manual' && !report.isScheduled)
     
@@ -262,7 +262,7 @@ const SavedReportsPage: React.FC = () => {
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
                     <SelectItem value="sales">Sales</SelectItem>
                     <SelectItem value="customers">Customers</SelectItem>
                     <SelectItem value="products">Products</SelectItem>
@@ -276,7 +276,7 @@ const SavedReportsPage: React.FC = () => {
                     <SelectValue placeholder="All Reports" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Reports</SelectItem>
+                    <SelectItem value="all">All Reports</SelectItem>
                     <SelectItem value="scheduled">Scheduled Only</SelectItem>
                     <SelectItem value="manual">Manual Only</SelectItem>
                   </SelectContent>
