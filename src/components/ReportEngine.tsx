@@ -17,8 +17,8 @@ import {
   ChevronDown,
   Settings,
   Edit,
-  LineChart,
-  AreaChart,
+  TrendingUp,
+  Activity,
   Scatter
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -730,13 +730,13 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                                             </SelectItem>
                                             <SelectItem value="line">
                                               <div className="flex items-center space-x-2">
-                                                <LineChart className="w-4 h-4" />
+                                                <TrendingUp className="w-4 h-4" />
                                                 <span>Line Chart</span>
                                               </div>
                                             </SelectItem>
                                             <SelectItem value="area">
                                               <div className="flex items-center space-x-2">
-                                                <AreaChart className="w-4 h-4" />
+                                                <Activity className="w-4 h-4" />
                                                 <span>Area Chart</span>
                                               </div>
                                             </SelectItem>
@@ -811,7 +811,7 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                                   onClick={() => updateChartConfig(index, { type: 'line' })}
                                   className="h-8 w-8 p-0"
                                 >
-                                  <LineChart className="w-4 h-4" />
+                                  <TrendingUp className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   variant={chartConfig.type === 'area' ? 'default' : 'ghost'}
@@ -819,7 +819,7 @@ const ReportEngine: React.FC<ReportEngineProps> = ({
                                   onClick={() => updateChartConfig(index, { type: 'area' })}
                                   className="h-8 w-8 p-0"
                                 >
-                                  <AreaChart className="w-4 h-4" />
+                                  <Activity className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   variant={chartConfig.type === 'scatter' ? 'default' : 'ghost'}
