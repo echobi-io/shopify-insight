@@ -1,7 +1,11 @@
 import crypto from 'crypto';
-import { createClient } from '@/util/supabase/component';
+import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient();
+// Create a service role client for server-side operations
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export class ShopifyAuth {
   static generateInstallUrl(shop: string): string {

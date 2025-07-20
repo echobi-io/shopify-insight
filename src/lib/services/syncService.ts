@@ -1,8 +1,11 @@
 import { ShopifyAPI, ShopifyOrder, ShopifyProduct, ShopifyCustomer, RateLimiter } from '../shopify/api';
 import { SessionManager } from '../shopify/auth';
-import { createClient } from '@/util/supabase/component';
+import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient();
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export interface SyncProgress {
   stage: 'orders' | 'products' | 'customers' | 'complete';

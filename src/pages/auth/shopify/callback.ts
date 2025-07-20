@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { ShopifyAuth, SessionManager } from '@/lib/shopify/auth';
-import { DataSyncService } from '@/lib/services/syncService';
+import { SimpleSyncService } from '@/lib/services/simpleSyncService';
 import { createClient } from '@/util/supabase/api';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -50,10 +50,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`Session created successfully for shop: ${shopDomain}`);
 
-    // Start initial data sync in the background
-    DataSyncService.syncShopData(shopDomain).catch(error => {
-      console.error('Initial sync failed:', error);
-      // Don't fail the OAuth flow if sync fails
+    // Initialize shop data and settings
+    SimpleSyncService.initializeShopData(shopDomain).catch(error => {
+      console.error('Shop initialization failed:', error);
+      // Don't fail the OAuth flow if initialization fails
     });
 
     // Check if user is already subscribed from database
