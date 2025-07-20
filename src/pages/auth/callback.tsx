@@ -6,12 +6,12 @@ import { useAuth } from '@/contexts/AuthContext'
 export default function AuthCallback() {
   const router = useRouter()
   const supabase = createClient()
+  const { createUser } = useAuth() // Move hook call to top level
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         try {
-          const { createUser } = useAuth();
           await createUser(session.user);
           router.push('/dashboard');
         } catch (error) {
@@ -24,7 +24,7 @@ export default function AuthCallback() {
     return () => {
       authListener.subscription.unsubscribe()
     }
-  }, [router])
+  }, [router, createUser]) // Add createUser to dependencies
 
   return null
 }
