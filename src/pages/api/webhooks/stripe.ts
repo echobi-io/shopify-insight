@@ -29,7 +29,7 @@ export default async function handler(
     return res.status(400).json({ message: 'Webhook signature verification failed' });
   }
 
-  const supabase = createClient();
+  const supabase = createClient(req, res);
 
   try {
     switch (event.type) {

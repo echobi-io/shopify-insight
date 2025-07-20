@@ -16,7 +16,7 @@ export default async function handler(
       return res.status(400).json({ message: 'Shop domain is required' });
     }
 
-    const supabase = createClient();
+    const supabase = createClient(req, res);
 
     // Check subscription status in database
     const { data: subscription, error } = await supabase

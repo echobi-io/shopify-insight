@@ -63,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // If not explicitly subscribed via query param, check database
     if (!isSubscribed) {
       try {
-        const supabase = createClient();
+        const supabase = createClient(req, res);
         const { data: subscription, error } = await supabase
           .from('subscription')
           .select('status')
