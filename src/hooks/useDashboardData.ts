@@ -24,7 +24,7 @@ export interface DashboardData {
 export function useDashboardData(
   globalDateRange: string,
   selectedSegment: string,
-  merchantId: string = '11111111-1111-1111-1111-111111111111'
+  merchantId?: string
 ) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -62,6 +62,13 @@ export function useDashboardData(
 
   // Fetch all data
   const fetchData = useCallback(async () => {
+    // Don't fetch if no merchantId is provided
+    if (!merchantId) {
+      console.log('⚠️ No merchantId provided, skipping data fetch')
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setError(null)
 

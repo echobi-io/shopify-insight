@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient'
 
 export interface AppSettings {
   id?: string
-  merchant_id: string
+  shop_id: string
   financialYearStart: string
   financialYearEnd: string
   defaultDateRange: string
@@ -15,7 +15,7 @@ export interface AppSettings {
   updated_at?: string
 }
 
-export const DEFAULT_SETTINGS: Omit<AppSettings, 'id' | 'merchant_id' | 'created_at' | 'updated_at'> = {
+export const DEFAULT_SETTINGS: Omit<AppSettings, 'id' | 'shop_id' | 'created_at' | 'updated_at'> = {
   financialYearStart: '01-01', // MM-DD format
   financialYearEnd: '12-31',   // MM-DD format
   defaultDateRange: 'financial_current',
@@ -26,14 +26,14 @@ export const DEFAULT_SETTINGS: Omit<AppSettings, 'id' | 'merchant_id' | 'created
   grossProfitMargin: 30 // Default: 30% gross profit margin
 }
 
-export async function getSettings(merchant_id: string): Promise<AppSettings> {
+export async function getSettings(shop_id: string): Promise<AppSettings> {
   try {
-    console.log('📋 Fetching settings for merchant:', merchant_id)
+    console.log('📋 Fetching settings for shop:', shop_id)
 
     const { data, error } = await supabase
       .from('settings')
       .select('*')
-      .eq('merchant_id', merchant_id)
+      .eq('merchant_id', shop_id)
       .single()
 
     if (error) {
@@ -42,13 +42,13 @@ export async function getSettings(merchant_id: string): Promise<AppSettings> {
         console.log('📋 No settings found, returning defaults')
         return {
           ...DEFAULT_SETTINGS,
-          merchant_id
+          shop_id
         }
       }
       console.error('❌ Error fetching settings:', error)
       return {
         ...DEFAULT_SETTINGS,
-        merchant_id
+        shop_id
       }
     }
 
@@ -57,7 +57,7 @@ export async function getSettings(merchant_id: string): Promise<AppSettings> {
     // Map database snake_case to camelCase interface
     const mappedSettings: AppSettings = {
       id: data.id,
-      merchant_id: data.merchant_id,
+      shop_id: data.merchant_id, // Database still uses merchant_id but we map it to shop_id
       financialYearStart: data.financial_year_start || DEFAULT_SETTINGS.financialYearStart,
       financialYearEnd: data.financial_year_end || DEFAULT_SETTINGS.financialYearEnd,
       defaultDateRange: data.default_date_range || DEFAULT_SETTINGS.defaultDateRange,
@@ -76,18 +76,18 @@ export async function getSettings(merchant_id: string): Promise<AppSettings> {
     console.error('❌ Error fetching settings:', error)
     return {
       ...DEFAULT_SETTINGS,
-      merchant_id
+      shop_id
     }
   }
 }
 
 export async function saveSettings(settings: AppSettings): Promise<boolean> {
   try {
-    console.log('💾 Saving settings for merchant:', settings.merchant_id)
+    console.log('💾 Saving settings for shop:', settings.shop_id)
 
     // Map camelCase interface to database snake_case
     const settingsData = {
-      merchant_id: settings.merchant_id,
+      merchant_id: settings.shop_id, // Map shop_id back to merchant_id for database
       financial_year_start: settings.financialYearStart,
       financial_year_end: settings.financialYearEnd,
       default_date_range: settings.defaultDateRange,
