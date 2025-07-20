@@ -8,7 +8,8 @@ const nextConfig = {
     domains: ["assets.co.dev", "images.unsplash.com"],
   },
   webpack: (config, context) => {
-    config.optimization.minimize = process.env.NEXT_PUBLIC_CO_DEV_ENV !== "preview";
+    // Disable minification to prevent React error #31 in production
+    config.optimization.minimize = false;
     return config;
   }
 };
