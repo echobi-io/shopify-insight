@@ -1,8 +1,32 @@
 import React, { createContext, useState, ReactNode, useContext, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { SessionManager, ShopifySession } from '@/lib/shopify/auth';
-import { DataSyncService, SyncProgress } from '@/lib/services/syncService';
 import { useToast } from "@/components/ui/use-toast";
+
+// Import sync service dynamically to avoid circular dependencies
+let DataSyncService: any = null;
+let SyncProgress: any = null;
+
+// Lazy load the sync service
+const loadSyncService = async () => {
+  if (!DataSyncService) {
+    try {
+      const module = await import('@/lib/services/syncService');
+      DataSyncService = module.DataSyncService;
+      SyncProgress = module.SyncProgress;
+    } catch (error) {
+      console.error('Failed to load sync service:', error);
+    }
+  }
+};
+
+interface SyncProgress {
+  stage: 'orders' | 'products' | 'customers' | 'complete';
+  processed: number;
+  total: number;
+  errors: string[];
+}
+=======
 
 interface ShopContextType {
   shop: string | null;
@@ -118,7 +142,14 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         description: "Starting to sync your store data...",
       });
 
-      await DataSyncService.syncShopData(shop, (progress) => {
+      // Load sync service dynamically
+      await loadSyncService();
+      
+      if (!DataSyncService) {
+        throw new Error('Sync service not available');
+      }
+
+      await DataSyncService.syncShopData(shop, (progress: SyncProgress) => {
         setSyncProgress(progress);
         
         // Show progress updates
