@@ -67,9 +67,12 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    let isMounted = true;
+
     // Wrap async function to prevent Promise leakage
     const initializeFromUrl = async () => {
       try {
+        if (!isMounted) return;
         setIsLoading(true);
         
         // Get shop from URL params
@@ -77,7 +80,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         
         if (shopParam && typeof shopParam === 'string') {
           try {
-            await initializeShop(shopParam);
+            if (isMounted) {
+              await initializeShop(shopParam);
+            }
           } catch (initError) {
             console.error('Failed to initialize shop from URL param:', initError);
             // Don't throw, just log and continue
@@ -86,7 +91,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
           // Try to get from stored session
           try {
             const storedSession = await SessionManager.getCurrentSession();
-            if (storedSession) {
+            if (storedSession && isMounted) {
               await initializeShop(storedSession.shop);
             }
           } catch (sessionError) {
@@ -96,26 +101,37 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error('Failed to initialize shop context:', error);
-        // Only show toast if we have a toast function available
-        try {
-          toast({
-            variant: "destructive",
-            title: "Authentication Error",
-            description: "Failed to authenticate with your Shopify store. Please try reinstalling the app.",
-          });
-        } catch (toastError) {
-          console.error('Failed to show toast:', toastError);
+        // Only show toast if we have a toast function available and component is still mounted
+        if (isMounted) {
+          try {
+            toast({
+              variant: "destructive",
+              title: "Authentication Error",
+              description: "Failed to authenticate with your Shopify store. Please try reinstalling the app.",
+            });
+          } catch (toastError) {
+            console.error('Failed to show toast:', toastError);
+          }
         }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     // Call the async function but don't return the Promise
     initializeFromUrl().catch(error => {
       console.error('Unhandled error in shop initialization:', error);
-      setIsLoading(false);
+      if (isMounted) {
+        setIsLoading(false);
+      }
     });
+
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isMounted = false;
+    };
   }, [router.isReady, router.query]);
 
   const initializeShop = async (shopDomain: string): Promise<void> => {

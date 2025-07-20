@@ -10,33 +10,48 @@ export class SimpleSyncService {
     try {
       console.log(`Initializing shop data for: ${shop}`);
       
-      // Get shop ID
+      // Generate a proper merchant ID (UUID format)
+      const merchantId = crypto.randomUUID();
+      
+      // First, ensure the shop exists in the shops table with merchant_id
       const { data: shopData, error: shopError } = await supabase
         .from('shops')
-        .select('id')
-        .eq('shop_domain', shop)
+        .upsert({
+          shop_domain: shop,
+          merchant_id: merchantId,
+          last_sync_at: new Date().toISOString(),
+          sync_status: 'initialized'
+        }, {
+          onConflict: 'shop_domain',
+          ignoreDuplicates: false
+        })
+        .select('id, merchant_id')
         .single();
 
-      if (shopError || !shopData) {
-        console.error('Shop not found:', shopError);
+      if (shopError) {
+        console.error('Error creating/updating shop:', shopError);
         return;
       }
 
-      const shopId = shopData.id;
+      const finalMerchantId = shopData.merchant_id;
+      console.log(`Using merchant ID: ${finalMerchantId} for shop: ${shop}`);
 
-      // Create default settings for the shop
+      // Create default settings for the shop using merchant_id
       const { error: settingsError } = await supabase
         .from('settings')
         .upsert({
-          shop_id: shopId,
-          merchant_id: shop.replace('.myshopify.com', ''),
-          data_period: 30,
-          churn_days: 90,
-          currency: 'USD',
+          merchant_id: finalMerchantId,
+          financial_year_start: '01-01',
+          financial_year_end: '12-31',
+          default_date_range: 'financial_current',
           timezone: 'UTC',
+          currency: 'USD',
+          churn_period_days: 180,
+          cost_of_acquisition: 50,
+          gross_profit_margin: 30,
           updated_at: new Date().toISOString()
         }, {
-          onConflict: 'shop_id'
+          onConflict: 'merchant_id'
         });
 
       if (settingsError) {
@@ -45,16 +60,7 @@ export class SimpleSyncService {
         console.log('Shop settings initialized successfully');
       }
 
-      // Update shop sync status
-      await supabase
-        .from('shops')
-        .update({ 
-          last_sync_at: new Date().toISOString(),
-          sync_status: 'initialized'
-        })
-        .eq('id', shopId);
-
-      console.log(`Shop initialization complete for: ${shop}`);
+      console.log(`Shop initialization complete for: ${shop} with merchant ID: ${finalMerchantId}`);
     } catch (error) {
       console.error('Error initializing shop data:', error);
     }
@@ -64,7 +70,7 @@ export class SimpleSyncService {
     try {
       const { data: shopData, error: shopError } = await supabase
         .from('shops')
-        .select('id')
+        .select('merchant_id')
         .eq('shop_domain', shop)
         .single();
 
@@ -75,7 +81,7 @@ export class SimpleSyncService {
       const { data: settings, error: settingsError } = await supabase
         .from('settings')
         .select('*')
-        .eq('shop_id', shopData.id)
+        .eq('merchant_id', shopData.merchant_id)
         .single();
 
       if (settingsError) {
@@ -86,6 +92,26 @@ export class SimpleSyncService {
       return settings;
     } catch (error) {
       console.error('Error getting shop settings:', error);
+      return null;
+    }
+  }
+
+  static async getMerchantIdFromShop(shop: string): Promise<string | null> {
+    try {
+      const { data: shopData, error: shopError } = await supabase
+        .from('shops')
+        .select('merchant_id')
+        .eq('shop_domain', shop)
+        .single();
+
+      if (shopError || !shopData) {
+        console.error('Error getting merchant ID for shop:', shop, shopError);
+        return null;
+      }
+
+      return shopData.merchant_id;
+    } catch (error) {
+      console.error('Error getting merchant ID from shop:', error);
       return null;
     }
   }

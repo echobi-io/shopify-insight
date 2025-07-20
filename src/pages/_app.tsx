@@ -18,28 +18,43 @@ export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
 
   useEffect(() => {
-  const initializeApp = async () => {
-    try {
-      const root = document.documentElement;
-      const computedStyle = getComputedStyle(root);
-      const colorScheme = computedStyle.getPropertyValue('--mode').trim().replace(/"/g, '');
-      if (colorScheme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.add('light');
-      }
-      
-      // Initialize currency settings cache
-      await initializeCurrencySettings();
-    } catch (error) {
-      console.error('Failed to initialize app:', error);
-    } finally {
-      setMounted(true);
-    }
-  };
+    let isMounted = true;
 
-  initializeApp();
-}, []);
+    const initializeApp = async () => {
+      try {
+        const root = document.documentElement;
+        const computedStyle = getComputedStyle(root);
+        const colorScheme = computedStyle.getPropertyValue('--mode').trim().replace(/"/g, '');
+        if (colorScheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.add('light');
+        }
+        
+        // Initialize currency settings cache
+        await initializeCurrencySettings();
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+      } finally {
+        if (isMounted) {
+          setMounted(true);
+        }
+      }
+    };
+
+    // Call async function but don't return the Promise
+    initializeApp().catch(error => {
+      console.error('App initialization failed:', error);
+      if (isMounted) {
+        setMounted(true);
+      }
+    });
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
 
   // Prevent flash while theme loads

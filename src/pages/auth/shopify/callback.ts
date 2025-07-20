@@ -4,6 +4,12 @@ import { SimpleSyncService } from '@/lib/services/simpleSyncService';
 import { createClient } from '@/util/supabase/api';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Ensure we have proper request/response objects
+  if (!req || !res || typeof res.status !== 'function') {
+    console.error('Invalid request/response objects in callback handler');
+    return;
+  }
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -50,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`Session created successfully for shop: ${shopDomain}`);
 
-    // Initialize shop data and settings
+    // Initialize shop data and settings - don't await to prevent blocking
     SimpleSyncService.initializeShopData(shopDomain).catch(error => {
       console.error('Shop initialization failed:', error);
       // Don't fail the OAuth flow if initialization fails
@@ -88,17 +94,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     console.log(`Redirecting to: ${redirectUrl}`);
     
-    // Simple redirect for standalone app
-    res.redirect(302, redirectUrl);
+    // Use writeHead and end for more reliable redirect
+    res.writeHead(302, { Location: redirectUrl });
+    res.end();
 
   } catch (error) {
     console.error('OAuth callback error:', error);
     
-    // Redirect to error page with error message
-    const errorUrl = `${process.env.NEXT_PUBLIC_APP_URL}/error?message=${encodeURIComponent(
-      error instanceof Error ? error.message : 'OAuth authentication failed'
-    )}`;
-    
-    res.redirect(302, errorUrl);
+    try {
+      // Redirect to error page with error message
+      const errorUrl = `${process.env.NEXT_PUBLIC_APP_URL}/error?message=${encodeURIComponent(
+        error instanceof Error ? error.message : 'OAuth authentication failed'
+      )}`;
+      
+      res.writeHead(302, { Location: errorUrl });
+      res.end();
+    } catch (redirectError) {
+      console.error('Failed to redirect to error page:', redirectError);
+      // Fallback response
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    }
   }
 }

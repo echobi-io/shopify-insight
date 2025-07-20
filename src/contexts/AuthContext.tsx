@@ -4,8 +4,7 @@ import { User, Provider } from '@supabase/supabase-js';
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from 'next/router';
 import { getSettingsSync } from '@/lib/utils/settingsUtils';
-
-const DEFAULT_MERCHANT_ID = '11111111-1111-1111-1111-111111111111';
+import { SimpleSyncService } from '@/lib/services/simpleSyncService';
 
 interface AuthContextType {
   user: User | null;
@@ -44,6 +43,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const supabase = createClient();
   const { toast } = useToast();
 
+  // Function to get merchant ID from shop domain using SimpleSyncService
+  const getMerchantIdFromShop = async (shopDomain: string): Promise<string | null> => {
+    try {
+      return await SimpleSyncService.getMerchantIdFromShop(shopDomain);
+    } catch (error) {
+      console.error('Error getting merchant ID from shop:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -69,7 +78,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           } as any;
           
           setUser(mockUser);
-          setMerchantId(DEFAULT_MERCHANT_ID);
+          
+          // Try to get merchant ID from shop parameter or use fallback
+          const shopParam = router.query.shop as string;
+          if (shopParam) {
+            const merchantIdFromShop = await getMerchantIdFromShop(shopParam);
+            setMerchantId(merchantIdFromShop || shopParam); // Use shop domain as fallback
+          } else {
+            setMerchantId('dev-admin-merchant');
+          }
+          
           setIsDevAdmin(true);
           setInitializing(false);
           return;
@@ -79,9 +97,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
         
-        // For any authenticated user, use the hardcoded merchant ID
+        // Get merchant ID from shop context if available
         if (user) {
-          setMerchantId(DEFAULT_MERCHANT_ID);
+          const shopParam = router.query.shop as string;
+          if (shopParam) {
+            const merchantIdFromShop = await getMerchantIdFromShop(shopParam);
+            setMerchantId(merchantIdFromShop || shopParam); // Use shop domain as fallback
+          } else {
+            setMerchantId(null);
+          }
         } else {
           setMerchantId(null);
         }
@@ -94,7 +118,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     };
 
-    initializeAuth();
+    // Only initialize when router is ready
+    if (router.isReady) {
+      initializeAuth();
+    }
 
     // Listen for auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -103,7 +130,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (devAdminMode) return;
 
       setUser(session?.user ?? null);
-      setMerchantId(session?.user ? DEFAULT_MERCHANT_ID : null);
+      
+      // Get merchant ID from shop context if user is authenticated
+      if (session?.user) {
+        const shopParam = router.query.shop as string;
+        if (shopParam) {
+          const merchantIdFromShop = await getMerchantIdFromShop(shopParam);
+          setMerchantId(merchantIdFromShop || shopParam); // Use shop domain as fallback
+        } else {
+          setMerchantId(null);
+        }
+      } else {
+        setMerchantId(null);
+      }
+      
       setIsDevAdmin(false);
       setInitializing(false);
     });
@@ -111,7 +151,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [router.isReady, router.query.shop]);
 
   const createUser = async (user: User) => {
     // Simplified - just log for now since we're using hardcoded merchant ID
