@@ -155,7 +155,7 @@ export default function InstallPage() {
 
               <div className="text-center">
                 <p className="text-sm text-gray-500">
-                  Free 14-day trial • No credit card required
+                  No credit card required
                 </p>
               </div>
             </CardContent>
