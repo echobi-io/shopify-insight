@@ -5,7 +5,6 @@ import { useToast } from "@/components/ui/use-toast";
 
 // Import sync service dynamically to avoid circular dependencies
 let DataSyncService: any = null;
-let SyncProgress: any = null;
 
 // Lazy load the sync service
 const loadSyncService = async () => {
@@ -13,7 +12,6 @@ const loadSyncService = async () => {
     try {
       const module = await import('@/lib/services/syncService');
       DataSyncService = module.DataSyncService;
-      SyncProgress = module.SyncProgress;
     } catch (error) {
       console.error('Failed to load sync service:', error);
     }
@@ -26,7 +24,6 @@ interface SyncProgress {
   total: number;
   errors: string[];
 }
-=======
 
 interface ShopContextType {
   shop: string | null;
