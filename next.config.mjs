@@ -27,8 +27,8 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https: blob:",
               "connect-src 'self' https://*.supabase.co https://*.myshopify.com https://api.openai.com https://api.stripe.com",
-              "frame-ancestors 'self' https://*.myshopify.com https://admin.shopify.com",
-              "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+              "frame-ancestors 'self' https://*.myshopify.com https://admin.shopify.com https://accounts.shopify.com",
+              "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://accounts.shopify.com",
               "worker-src 'self' blob:",
               "object-src 'none'",
               "base-uri 'self'"

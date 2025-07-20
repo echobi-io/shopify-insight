@@ -212,6 +212,13 @@ body.shopify-embedded {
   overflow-x: hidden;
 }
 
+body.shopify-iframe {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background: transparent;
+}
+
 .shopify-app-wrapper.iframe-context {
   min-height: 100vh;
   width: 100%;
@@ -221,12 +228,30 @@ body.shopify-embedded {
   min-height: 100vh;
 }
 
+.shopify-auth-handler.iframe-mode {
+  width: 100%;
+  min-height: 100vh;
+  background: transparent;
+}
+
+.shopify-auth-handler.standalone-mode {
+  min-height: 100vh;
+}
+
 /* Prevent iframe-related issues */
 .iframe-context .no-iframe {
   display: none;
 }
 
 .standalone-context .iframe-only {
+  display: none;
+}
+
+.iframe-mode .no-iframe {
+  display: none;
+}
+
+.standalone-mode .iframe-only {
   display: none;
 }
 
