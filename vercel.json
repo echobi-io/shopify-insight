@@ -1,4 +1,3 @@
 {
-  "installCommand": "pnpm install --no-frozen-lockfile",
-  "domains": ["echointel.io", "www.echointel.io"]
+  "installCommand": "pnpm install --no-frozen-lockfile"
 }
