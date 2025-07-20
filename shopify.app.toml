@@ -2,7 +2,7 @@
 
 name = "echoSignal"
 client_id = "85a951823c69216d65f3271a8aef5fec"
-application_url = "https://3ymihe3bzzhzubxr-q62ve7m5h.preview.co.dev"
+application_url = "https://echointel.io"
 embedded = true
 
 [access_scopes]
@@ -11,8 +11,8 @@ scopes = "read_orders,read_products,read_customers,read_analytics,read_inventory
 
 [auth]
 redirect_urls = [
-  "https://3ymihe3bzzhzubxr-q62ve7m5h.preview.co.dev/auth/shopify/callback",
-  "https://3ymihe3bzzhzubxr-q62ve7m5h.preview.co.dev/auth/callback"
+  "https://echointel.io/auth/shopify/callback",
+  "https://echointel.io/auth/callback"
 ]
 
 [webhooks]
@@ -20,19 +20,19 @@ api_version = "2024-01"
 
 [[webhooks.subscriptions]]
 topics = ["orders/create", "orders/updated", "orders/paid", "orders/cancelled"]
-uri = "https://3ymihe3bzzhzubxr-q62ve7m5h.preview.co.dev/api/webhooks/orders"
+uri = "https://echointel.io/api/webhooks/orders"
 
 [[webhooks.subscriptions]]
 topics = ["customers/create", "customers/update"]
-uri = "https://3ymihe3bzzhzubxr-q62ve7m5h.preview.co.dev/api/webhooks/customers"
+uri = "https://echointel.io/api/webhooks/customers"
 
 [[webhooks.subscriptions]]
 topics = ["products/create", "products/update"]
-uri = "https://3ymihe3bzzhzubxr-q62ve7m5h.preview.co.dev/api/webhooks/products"
+uri = "https://echointel.io/api/webhooks/products"
 
 [[webhooks.subscriptions]]
 topics = ["app/uninstalled"]
-uri = "https://3ymihe3bzzhzubxr-q62ve7m5h.preview.co.dev/api/webhooks/app/uninstalled"
+uri = "https://echointel.io/api/webhooks/app/uninstalled"
 
 [pos]
 embedded = false
