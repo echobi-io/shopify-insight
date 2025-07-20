@@ -4,15 +4,21 @@ import { SimpleSyncService } from '@/lib/services/simpleSyncService';
 import { createClient } from '@/util/supabase/api';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Ensure we have proper request/response objects
+  // Basic validation - only check if objects exist
   if (!req || !res) {
     console.error('Invalid request/response objects in callback handler');
     return;
   }
 
-  // Additional validation for response methods
-  if (typeof res.status !== 'function' || typeof res.json !== 'function') {
-    console.error('Invalid response object methods in callback handler');
+  // More lenient validation - check if we can use the response object
+  try {
+    if (typeof res.status !== 'function') {
+      console.error('Invalid response object methods in callback handler');
+      // Try to handle gracefully without throwing
+      return;
+    }
+  } catch (error) {
+    console.error('Error validating response object:', error);
     return;
   }
 

@@ -265,21 +265,23 @@ export const useShop = () => {
 // Higher-order component for protecting routes that require shop authentication
 export function withShopAuth<P extends object>(
   WrappedComponent: React.ComponentType<P>
-) {
-  return function ShopAuthComponent(props: P) {
+): React.ComponentType<P> {
+  const ShopAuthComponent: React.FC<P> = (props) => {
     const { isAuthenticated, isLoading, shop } = useShop();
     const router = useRouter();
 
     useEffect(() => {
+      // Only redirect if we're not loading and not authenticated
       if (!isLoading && !isAuthenticated) {
-        // Redirect to install page if not authenticated
         const redirectUrl = `/install${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
+        // Don't await the router.push to prevent returning a Promise
         router.push(redirectUrl).catch(routerError => {
           console.error('Router push failed in withShopAuth:', routerError);
         });
       }
     }, [isAuthenticated, isLoading, shop, router]);
 
+    // Always return JSX, never a Promise
     if (isLoading) {
       return (
         <div className="min-h-screen flex items-center justify-center">
@@ -303,6 +305,11 @@ export function withShopAuth<P extends object>(
 
     return <WrappedComponent {...props} />;
   };
+
+  // Set display name for debugging
+  ShopAuthComponent.displayName = `withShopAuth(${WrappedComponent.displayName || WrappedComponent.name || 'Component'})`;
+
+  return ShopAuthComponent;
 }
 
 // Hook for getting shop-specific data fetchers

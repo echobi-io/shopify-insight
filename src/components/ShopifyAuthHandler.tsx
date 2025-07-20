@@ -32,10 +32,25 @@ export function ShopifyAuthHandler({ children }: ShopifyAuthHandlerProps) {
             
             // Try to communicate with parent window
             if (window.parent && window.parent !== window) {
-              // Use the correct target origin based on environment
-              const targetOrigin = process.env.NEXT_PUBLIC_CO_DEV_ENV === "preview" 
-                ? 'https://app.co.dev' 
-                : window.location.origin;
+              // Determine the correct target origin dynamically
+              let targetOrigin = '*'; // Fallback to wildcard
+              
+              try {
+                // Try to get the parent's origin from the referrer or current location
+                if (document.referrer) {
+                  const referrerUrl = new URL(document.referrer);
+                  targetOrigin = referrerUrl.origin;
+                } else if (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
+                  targetOrigin = window.location.ancestorOrigins[0];
+                } else {
+                  // Use current origin as fallback
+                  targetOrigin = window.location.origin;
+                }
+              } catch (error) {
+                console.log('Could not determine parent origin, using wildcard');
+                targetOrigin = '*';
+              }
+              
               window.parent.postMessage(authMessage, targetOrigin);
             }
             
@@ -112,10 +127,25 @@ export function ShopifyAuthHandler({ children }: ShopifyAuthHandlerProps) {
           e.preventDefault();
           // Try to open in parent window instead
           if (window.parent && window.parent !== window) {
-            // Use the correct target origin based on environment
-            const targetOrigin = process.env.NEXT_PUBLIC_CO_DEV_ENV === "preview" 
-              ? 'https://app.co.dev' 
-              : window.location.origin;
+            // Determine the correct target origin dynamically
+            let targetOrigin = '*'; // Fallback to wildcard
+            
+            try {
+              // Try to get the parent's origin from the referrer or current location
+              if (document.referrer) {
+                const referrerUrl = new URL(document.referrer);
+                targetOrigin = referrerUrl.origin;
+              } else if (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
+                targetOrigin = window.location.ancestorOrigins[0];
+              } else {
+                // Use current origin as fallback
+                targetOrigin = window.location.origin;
+              }
+            } catch (error) {
+              console.log('Could not determine parent origin, using wildcard');
+              targetOrigin = '*';
+            }
+            
             window.parent.postMessage({
               type: 'OPEN_EXTERNAL_LINK',
               url: (target as HTMLAnchorElement).href
