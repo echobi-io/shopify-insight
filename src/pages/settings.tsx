@@ -14,29 +14,35 @@ import {
   CheckCircle,
   Users
 } from 'lucide-react'
-import ProtectedRoute from '@/components/ProtectedRoute'
-import Sidebar from '@/components/Sidebar'
-import Header from '@/components/Header'
+import AppLayout from '@/components/Layout/AppLayout'
 import { getSettings, saveSettings, AppSettings, DEFAULT_SETTINGS, clearSettingsCache } from '@/lib/fetchers/getSettingsData'
 import { clearCurrencyCache } from '@/lib/utils/currencyUtils'
-
-const MERCHANT_ID = '11111111-1111-1111-1111-111111111111'
+import { useShop, withShopAuth } from '@/contexts/ShopContext'
 
 const SettingsPage: React.FC = () => {
-  const [settings, setSettings] = useState<AppSettings>({ ...DEFAULT_SETTINGS, merchant_id: MERCHANT_ID })
+  const { shop, session, isAuthenticated } = useShop()
+  const [settings, setSettings] = useState<AppSettings>({ ...DEFAULT_SETTINGS, merchant_id: shop || '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Load settings from database on component mount
   useEffect(() => {
-    loadSettings()
-  }, [])
+    if (shop && isAuthenticated) {
+      loadSettings()
+    }
+  }, [shop, isAuthenticated])
 
   const loadSettings = async () => {
+    if (!shop) {
+      setMessage({ type: 'error', text: 'No shop identified. Please ensure you are properly authenticated.' })
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
-      const loadedSettings = await getSettings(MERCHANT_ID)
+      const loadedSettings = await getSettings(shop)
       setSettings(loadedSettings)
     } catch (error) {
       console.error('Error loading settings:', error)
@@ -124,19 +130,14 @@ const SettingsPage: React.FC = () => {
   }
 
   const handleReset = () => {
-    setSettings({ ...DEFAULT_SETTINGS, merchant_id: MERCHANT_ID })
+    setSettings({ ...DEFAULT_SETTINGS, merchant_id: shop || '' })
     setMessage({ type: 'success', text: 'Settings reset to defaults' })
     setTimeout(() => setMessage(null), 3000)
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      <Sidebar />
-      
-      <div className="flex-1 ml-[240px] overflow-auto">
-        <Header />
-        
-        <div className="p-8">
+    <AppLayout loading={loading} loadingMessage="Loading settings...">
+      <div className="p-8">
           {/* Page Header */}
           <div className="mb-8">
             <div className="flex items-center space-x-3 mb-2">
@@ -430,16 +431,9 @@ const SettingsPage: React.FC = () => {
               </Button>
             </div>
           </div>
-        </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }
 
-export default function Settings() {
-  return (
-    <ProtectedRoute>
-      <SettingsPage />
-    </ProtectedRoute>
-  )
-}
+export default withShopAuth(SettingsPage)

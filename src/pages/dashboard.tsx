@@ -67,8 +67,16 @@ const DashboardPage: React.FC = () => {
     }
   }, [timeframe, customStartDate, customEndDate])
 
-  // Get shop ID for data fetching
-  const shopId = session?.shopId || shop
+  // Get shop ID for data fetching - use shop domain directly
+  const shopId = shop
+  
+  // Debug logging to track shop identification
+  console.log('🏪 Dashboard Shop Debug:', {
+    shop,
+    session: session ? { shop: session.shop, isActive: session.isActive } : null,
+    shopId,
+    isAuthenticated
+  })
 
   // Memoize fetch functions to prevent recreation on every render
   const kpiFetchFunction = useCallback(() => {
