@@ -14,7 +14,10 @@ export class ShopifyAuth {
       sessionStorage.setItem('shopify_oauth_state', state);
     }
     
-    return `https://${shop}.myshopify.com/admin/oauth/authorize?` +
+    // Extract just the shop name without .myshopify.com if it's already included
+    const shopName = shop.replace('.myshopify.com', '');
+    
+    return `https://${shopName}.myshopify.com/admin/oauth/authorize?` +
       `client_id=${process.env.NEXT_PUBLIC_SHOPIFY_API_KEY}&` +
       `scope=${scopes}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
@@ -22,7 +25,10 @@ export class ShopifyAuth {
   }
   
   static async exchangeCodeForToken(shop: string, code: string): Promise<string> {
-    const response = await fetch(`https://${shop}.myshopify.com/admin/oauth/access_token`, {
+    // Extract just the shop name without .myshopify.com if it's already included
+    const shopName = shop.replace('.myshopify.com', '');
+    
+    const response = await fetch(`https://${shopName}.myshopify.com/admin/oauth/access_token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
