@@ -2,7 +2,7 @@
 
 name = "echoSignal"
 client_id = "85a951823c69216d65f3271a8aef5fec"
-application_url = "https://echointel.io"
+application_url = "https://echointel.io/install"
 embedded = true
 
 [access_scopes]

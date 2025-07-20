@@ -15,15 +15,33 @@ export default function InstallPage() {
   const [error, setError] = useState('');
   const [isValidDomain, setIsValidDomain] = useState(false);
 
-  // Check if we have a shop parameter from URL
+  // Check if we have a shop parameter from URL and auto-install if valid
   useEffect(() => {
     const { shop } = router.query;
     if (shop && typeof shop === 'string') {
       const cleanDomain = ShopifyAuth.extractShopDomain(shop);
       setShopDomain(cleanDomain);
-      setIsValidDomain(ShopifyAuth.validateShopDomain(cleanDomain));
+      const isValid = ShopifyAuth.validateShopDomain(cleanDomain);
+      setIsValidDomain(isValid);
+      
+      // If we have a valid shop from URL (coming from Shopify App Store), auto-start installation
+      if (isValid && router.isReady) {
+        handleAutoInstall(cleanDomain);
+      }
     }
-  }, [router.query]);
+  }, [router.query, router.isReady]);
+
+  const handleAutoInstall = async (domain: string) => {
+    setIsLoading(true);
+    try {
+      const installUrl = ShopifyAuth.generateInstallUrl(domain);
+      window.location.href = installUrl;
+    } catch (err) {
+      console.error('Auto-installation error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to start installation');
+      setIsLoading(false);
+    }
+  };
 
   const handleShopDomainChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.trim();
