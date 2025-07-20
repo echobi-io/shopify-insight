@@ -14,28 +14,29 @@ export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
 
   useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        const root = document.documentElement;
-        const computedStyle = getComputedStyle(root);
-        const colorScheme = computedStyle.getPropertyValue('--mode').trim().replace(/"/g, '');
-        if (colorScheme === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.add('light');
-        }
-        
-        // Initialize currency settings cache
-        await initializeCurrencySettings();
-      } catch (error) {
-        console.error('Failed to initialize app:', error);
-      } finally {
-        setMounted(true);
+  const initializeApp = async () => {
+    try {
+      const root = document.documentElement;
+      const computedStyle = getComputedStyle(root);
+      const colorScheme = computedStyle.getPropertyValue('--mode').trim().replace(/"/g, '');
+      if (colorScheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.add('light');
       }
-    };
+      
+      // Initialize currency settings cache
+      await initializeCurrencySettings();
+    } catch (error) {
+      console.error('Failed to initialize app:', error);
+    } finally {
+      setMounted(true);
+    }
+  };
 
-    initializeApp();
-  }, []);
+  initializeApp();
+}, []);
+
 
   // Prevent flash while theme loads
   if (!mounted) {
