@@ -86,39 +86,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const redirectPath = isSubscribed ? '/dashboard' : '/subscription';
     const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL}${redirectPath}?shop=${encodeURIComponent(shopDomain)}`;
     
-    // For embedded apps, we need to use App Bridge for navigation
-    const embedRedirectHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Redirecting...</title>
-          <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
-        </head>
-        <body>
-          <script>
-            document.addEventListener('DOMContentLoaded', function() {
-              if (window.top !== window.self) {
-                // We're in an iframe, use App Bridge
-                const app = window.AppBridge.createApp({
-                  apiKey: '${process.env.NEXT_PUBLIC_SHOPIFY_API_KEY}',
-                  host: '${Buffer.from(shopDomain).toString('base64')}'
-                });
-                
-                const redirect = window.AppBridge.actions.Redirect.create(app);
-                redirect.dispatch(window.AppBridge.actions.Redirect.Action.REMOTE, '${redirectUrl}');
-              } else {
-                // Not in iframe, regular redirect
-                window.location.href = '${redirectUrl}';
-              }
-            });
-          </script>
-          <p>Redirecting to echoSignal...</p>
-        </body>
-      </html>
-    `;
-
-    res.setHeader('Content-Type', 'text/html');
-    res.status(200).send(embedRedirectHtml);
+    console.log(`Redirecting to: ${redirectUrl}`);
+    
+    // Simple redirect for standalone app
+    res.redirect(302, redirectUrl);
 
   } catch (error) {
     console.error('OAuth callback error:', error);

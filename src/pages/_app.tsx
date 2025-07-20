@@ -3,6 +3,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ShopProvider } from '@/contexts/ShopContext'
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext'
 import { SubscriptionGuard } from '@/components/SubscriptionGuard'
+import { ShopifyAppBridge } from '@/components/ShopifyAppBridge'
 import '../styles/globals.css';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -78,16 +79,18 @@ export default function App({ Component, pageProps }: AppProps) {
       <div className="min-h-screen">
         <ShopProvider>
           <SubscriptionProvider>
-            <ErrorBoundary>
-              {isPublicRoute ? (
-                <Component {...pageProps} />
-              ) : (
-                <SubscriptionGuard>
+            <ShopifyAppBridge>
+              <ErrorBoundary>
+                {isPublicRoute ? (
                   <Component {...pageProps} />
-                </SubscriptionGuard>
-              )}
-            </ErrorBoundary>
-            <Toaster />
+                ) : (
+                  <SubscriptionGuard>
+                    <Component {...pageProps} />
+                  </SubscriptionGuard>
+                )}
+              </ErrorBoundary>
+              <Toaster />
+            </ShopifyAppBridge>
           </SubscriptionProvider>
         </ShopProvider>
       </div>

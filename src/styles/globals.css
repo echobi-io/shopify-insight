@@ -205,6 +205,31 @@
   @apply w-full h-full;
 }
 
+/* Shopify app context styles */
+body.shopify-embedded {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+.shopify-app-wrapper.iframe-context {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.shopify-app-wrapper.standalone-context {
+  min-height: 100vh;
+}
+
+/* Prevent iframe-related issues */
+.iframe-context .no-iframe {
+  display: none;
+}
+
+.standalone-context .iframe-only {
+  display: none;
+}
+
 /* Ensure charts are responsive in embedded mode */
 .embedded-app .recharts-wrapper {
   @apply w-full;
