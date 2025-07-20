@@ -32,7 +32,11 @@ export function ShopifyAuthHandler({ children }: ShopifyAuthHandlerProps) {
             
             // Try to communicate with parent window
             if (window.parent && window.parent !== window) {
-              window.parent.postMessage(authMessage, '*');
+              // Use the correct target origin based on environment
+              const targetOrigin = process.env.NEXT_PUBLIC_CO_DEV_ENV === "preview" 
+                ? 'https://app.co.dev' 
+                : window.location.origin;
+              window.parent.postMessage(authMessage, targetOrigin);
             }
             
             // Also try to redirect the top window if possible
@@ -108,10 +112,14 @@ export function ShopifyAuthHandler({ children }: ShopifyAuthHandlerProps) {
           e.preventDefault();
           // Try to open in parent window instead
           if (window.parent && window.parent !== window) {
+            // Use the correct target origin based on environment
+            const targetOrigin = process.env.NEXT_PUBLIC_CO_DEV_ENV === "preview" 
+              ? 'https://app.co.dev' 
+              : window.location.origin;
             window.parent.postMessage({
               type: 'OPEN_EXTERNAL_LINK',
               url: (target as HTMLAnchorElement).href
-            }, '*');
+            }, targetOrigin);
           }
         }
       };

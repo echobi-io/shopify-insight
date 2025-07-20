@@ -32,7 +32,6 @@ export const EnhancedDrillThroughKPI: React.FC<EnhancedDrillThroughKPIProps> = (
 }) => {
   const [showDrillThrough, setShowDrillThrough] = useState(false);
   const [drillThroughData, setDrillThroughData] = useState(null);
-
   const [isLoadingDrillThrough, setIsLoadingDrillThrough] = useState(false);
 
   const { 
@@ -42,7 +41,6 @@ export const EnhancedDrillThroughKPI: React.FC<EnhancedDrillThroughKPIProps> = (
     refetch: refetchDetailed
   } = useDataFetcher(
     () => getDetailedKPIData(data.title, dateRange),
-    [data.title, dateRange.startDate, dateRange.endDate],
     { enabled: false } // Only fetch when drill-through is opened
   );
 

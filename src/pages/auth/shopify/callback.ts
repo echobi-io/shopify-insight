@@ -5,8 +5,14 @@ import { createClient } from '@/util/supabase/api';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Ensure we have proper request/response objects
-  if (!req || !res || typeof res.status !== 'function') {
+  if (!req || !res) {
     console.error('Invalid request/response objects in callback handler');
+    return;
+  }
+
+  // Additional validation for response methods
+  if (typeof res.status !== 'function' || typeof res.json !== 'function') {
+    console.error('Invalid response object methods in callback handler');
     return;
   }
 
