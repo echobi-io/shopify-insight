@@ -47,7 +47,15 @@ export default function App({ Component, pageProps }: AppProps) {
   const isShopifyApp = router.query.shop || 
                       router.pathname.startsWith('/install') || 
                       router.pathname.startsWith('/auth/shopify') ||
-                      router.pathname === '/' // Landing page can be either
+                      router.pathname === '/' || // Landing page should use Shopify flow
+                      router.pathname.startsWith('/dashboard') || // Dashboard should be Shopify-aware
+                      router.pathname.startsWith('/sales-analysis') ||
+                      router.pathname.startsWith('/customer-insights') ||
+                      router.pathname.startsWith('/product-insights') ||
+                      router.pathname.startsWith('/churn-') ||
+                      router.pathname.startsWith('/cohort-analysis') ||
+                      router.pathname.startsWith('/reports') ||
+                      router.pathname.startsWith('/settings')
 
   // For Shopify app routes, use ShopProvider
   if (isShopifyApp) {

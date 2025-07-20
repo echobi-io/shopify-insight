@@ -22,17 +22,10 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center space-x-4">
               <Button 
-                variant="ghost"
-                onClick={() => router.push('/login')}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                Sign In
-              </Button>
-              <Button 
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/install')}
                 className="bg-teal-600 hover:bg-teal-700 text-white px-6"
               >
-                Get Started
+                Install App
               </Button>
             </div>
           </div>
@@ -57,10 +50,10 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
               <Button 
                 size="lg"
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/install')}
                 className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-4 text-lg"
               >
-                Try for Free
+                Install on Shopify
               </Button>
               <Button 
                 size="lg"
@@ -207,17 +200,17 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <Button 
               size="lg"
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/install')}
               className="bg-teal-600 hover:bg-teal-700 text-white px-8 py-4 text-lg"
             >
-              Start Free Trial
+              Install on Shopify
             </Button>
             <Button 
               size="lg"
               variant="outline"
               className="px-8 py-4 text-lg border-gray-300 hover:bg-white"
             >
-              Contact Sales
+              View Demo
             </Button>
           </div>
           <p className="text-sm text-gray-500">
