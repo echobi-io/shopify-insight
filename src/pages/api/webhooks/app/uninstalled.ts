@@ -8,12 +8,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Get raw body for webhook verification
-    const body = JSON.stringify(req.body);
+    let rawBody: string;
+    
+    if (typeof req.body === 'string') {
+      rawBody = req.body;
+    } else {
+      rawBody = JSON.stringify(req.body);
+    }
     
     // Verify webhook authenticity
-    const isValid = verifyWebhook(body, req.headers);
+    const isValid = verifyWebhook(rawBody, req.headers);
     if (!isValid) {
-      console.error('Invalid webhook signature');
+      console.error('Invalid webhook signature for shop:', req.headers['x-shopify-shop-domain']);
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
@@ -25,11 +31,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Missing shop domain' });
     }
 
+    // Validate shop domain format
+    if (!shop.endsWith('.myshopify.com')) {
+      console.error('Invalid shop domain format:', shop);
+      return res.status(400).json({ error: 'Invalid shop domain' });
+    }
+
     console.log(`Received app uninstall webhook from shop: ${shop}`);
+
+    // Parse body if it's a string
+    const webhookData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
     // Process webhook with retry mechanism
     await WebhookRetryManager.processWithRetry(async () => {
-      await WebhookProcessors.processAppUninstallWebhook(shop, req.body);
+      await WebhookProcessors.processAppUninstallWebhook(shop, webhookData);
     });
 
     res.status(200).json({ success: true });
