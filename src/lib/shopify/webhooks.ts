@@ -4,7 +4,7 @@ import { DataSyncService } from '../services/syncService';
 
 const supabase = createClient();
 
-export function verifyWebhook(body: string, headers: any): boolean {
+export function verifyWebhook(body: string | Buffer, headers: any): boolean {
   const hmac = headers['x-shopify-hmac-sha256'];
   const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
   
@@ -13,9 +13,12 @@ export function verifyWebhook(body: string, headers: any): boolean {
     return false;
   }
   
+  // Handle both string and Buffer inputs
+  const bodyData = Buffer.isBuffer(body) ? body : Buffer.from(body, 'utf8');
+  
   const hash = crypto
     .createHmac('sha256', secret)
-    .update(body, 'utf8')
+    .update(bodyData)
     .digest('base64');
   
   return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(hmac));
