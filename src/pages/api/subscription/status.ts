@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import prisma from '@/lib/prisma';
+import { createClient } from '@/util/supabase/api';
 
 export default async function handler(
   req: NextApiRequest,
@@ -16,17 +16,26 @@ export default async function handler(
       return res.status(400).json({ message: 'Shop domain is required' });
     }
 
+    const supabase = createClient();
+
     // Check subscription status in database
-    const subscription = await prisma.subscription.findUnique({
-      where: { shopDomain: shop },
-    });
+    const { data: subscription, error } = await supabase
+      .from('subscription')
+      .select('status, stripe_subscription_id')
+      .eq('shop_domain', shop)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+      console.error('Database error:', error);
+      return res.status(500).json({ message: 'Database error' });
+    }
 
     const isActive = subscription?.status === 'active';
 
     res.status(200).json({
       isActive,
       status: subscription?.status || 'inactive',
-      subscriptionId: subscription?.stripeSubscriptionId,
+      subscriptionId: subscription?.stripe_subscription_id,
     });
   } catch (error) {
     console.error('Error checking subscription status:', error);

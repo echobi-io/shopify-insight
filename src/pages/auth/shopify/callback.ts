@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { ShopifyAuth, SessionManager } from '@/lib/shopify/auth';
 import { DataSyncService } from '@/lib/services/syncService';
-import prisma from '@/lib/prisma';
+import { createClient } from '@/util/supabase/api';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -63,9 +63,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // If not explicitly subscribed via query param, check database
     if (!isSubscribed) {
       try {
-        const subscription = await prisma.subscription.findUnique({
-          where: { shopDomain },
-        });
+        const supabase = createClient();
+        const { data: subscription, error } = await supabase
+          .from('subscription')
+          .select('status')
+          .eq('shop_domain', shopDomain)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error checking subscription status:', error);
+        }
+        
         isSubscribed = subscription?.status === 'active';
       } catch (error) {
         console.error('Error checking subscription status:', error);

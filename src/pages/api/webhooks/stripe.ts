@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { stripe } from '@/lib/stripe';
 import { buffer } from 'micro';
-import prisma from '@/lib/prisma';
+import { createClient } from '@/util/supabase/api';
 
 export const config = {
   api: {
@@ -29,6 +29,8 @@ export default async function handler(
     return res.status(400).json({ message: 'Webhook signature verification failed' });
   }
 
+  const supabase = createClient();
+
   try {
     switch (event.type) {
       case 'checkout.session.completed':
@@ -37,25 +39,23 @@ export default async function handler(
         
         if (shopDomain && session.mode === 'subscription') {
           // Store subscription information in your database
-          await prisma.subscription.upsert({
-            where: { shopDomain },
-            update: {
-              stripeCustomerId: session.customer as string,
-              stripeSubscriptionId: session.subscription as string,
+          const { error } = await supabase
+            .from('subscription')
+            .upsert({
+              shop_domain: shopDomain,
+              stripe_customer_id: session.customer as string,
+              stripe_subscription_id: session.subscription as string,
               status: 'active',
-              updatedAt: new Date(),
-            },
-            create: {
-              shopDomain,
-              stripeCustomerId: session.customer as string,
-              stripeSubscriptionId: session.subscription as string,
-              status: 'active',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            },
-          });
-          
-          console.log(`Subscription activated for shop: ${shopDomain}`);
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'shop_domain'
+            });
+
+          if (error) {
+            console.error('Error upserting subscription:', error);
+          } else {
+            console.log(`Subscription activated for shop: ${shopDomain}`);
+          }
         }
         break;
 
@@ -64,15 +64,19 @@ export default async function handler(
         const subscription = event.data.object;
         
         // Update subscription status in database
-        await prisma.subscription.updateMany({
-          where: { stripeSubscriptionId: subscription.id },
-          data: {
+        const { error: updateError } = await supabase
+          .from('subscription')
+          .update({
             status: subscription.status,
-            updatedAt: new Date(),
-          },
-        });
-        
-        console.log(`Subscription ${subscription.id} status updated to: ${subscription.status}`);
+            updated_at: new Date().toISOString(),
+          })
+          .eq('stripe_subscription_id', subscription.id);
+
+        if (updateError) {
+          console.error('Error updating subscription:', updateError);
+        } else {
+          console.log(`Subscription ${subscription.id} status updated to: ${subscription.status}`);
+        }
         break;
 
       case 'invoice.payment_failed':
