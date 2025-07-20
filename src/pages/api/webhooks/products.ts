@@ -1,23 +1,15 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextApiResponse } from 'next';
 import { verifyWebhook, WebhookProcessors, WebhookRetryManager } from '@/lib/shopify/webhooks';
+import { withRawBody, NextApiRequestWithRawBody } from '@/middleware/rawBody';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequestWithRawBody, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    // Get raw body for webhook verification
-    let rawBody: string;
-    
-    if (typeof req.body === 'string') {
-      rawBody = req.body;
-    } else {
-      rawBody = JSON.stringify(req.body);
-    }
-    
-    // Verify webhook authenticity
-    const isValid = verifyWebhook(rawBody, req.headers);
+    // Verify webhook authenticity using raw body
+    const isValid = verifyWebhook(req.rawBody, req.headers);
     if (!isValid) {
       console.error('Invalid webhook signature for shop:', req.headers['x-shopify-shop-domain']);
       return res.status(401).json({ error: 'Unauthorized' });
@@ -40,8 +32,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`Received product webhook: ${topic} from shop: ${shop}`);
 
-    // Parse body if it's a string
-    const webhookData = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    // Use parsed body (already handled by middleware)
+    const webhookData = req.body;
 
     // Process webhook with retry mechanism
     await WebhookRetryManager.processWithRetry(async () => {
@@ -58,10 +50,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
+// Export with raw body middleware
+export default withRawBody(handler);
+
+// Disable Next.js body parser to handle raw body
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: '1mb',
-    },
+    bodyParser: false,
   },
 }
