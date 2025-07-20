@@ -62,36 +62,61 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!(shop && session?.isActive);
 
   useEffect(() => {
-    initializeFromUrl();
-  }, [router.query]);
-
-  const initializeFromUrl = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Get shop from URL params
-      const { shop: shopParam } = router.query;
-      
-      if (shopParam && typeof shopParam === 'string') {
-        await initializeShop(shopParam);
-      } else {
-        // Try to get from stored session
-        const storedSession = await SessionManager.getCurrentSession();
-        if (storedSession) {
-          await initializeShop(storedSession.shop);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to initialize shop context:', error);
-      toast({
-        variant: "destructive",
-        title: "Authentication Error",
-        description: "Failed to authenticate with your Shopify store. Please try reinstalling the app.",
-      });
-    } finally {
-      setIsLoading(false);
+    // Skip if router is not ready
+    if (!router.isReady) {
+      return;
     }
-  };
+
+    // Wrap async function to prevent Promise leakage
+    const initializeFromUrl = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Get shop from URL params
+        const { shop: shopParam } = router.query;
+        
+        if (shopParam && typeof shopParam === 'string') {
+          try {
+            await initializeShop(shopParam);
+          } catch (initError) {
+            console.error('Failed to initialize shop from URL param:', initError);
+            // Don't throw, just log and continue
+          }
+        } else {
+          // Try to get from stored session
+          try {
+            const storedSession = await SessionManager.getCurrentSession();
+            if (storedSession) {
+              await initializeShop(storedSession.shop);
+            }
+          } catch (sessionError) {
+            console.log('No stored session found:', sessionError);
+            // This is expected when no session exists, don't treat as error
+          }
+        }
+      } catch (error) {
+        console.error('Failed to initialize shop context:', error);
+        // Only show toast if we have a toast function available
+        try {
+          toast({
+            variant: "destructive",
+            title: "Authentication Error",
+            description: "Failed to authenticate with your Shopify store. Please try reinstalling the app.",
+          });
+        } catch (toastError) {
+          console.error('Failed to show toast:', toastError);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Call the async function but don't return the Promise
+    initializeFromUrl().catch(error => {
+      console.error('Unhandled error in shop initialization:', error);
+      setIsLoading(false);
+    });
+  }, [router.isReady, router.query]);
 
   const initializeShop = async (shopDomain: string): Promise<void> => {
     try {
@@ -102,28 +127,33 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       
       if (!shopSession) {
         console.error('No session found for shop:', shopDomain);
-        // Redirect to installation page
-        router.push(`/install?shop=${encodeURIComponent(shopDomain)}`);
+        // Redirect to installation page - don't await this
+        router.push(`/install?shop=${encodeURIComponent(shopDomain)}`).catch(routerError => {
+          console.error('Router push failed:', routerError);
+        });
         return;
       }
 
       setShop(shopDomain);
       setSession(shopSession);
 
-      // Update URL if needed (without causing a reload)
+      // Update URL if needed (without causing a reload) - don't await this
       if (router.query.shop !== shopDomain) {
         const currentPath = router.asPath.split('?')[0];
         router.replace(
           `${currentPath}?shop=${encodeURIComponent(shopDomain)}`,
           undefined,
           { shallow: true }
-        );
+        ).catch(routerError => {
+          console.error('Router replace failed:', routerError);
+        });
       }
 
       console.log('Shop context initialized successfully:', shopDomain);
     } catch (error) {
       console.error('Error initializing shop:', error);
-      throw error;
+      // Don't throw the error, just log it
+      return;
     }
   };
 
@@ -185,8 +215,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     setIsSyncing(false);
     SessionManager.clearAllSessions();
     
-    // Redirect to installation page
-    router.push('/install');
+    // Redirect to installation page - don't await this
+    router.push('/install').catch(routerError => {
+      console.error('Router push failed in clearShop:', routerError);
+    });
   };
 
   return (
@@ -226,7 +258,9 @@ export function withShopAuth<P extends object>(
       if (!isLoading && !isAuthenticated) {
         // Redirect to install page if not authenticated
         const redirectUrl = `/install${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`;
-        router.push(redirectUrl);
+        router.push(redirectUrl).catch(routerError => {
+          console.error('Router push failed in withShopAuth:', routerError);
+        });
       }
     }, [isAuthenticated, isLoading, shop, router]);
 
