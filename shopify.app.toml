@@ -2,7 +2,7 @@
 
 name = "echoSignal"
 client_id = "your_client_id_here"
-application_url = "https://3ymihe3bzzhzubxr-cpercikwv.preview.co.dev"
+application_url = "https://3ymihe3bzzhzubxr-6tv67k1rx.preview.co.dev"
 embedded = true
 
 [access_scopes]
@@ -11,8 +11,8 @@ scopes = "read_orders,read_products,read_customers,read_analytics,read_inventory
 
 [auth]
 redirect_urls = [
-  "https://3ymihe3bzzhzubxr-cpercikwv.preview.co.dev/auth/shopify/callback",
-  "https://3ymihe3bzzhzubxr-cpercikwv.preview.co.dev/auth/callback"
+  "https://3ymihe3bzzhzubxr-6tv67k1rx.preview.co.dev/auth/shopify/callback",
+  "https://3ymihe3bzzhzubxr-6tv67k1rx.preview.co.dev/auth/callback"
 ]
 
 [webhooks]
@@ -20,19 +20,19 @@ api_version = "2024-01"
 
 [[webhooks.subscriptions]]
 topics = ["orders/create", "orders/updated", "orders/paid", "orders/cancelled"]
-uri = "https://3ymihe3bzzhzubxr-cpercikwv.preview.co.dev/api/webhooks/orders"
+uri = "https://3ymihe3bzzhzubxr-6tv67k1rx.preview.co.dev/api/webhooks/orders"
 
 [[webhooks.subscriptions]]
 topics = ["customers/create", "customers/update"]
-uri = "https://3ymihe3bzzhzubxr-cpercikwv.preview.co.dev/api/webhooks/customers"
+uri = "https://3ymihe3bzzhzubxr-6tv67k1rx.preview.co.dev/api/webhooks/customers"
 
 [[webhooks.subscriptions]]
 topics = ["products/create", "products/update"]
-uri = "https://3ymihe3bzzhzubxr-cpercikwv.preview.co.dev/api/webhooks/products"
+uri = "https://3ymihe3bzzhzubxr-6tv67k1rx.preview.co.dev/api/webhooks/products"
 
 [[webhooks.subscriptions]]
 topics = ["app/uninstalled"]
-uri = "https://3ymihe3bzzhzubxr-cpercikwv.preview.co.dev/api/webhooks/app/uninstalled"
+uri = "https://3ymihe3bzzhzubxr-6tv67k1rx.preview.co.dev/api/webhooks/app/uninstalled"
 
 [pos]
 embedded = false
