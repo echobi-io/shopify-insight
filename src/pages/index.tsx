@@ -213,9 +213,7 @@ export default function LandingPage() {
               View Demo
             </Button>
           </div>
-          <p className="text-sm text-gray-500">
-            No credit card required
-          </p>
+
         </div>
       </section>
 

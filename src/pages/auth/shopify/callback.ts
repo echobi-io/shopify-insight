@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { ShopifyAuth, SessionManager } from '@/lib/shopify/auth';
 import { DataSyncService } from '@/lib/services/syncService';
+import prisma from '@/lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -55,8 +56,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Don't fail the OAuth flow if sync fails
     });
 
-    // Redirect to the app with shop parameter
-    const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?shop=${encodeURIComponent(shopDomain)}`;
+    // Check if user is already subscribed from database
+    const { subscribed } = req.query;
+    let isSubscribed = subscribed === 'true';
+    
+    // If not explicitly subscribed via query param, check database
+    if (!isSubscribed) {
+      try {
+        const subscription = await prisma.subscription.findUnique({
+          where: { shopDomain },
+        });
+        isSubscribed = subscription?.status === 'active';
+      } catch (error) {
+        console.error('Error checking subscription status:', error);
+        // Default to not subscribed if there's an error
+        isSubscribed = false;
+      }
+    }
+    
+    // Redirect to subscription page if not subscribed, otherwise to dashboard
+    const redirectPath = isSubscribed ? '/dashboard' : '/subscription';
+    const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL}${redirectPath}?shop=${encodeURIComponent(shopDomain)}`;
     
     // For embedded apps, we need to use App Bridge for navigation
     const embedRedirectHtml = `
@@ -77,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 });
                 
                 const redirect = window.AppBridge.actions.Redirect.create(app);
-                redirect.dispatch(window.AppBridge.actions.Redirect.Action.APP, '/dashboard');
+                redirect.dispatch(window.AppBridge.actions.Redirect.Action.REMOTE, '${redirectUrl}');
               } else {
                 // Not in iframe, regular redirect
                 window.location.href = '${redirectUrl}';

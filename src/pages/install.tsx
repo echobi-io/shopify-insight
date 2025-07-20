@@ -153,11 +153,7 @@ export default function InstallPage() {
                 {isLoading ? 'Installing...' : 'Install echoSignal'}
               </Button>
 
-              <div className="text-center">
-                <p className="text-sm text-gray-500">
-                  No credit card required
-                </p>
-              </div>
+
             </CardContent>
           </Card>
 

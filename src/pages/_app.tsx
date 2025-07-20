@@ -1,6 +1,8 @@
 import type { AppProps } from 'next/app'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ShopProvider } from '@/contexts/ShopContext'
+import { SubscriptionProvider } from '@/contexts/SubscriptionContext'
+import { SubscriptionGuard } from '@/components/SubscriptionGuard'
 import '../styles/globals.css';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -55,17 +57,38 @@ export default function App({ Component, pageProps }: AppProps) {
                       router.pathname.startsWith('/churn-') ||
                       router.pathname.startsWith('/cohort-analysis') ||
                       router.pathname.startsWith('/reports') ||
-                      router.pathname.startsWith('/settings')
+                      router.pathname.startsWith('/settings') ||
+                      router.pathname.startsWith('/subscription')
+
+  // Routes that don't require subscription (public pages, install flow, subscription pages)
+  const publicRoutes = [
+    '/',
+    '/install',
+    '/subscription',
+    '/subscription/success'
+  ];
+  
+  const isPublicRoute = publicRoutes.includes(router.pathname) || 
+                       router.pathname.startsWith('/auth/shopify') ||
+                       router.pathname.startsWith('/api/');
 
   // For Shopify app routes, use ShopProvider
   if (isShopifyApp) {
     return (
       <div className="min-h-screen">
         <ShopProvider>
-          <ErrorBoundary>
-            <Component {...pageProps} />
-          </ErrorBoundary>
-          <Toaster />
+          <SubscriptionProvider>
+            <ErrorBoundary>
+              {isPublicRoute ? (
+                <Component {...pageProps} />
+              ) : (
+                <SubscriptionGuard>
+                  <Component {...pageProps} />
+                </SubscriptionGuard>
+              )}
+            </ErrorBoundary>
+            <Toaster />
+          </SubscriptionProvider>
         </ShopProvider>
       </div>
     )
