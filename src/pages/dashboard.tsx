@@ -48,9 +48,10 @@ interface ProductData {
 }
 
 const DashboardPage: React.FC = () => {
-  // Mock shop context for demo purposes
-  const shop = 'demo-store.myshopify.com'
-  const isAuthenticated = true
+  const { shop, isAuthenticated } = useShop()
+  
+  // Use hardcoded merchant ID for demo
+  const shopId = '111111'
   
   // Filter states
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())
@@ -68,62 +69,40 @@ const DashboardPage: React.FC = () => {
     }
   }, [timeframe, customStartDate, customEndDate])
 
-  // Mock data for demonstration
-  const mockKpiData = {
-    totalRevenue: 124500,
-    totalOrders: 2847,
-    avgOrderValue: 43.75,
-    newCustomers: 1429
-  }
+  // Data fetchers
+  const kpiDataFetcher = useDataFetcher(
+    () => getKPIsOptimized(shopId, filters),
+    [shopId, filters],
+    'KPI Data'
+  )
 
-  const mockPreviousYearKpiData = {
-    totalRevenue: 110000,
-    totalOrders: 2500,
-    avgOrderValue: 44.00,
-    newCustomers: 1200
-  }
+  const previousYearKpiDataFetcher = useDataFetcher(
+    () => getPreviousYearKPIsOptimized(shopId, filters),
+    [shopId, filters],
+    'Previous Year KPI Data'
+  )
 
-  const mockDashboardChartData = [
-    { date: '2024-01-01', total_revenue: 8500, total_orders: 195 },
-    { date: '2024-01-02', total_revenue: 9200, total_orders: 210 },
-    { date: '2024-01-03', total_revenue: 7800, total_orders: 178 },
-    { date: '2024-01-04', total_revenue: 10500, total_orders: 240 },
-    { date: '2024-01-05', total_revenue: 11200, total_orders: 256 },
-    { date: '2024-01-06', total_revenue: 9800, total_orders: 224 },
-    { date: '2024-01-07', total_revenue: 8900, total_orders: 203 },
-    { date: '2024-01-08', total_revenue: 12100, total_orders: 276 },
-    { date: '2024-01-09', total_revenue: 10800, total_orders: 247 },
-    { date: '2024-01-10', total_revenue: 9500, total_orders: 217 }
-  ]
+  const dashboardChartDataFetcher = useDataFetcher(
+    () => getDashboardChartsData(shopId, filters),
+    [shopId, filters],
+    'Dashboard Chart Data'
+  )
 
-  const mockOrderTimingData = [
-    { hour: 9, order_count: 45, percentage: 8.2 },
-    { hour: 10, order_count: 62, percentage: 11.3 },
-    { hour: 11, order_count: 78, percentage: 14.2 },
-    { hour: 12, order_count: 85, percentage: 15.5 },
-    { hour: 13, order_count: 72, percentage: 13.1 },
-    { hour: 14, order_count: 68, percentage: 12.4 },
-    { hour: 15, order_count: 55, percentage: 10.0 },
-    { hour: 16, order_count: 48, percentage: 8.7 },
-    { hour: 17, order_count: 36, percentage: 6.6 }
-  ]
+  const salesOriginDataFetcher = useDataFetcher(
+    () => getSalesOriginData(shopId, filters),
+    [shopId, filters],
+    'Sales Origin Data'
+  )
 
-  const mockSalesOriginData = [
-    { channel: 'online', order_count: 1943, total_revenue: 85000, percentage: 68.3 },
-    { channel: 'social', order_count: 571, total_revenue: 25000, percentage: 20.1 },
-    { channel: 'email', order_count: 228, total_revenue: 10000, percentage: 8.0 },
-    { channel: 'direct', order_count: 105, total_revenue: 4500, percentage: 3.6 }
-  ]
+  // Extract data with fallbacks
+  const kpiData = kpiDataFetcher.data || {}
+  const previousYearKpiData = previousYearKpiDataFetcher.data || {}
+  const dashboardChartData = dashboardChartDataFetcher.data?.chartData || []
+  const orderTimingData = dashboardChartDataFetcher.data?.orderTimingData || []
+  const salesOriginData = salesOriginDataFetcher.data || []
 
-  // Extract data with mock fallbacks
-  const kpiData = mockKpiData
-  const previousYearKpiData = mockPreviousYearKpiData
-  const dashboardChartData = mockDashboardChartData
-  const orderTimingData = mockOrderTimingData
-  const salesOriginData = mockSalesOriginData
-
-  // Mock loading state
-  const loading = false
+  // Loading state
+  const loading = kpiDataFetcher.loading || dashboardChartDataFetcher.loading || salesOriginDataFetcher.loading
 
   const handleRefresh = useCallback(() => {
     console.log('Refresh clicked - using mock data')

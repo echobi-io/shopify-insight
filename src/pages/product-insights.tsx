@@ -35,7 +35,8 @@ import { useAuth } from '@/contexts/AuthContext'
 
 
 const ProductInsightsPage: React.FC = () => {
-  const { merchantId } = useAuth()
+  // Use hardcoded merchant ID for demo
+  const merchantId = '111111'
   
   // Filter states
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())

@@ -39,7 +39,9 @@ const CustomerInsightsPage: React.FC = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
   const [customerDetailsOpen, setCustomerDetailsOpen] = useState(false)
   const [cohortPeriod, setCohortPeriod] = useState<'monthly' | 'quarterly'>('monthly')
-  const { merchantId } = useAuth()
+  
+  // Use hardcoded merchant ID for demo
+  const merchantId = '111111'
 
   // Filter states
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())

@@ -79,7 +79,9 @@ const SalesAnalysisPage: React.FC = () => {
   const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { merchantId } = useAuth()
+  
+  // Use hardcoded merchant ID for demo
+  const merchantId = '111111'
   
   // Filter states
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())
