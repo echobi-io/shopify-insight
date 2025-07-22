@@ -41,7 +41,7 @@ const CustomerInsightsPage: React.FC = () => {
   const [cohortPeriod, setCohortPeriod] = useState<'monthly' | 'quarterly'>('monthly')
   
   // Use hardcoded merchant ID for demo
-  const merchantId = '111111'
+  const merchantId = '11111111-1111-1111-1111-111111111111'
 
   // Filter states
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())

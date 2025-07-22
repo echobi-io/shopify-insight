@@ -51,7 +51,7 @@ const DashboardPage: React.FC = () => {
   const { shop, isAuthenticated } = useShop()
   
   // Use hardcoded merchant ID for demo
-  const shopId = '111111'
+  const shopId = '11111111-1111-1111-1111-111111111111'
   
   // Filter states
   const [timeframe, setTimeframe] = useState(getInitialTimeframe())
