@@ -36,7 +36,6 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       setIsLoading(false);
       return;
     }
-=======
 
     const { shop } = router.query;
     
