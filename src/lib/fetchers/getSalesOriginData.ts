@@ -113,6 +113,11 @@ export async function getSalesOriginData(
 
 // Helper function to get channel display name
 export function getChannelDisplayName(channel: string): string {
+  // Safety check for undefined/null channel
+  if (!channel || typeof channel !== 'string') {
+    return 'Unknown'
+  }
+  
   const channelMap: Record<string, string> = {
     'online': 'Online Store',
     'mobile': 'Mobile App',
@@ -127,6 +132,11 @@ export function getChannelDisplayName(channel: string): string {
 
 // Helper function to get channel color for charts
 export function getChannelColor(channel: string): string {
+  // Safety check for undefined/null channel
+  if (!channel || typeof channel !== 'string') {
+    return '#6b7280' // Gray for unknown
+  }
+  
   const colorMap: Record<string, string> = {
     'online': '#0ea5e9', // Blue
     'mobile': '#10b981', // Green

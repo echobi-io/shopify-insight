@@ -109,10 +109,10 @@ const DashboardPage: React.FC = () => {
   ]
 
   const mockSalesOriginData = [
-    { source: 'Online Store', revenue: 85000, percentage: 68.3 },
-    { source: 'Social Media', revenue: 25000, percentage: 20.1 },
-    { source: 'Email Marketing', revenue: 10000, percentage: 8.0 },
-    { source: 'Direct Traffic', revenue: 4500, percentage: 3.6 }
+    { channel: 'online', order_count: 1943, total_revenue: 85000, percentage: 68.3 },
+    { channel: 'social', order_count: 571, total_revenue: 25000, percentage: 20.1 },
+    { channel: 'email', order_count: 228, total_revenue: 10000, percentage: 8.0 },
+    { channel: 'direct', order_count: 105, total_revenue: 4500, percentage: 3.6 }
   ]
 
   // Extract data with mock fallbacks
