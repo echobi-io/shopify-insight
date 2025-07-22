@@ -77,6 +77,11 @@ export default function App({ Component, pageProps }: AppProps) {
                       router.pathname.startsWith('/settings') ||
                       router.pathname.startsWith('/subscription')
 
+  // Check for development bypass
+  const isDevelopmentBypass = process.env.NEXT_PUBLIC_CO_DEV_ENV === 'development' || 
+    (typeof window !== 'undefined' && localStorage.getItem('dev-bypass-auth') === 'true') ||
+    (typeof window !== 'undefined' && localStorage.getItem('dev-admin-mode') === 'true');
+
   // Routes that don't require subscription (public pages, install flow, subscription pages)
   const publicRoutes = [
     '/',
@@ -84,10 +89,26 @@ export default function App({ Component, pageProps }: AppProps) {
     '/subscription',
     '/subscription/success'
   ];
+
+  // In development bypass mode, add all routes as public to skip subscription guard
+  const developmentPublicRoutes = isDevelopmentBypass ? [
+    ...publicRoutes,
+    '/dashboard',
+    '/sales-analysis',
+    '/customer-insights',
+    '/product-insights',
+    '/churn-analytics',
+    '/churn-ltv',
+    '/churn-predictions',
+    '/cohort-analysis',
+    '/reports',
+    '/settings'
+  ] : publicRoutes;
   
-  const isPublicRoute = publicRoutes.includes(router.pathname) || 
+  const isPublicRoute = developmentPublicRoutes.includes(router.pathname) || 
                        router.pathname.startsWith('/auth/shopify') ||
-                       router.pathname.startsWith('/api/');
+                       router.pathname.startsWith('/api/') ||
+                       router.pathname.startsWith('/reports/');
 
   // For Shopify app routes, use ShopProvider
   if (isShopifyApp) {
