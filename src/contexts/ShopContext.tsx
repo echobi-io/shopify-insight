@@ -59,7 +59,11 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const isAuthenticated = !!(shop && session?.isActive);
+  // Check for development bypass
+  const isDevelopmentBypass = process.env.NEXT_PUBLIC_CO_DEV_ENV === 'development' || 
+    (typeof window !== 'undefined' && localStorage.getItem('dev-bypass-auth') === 'true');
+
+  const isAuthenticated = isDevelopmentBypass || !!(shop && session?.isActive);
 
   useEffect(() => {
     // Skip if router is not ready
@@ -74,6 +78,29 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       try {
         if (!isMounted) return;
         setIsLoading(true);
+        
+        // Check for development bypass first
+        if (isDevelopmentBypass) {
+          console.log('Development bypass enabled - skipping Shopify authentication');
+          
+          // Set up mock shop and session for development
+          const mockShop = router.query.shop as string || 'dev-shop.myshopify.com';
+          const mockSession: ShopifySession = {
+            id: 'dev-session',
+            shop: mockShop,
+            state: 'dev-state',
+            isOnline: false,
+            scope: 'read_products,read_orders,read_customers',
+            expires: undefined,
+            accessToken: 'dev-access-token',
+            isActive: true
+          };
+          
+          setShop(mockShop);
+          setSession(mockSession);
+          setIsLoading(false);
+          return;
+        }
         
         // Get shop from URL params
         const { shop: shopParam } = router.query;

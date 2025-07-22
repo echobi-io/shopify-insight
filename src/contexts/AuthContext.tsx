@@ -56,10 +56,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Check for dev admin mode first
+        // Check for development bypass (environment variable or localStorage)
+        const isDevelopmentBypass = process.env.NEXT_PUBLIC_CO_DEV_ENV === 'development' || 
+          (typeof window !== 'undefined' && localStorage.getItem('dev-bypass-auth') === 'true');
+        
+        // Also check for legacy dev admin mode
         const devAdminMode = typeof window !== 'undefined' && localStorage.getItem('dev-admin-mode') === 'true';
         
-        if (devAdminMode) {
+        if (isDevelopmentBypass || devAdminMode) {
+          console.log('Development bypass enabled - skipping Supabase authentication');
+          
           // Set up dev admin session
           const mockUser = {
             id: 'admin-dev-user',
@@ -125,9 +131,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Listen for auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Don't override dev admin session
+      // Don't override dev bypass session
+      const isDevelopmentBypass = process.env.NEXT_PUBLIC_CO_DEV_ENV === 'development' || 
+        (typeof window !== 'undefined' && localStorage.getItem('dev-bypass-auth') === 'true');
       const devAdminMode = typeof window !== 'undefined' && localStorage.getItem('dev-admin-mode') === 'true';
-      if (devAdminMode) return;
+      
+      if (isDevelopmentBypass || devAdminMode) return;
 
       setUser(session?.user ?? null);
       
@@ -240,10 +249,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const signOut = async () => {
-    // Clear dev admin mode
+    // Clear dev bypass modes
     if (typeof window !== 'undefined') {
       localStorage.removeItem('dev-admin-mode');
       localStorage.removeItem('dev-admin-merchant-id');
+      localStorage.removeItem('dev-bypass-auth');
     }
     
     const { error } = await supabase.auth.signOut();

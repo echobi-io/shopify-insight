@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import { BarChart3, Mail, Lock, ArrowLeft } from 'lucide-react'
 import GoogleButton from '@/components/GoogleButton'
+import { DevBypassToggle } from '@/components/DevBypassToggle'
 import Link from 'next/link'
 
 export default function LoginPage() {
@@ -251,6 +252,9 @@ export default function LoginPage() {
             )}
           </CardContent>
         </Card>
+        
+        {/* Development Bypass Toggle */}
+        <DevBypassToggle />
       </div>
     </div>
   )
