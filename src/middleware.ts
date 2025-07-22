@@ -55,7 +55,7 @@ export function middleware(request: NextRequest) {
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https: blob:",
       "connect-src 'self' https://*.supabase.co https://*.myshopify.com https://api.openai.com https://api.stripe.com https://monorail-edge.shopifysvc.com https://*.shopifycloud.com",
-      "frame-ancestors 'self' https://*.myshopify.com https://admin.shopify.com https://accounts.shopify.com",
+      "frame-ancestors 'self' https://*.myshopify.com https://admin.shopify.com https://accounts.shopify.com https://*.co.dev https://*.preview.co.dev",
       "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://accounts.shopify.com",
       "worker-src 'self' blob:",
       "object-src 'none'",

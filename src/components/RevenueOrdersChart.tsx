@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatCurrency } from '@/lib/utils/settingsUtils'
+import { sanitizeChartData, formatChartDateLabel, formatChartTooltipLabel } from '@/lib/utils/chartDateUtils'
 
 interface ChartDataPoint {
   date: string
@@ -91,37 +92,10 @@ const RevenueOrdersChart: React.FC<RevenueOrdersChartProps> = ({
     return new Intl.NumberFormat('en-US').format(value)
   }
 
-  const formatDateLabel = (value: string) => {
-    if (granularity === 'daily') {
-      return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    } else if (granularity === 'weekly') {
-      return value.replace('Week of ', '')
-    } else if (granularity === 'monthly') {
-      const [year, month] = value.split('-')
-      return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-    } else if (granularity === 'quarterly') {
-      return value
-    } else if (granularity === 'yearly') {
-      return value
-    }
-    return value
-  }
-
-  const formatTooltipLabel = (value: string) => {
-    if (granularity === 'daily') {
-      return new Date(value).toLocaleDateString()
-    } else if (granularity === 'weekly') {
-      return value
-    } else if (granularity === 'monthly') {
-      const [year, month] = value.split('-')
-      return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-    } else if (granularity === 'quarterly') {
-      return value
-    } else if (granularity === 'yearly') {
-      return value
-    }
-    return value
-  }
+  // Sanitize chart data to prevent moment.js deprecation warnings
+  const sanitizedData = useMemo(() => {
+    return sanitizeChartData(data || [], 'date')
+  }, [data])
 
   const handleDataPointClick = (dataPoint: any) => {
     if (dataPoint && dataPoint.activePayload && dataPoint.activePayload[0]) {
@@ -230,7 +204,7 @@ const RevenueOrdersChart: React.FC<RevenueOrdersChartProps> = ({
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart 
-                data={data}
+                data={sanitizedData}
                 onClick={handleDataPointClick}
                 style={{ cursor: 'pointer' }}
               >
@@ -239,12 +213,12 @@ const RevenueOrdersChart: React.FC<RevenueOrdersChartProps> = ({
                   dataKey="date" 
                   fontSize={12}
                   stroke="#666"
-                  tickFormatter={formatDateLabel}
+                  tickFormatter={(value) => formatChartDateLabel(value, granularity)}
                 />
                 <YAxis yAxisId="revenue" orientation="left" fontSize={12} stroke="#3b82f6" />
                 <YAxis yAxisId="orders" orientation="right" fontSize={12} stroke="#10b981" />
                 <Tooltip 
-                  labelFormatter={formatTooltipLabel}
+                  labelFormatter={(value) => formatChartTooltipLabel(value, granularity)}
                   formatter={(value: any, name: string) => [
                     name === 'total_revenue' ? formatCurrency(value) : formatNumber(value),
                     name === 'total_revenue' ? 'Revenue' : 'Orders'
@@ -290,7 +264,7 @@ const RevenueOrdersChart: React.FC<RevenueOrdersChartProps> = ({
                   <span className="text-sm font-medium text-blue-900">Peak Revenue Day</span>
                 </div>
                 <p className="text-sm text-blue-800">
-                  {formatTooltipLabel(insights.peakRevenue.date)} • {formatCurrency(insights.peakRevenue.total_revenue)}
+                  {formatChartTooltipLabel(insights.peakRevenue.date, granularity)} • {formatCurrency(insights.peakRevenue.total_revenue)}
                 </p>
               </div>
               <div className="p-3 bg-green-50 rounded-lg">
@@ -299,7 +273,7 @@ const RevenueOrdersChart: React.FC<RevenueOrdersChartProps> = ({
                   <span className="text-sm font-medium text-green-900">Peak Orders Day</span>
                 </div>
                 <p className="text-sm text-green-800">
-                  {formatTooltipLabel(insights.peakOrders.date)} • {formatNumber(insights.peakOrders.total_orders)} orders
+                  {formatChartTooltipLabel(insights.peakOrders.date, granularity)} • {formatNumber(insights.peakOrders.total_orders)} orders
                 </p>
               </div>
             </div>
@@ -316,7 +290,7 @@ const RevenueOrdersChart: React.FC<RevenueOrdersChartProps> = ({
               Performance Details
             </DialogTitle>
             <DialogDescription>
-              Detailed breakdown for {selectedDataPoint ? formatTooltipLabel(selectedDataPoint.date) : ''}
+              Detailed breakdown for {selectedDataPoint ? formatChartTooltipLabel(selectedDataPoint.date, granularity) : ''}
             </DialogDescription>
           </DialogHeader>
           

@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { TrendingUp, Calendar } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils/settingsUtils'
+import { sanitizeChartData, formatChartDateLabel, formatChartTooltipLabel } from '@/lib/utils/chartDateUtils'
 
 interface ChartDataPoint {
   date: string
@@ -37,24 +38,10 @@ const SimpleRevenueChart: React.FC<SimpleRevenueChartProps> = ({
     return new Intl.NumberFormat('en-US').format(value)
   }
 
-  const formatDateLabel = (value: string) => {
-    try {
-      if (granularity === 'daily') {
-        return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      } else if (granularity === 'weekly') {
-        return value.replace('Week of ', '')
-      } else if (granularity === 'monthly') {
-        const [year, month] = value.split('-')
-        if (year && month) {
-          return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-        }
-      }
-      return value
-    } catch (error) {
-      console.warn('Date formatting error:', error, value)
-      return value
-    }
-  }
+  // Sanitize chart data to prevent moment.js deprecation warnings
+  const sanitizedData = useMemo(() => {
+    return sanitizeChartData(data || [], 'date')
+  }, [data])
 
   if (loading) {
     return (
@@ -131,17 +118,18 @@ const SimpleRevenueChart: React.FC<SimpleRevenueChartProps> = ({
         {/* Chart */}
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data}>
+            <LineChart data={sanitizedData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis 
                 dataKey="date" 
                 fontSize={12}
                 stroke="#666"
-                tickFormatter={formatDateLabel}
+                tickFormatter={(value) => formatChartDateLabel(value, granularity)}
               />
               <YAxis yAxisId="revenue" orientation="left" fontSize={12} stroke="#3b82f6" />
               <YAxis yAxisId="orders" orientation="right" fontSize={12} stroke="#10b981" />
               <Tooltip 
+                labelFormatter={(value) => formatChartTooltipLabel(value, granularity)}
                 formatter={(value: any, name: string) => [
                   name === 'total_revenue' ? formatCurrency(value) : formatNumber(value),
                   name === 'total_revenue' ? 'Revenue' : 'Orders'
