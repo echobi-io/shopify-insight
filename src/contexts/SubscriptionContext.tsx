@@ -22,6 +22,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     (typeof window !== 'undefined' && localStorage.getItem('dev-admin-mode') === 'true');
 
   const checkSubscription = async () => {
+    console.log('SubscriptionContext: Checking subscription...');
+    console.log('SubscriptionContext: Environment variable NEXT_PUBLIC_CO_DEV_ENV:', process.env.NEXT_PUBLIC_CO_DEV_ENV);
+    console.log('SubscriptionContext: localStorage dev-bypass-auth:', typeof window !== 'undefined' ? localStorage.getItem('dev-bypass-auth') : 'N/A (server)');
+    console.log('SubscriptionContext: localStorage dev-admin-mode:', typeof window !== 'undefined' ? localStorage.getItem('dev-admin-mode') : 'N/A (server)');
+    console.log('SubscriptionContext: isDevelopmentBypass:', isDevelopmentBypass);
+
     // If development bypass is enabled, always return active subscription
     if (isDevelopmentBypass) {
       console.log('Development bypass enabled - subscription check bypassed');
@@ -30,6 +36,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       setIsLoading(false);
       return;
     }
+=======
 
     const { shop } = router.query;
     

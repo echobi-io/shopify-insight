@@ -110,6 +110,14 @@ export default function App({ Component, pageProps }: AppProps) {
                        router.pathname.startsWith('/api/') ||
                        router.pathname.startsWith('/reports/');
 
+  // Debug logging
+  console.log('_app.tsx: Current pathname:', router.pathname);
+  console.log('_app.tsx: Environment variable NEXT_PUBLIC_CO_DEV_ENV:', process.env.NEXT_PUBLIC_CO_DEV_ENV);
+  console.log('_app.tsx: isDevelopmentBypass:', isDevelopmentBypass);
+  console.log('_app.tsx: isShopifyApp:', isShopifyApp);
+  console.log('_app.tsx: isPublicRoute:', isPublicRoute);
+  console.log('_app.tsx: developmentPublicRoutes:', developmentPublicRoutes);
+
   // For Shopify app routes, use ShopProvider
   if (isShopifyApp) {
     return (

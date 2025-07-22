@@ -13,6 +13,9 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
   const { isActive, isLoading } = useSubscription();
   const router = useRouter();
 
+  console.log('SubscriptionGuard: isActive:', isActive);
+  console.log('SubscriptionGuard: isLoading:', isLoading);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
