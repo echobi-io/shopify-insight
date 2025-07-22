@@ -61,6 +61,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
 
   // Check for development bypass
   const isDevelopmentBypass = process.env.NEXT_PUBLIC_CO_DEV_ENV === 'development' || 
+    process.env.NEXT_PUBLIC_CO_DEV_ENV === 'preview' ||
     (typeof window !== 'undefined' && localStorage.getItem('dev-bypass-auth') === 'true');
 
   const isAuthenticated = isDevelopmentBypass || !!(shop && session?.isActive);

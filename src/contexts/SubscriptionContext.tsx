@@ -18,6 +18,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
 
   // Check for development bypass
   const isDevelopmentBypass = process.env.NEXT_PUBLIC_CO_DEV_ENV === 'development' || 
+    process.env.NEXT_PUBLIC_CO_DEV_ENV === 'preview' ||
     (typeof window !== 'undefined' && localStorage.getItem('dev-bypass-auth') === 'true') ||
     (typeof window !== 'undefined' && localStorage.getItem('dev-admin-mode') === 'true');
 

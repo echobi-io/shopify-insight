@@ -58,6 +58,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         // Check for development bypass (environment variable or localStorage)
         const isDevelopmentBypass = process.env.NEXT_PUBLIC_CO_DEV_ENV === 'development' || 
+          process.env.NEXT_PUBLIC_CO_DEV_ENV === 'preview' ||
           (typeof window !== 'undefined' && localStorage.getItem('dev-bypass-auth') === 'true');
         
         // Also check for legacy dev admin mode
@@ -133,6 +134,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       // Don't override dev bypass session
       const isDevelopmentBypass = process.env.NEXT_PUBLIC_CO_DEV_ENV === 'development' || 
+        process.env.NEXT_PUBLIC_CO_DEV_ENV === 'preview' ||
         (typeof window !== 'undefined' && localStorage.getItem('dev-bypass-auth') === 'true');
       const devAdminMode = typeof window !== 'undefined' && localStorage.getItem('dev-admin-mode') === 'true';
       
