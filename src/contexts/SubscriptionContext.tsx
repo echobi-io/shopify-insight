@@ -16,7 +16,21 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  // Check for development bypass
+  const isDevelopmentBypass = process.env.NEXT_PUBLIC_CO_DEV_ENV === 'development' || 
+    (typeof window !== 'undefined' && localStorage.getItem('dev-bypass-auth') === 'true') ||
+    (typeof window !== 'undefined' && localStorage.getItem('dev-admin-mode') === 'true');
+
   const checkSubscription = async () => {
+    // If development bypass is enabled, always return active subscription
+    if (isDevelopmentBypass) {
+      console.log('Development bypass enabled - subscription check bypassed');
+      setIsActive(true);
+      setStatus('active');
+      setIsLoading(false);
+      return;
+    }
+
     const { shop } = router.query;
     
     if (!shop || typeof shop !== 'string') {

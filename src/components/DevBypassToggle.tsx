@@ -27,13 +27,13 @@ export function DevBypassToggle() {
         localStorage.setItem('dev-bypass-auth', 'true');
         toast({
           title: "Development Bypass Enabled",
-          description: "Authentication will be bypassed. Refresh the page to apply changes.",
+          description: "Authentication and subscription will be bypassed. Refresh the page to apply changes.",
         });
       } else {
         localStorage.removeItem('dev-bypass-auth');
         toast({
           title: "Development Bypass Disabled",
-          description: "Normal authentication will be required. Refresh the page to apply changes.",
+          description: "Normal authentication and subscription will be required. Refresh the page to apply changes.",
         });
       }
       setIsDevBypass(newState);
@@ -57,7 +57,7 @@ export function DevBypassToggle() {
           <Badge variant="secondary">DEV ONLY</Badge>
         </CardTitle>
         <CardDescription>
-          Toggle authentication bypass for development purposes
+          Toggle authentication and subscription bypass for development purposes
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -83,7 +83,7 @@ export function DevBypassToggle() {
             />
           </div>
           <p className="text-sm text-muted-foreground">
-            Toggle authentication bypass using localStorage
+            Toggle authentication and subscription bypass using localStorage
           </p>
         </div>
 
@@ -97,7 +97,8 @@ export function DevBypassToggle() {
           <p><strong>Current Status:</strong></p>
           <p>• Environment: {isEnvBypass ? '✅ Bypassed' : '❌ Normal'}</p>
           <p>• Local Storage: {isDevBypass ? '✅ Bypassed' : '❌ Normal'}</p>
-          <p>• Overall: {(isEnvBypass || isDevBypass) ? '✅ Authentication Bypassed' : '❌ Authentication Required'}</p>
+          <p>• Authentication: {(isEnvBypass || isDevBypass) ? '✅ Bypassed' : '❌ Required'}</p>
+          <p>• Subscription: {(isEnvBypass || isDevBypass) ? '✅ Bypassed' : '❌ Required'}</p>
         </div>
       </CardContent>
     </Card>
